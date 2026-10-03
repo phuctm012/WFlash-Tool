@@ -1,0 +1,19 @@
+# Ví dụ profile SAF85xx. Tên entry/Application phải trùng với workspace winIDEA
+# (lấy từ kết quả spike 02_dump_options).
+name: SAF85xx_Radar
+gitlab:
+  project: group/saf85xx-sw     # path hoặc id project
+  job_filter: "build_*"         # glob tên job hiển thị
+programs:                       # entry download có sẵn trong workspace (trỏ tới Winbond ext flash)
+  - winidea_entry: "App"
+    pattern: "**/*App*.s3"
+applications:                   # file symbol cho từng Application/core
+  - winidea_app: "CM7_0"
+    pattern: "**/*cm7_0*.elf"
+  - winidea_app: "CM7_1"
+    pattern: "**/*cm7_1*.elf"
+post_flash:
+  reset: true
+  run: false
+timeouts:
+  download_s: 600
