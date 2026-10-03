@@ -115,8 +115,8 @@ def test_rollback_failure_recorded(rows):
     adapter = FakeWinIDEAAdapter(fail_on={"set_path"})
     ctx, _, _, error = run(adapter, rows)
     assert isinstance(error, WinIDEAError) and "set_path" in str(error)
-    assert ctx.errors == []  # nothing was written, so nothing needed restoring
-    assert error.rollback_failed is False
+    assert len(ctx.errors) == 1  # the failed set is restored too, and that restore failed as well
+    assert error.rollback_failed is True
 
 
 def test_second_path_failure_restores_first(rows):
@@ -213,7 +213,7 @@ def test_unwritten_entry_not_touched_on_rollback(rows):
     adapter.touched = []
     error = run(adapter, rows)[3]
     assert isinstance(error, WinIDEAError)
-    assert adapter.touched == ["CM7_0"]  # failed once; never restored, CM7_1 never touched
+    assert adapter.touched == ["CM7_0", "CM7_0"]  # failed set is restored too; CM7_1 never touched
     assert adapter.programs["App"] == OLD_APP
     assert error.rollback_failed is False
 
@@ -261,5 +261,24 @@ def test_snapshot_failure_after_rollback_not_reported_as_rollback_failure(rows):
     adapter = SnapFails(download_seconds=0.02, fail_on={"download"})
     ctx, _, _, error = run(adapter, rows)
     assert isinstance(error, FlashError)
+    assert adapter.programs["App"] == OLD_APP
+    assert error.rollback_failed is False
+
+
+def test_set_that_raises_after_applying_is_restored(rows):
+    class WritesThenRaises(FakeWinIDEAAdapter):
+        sets = 0
+
+        def set_symbol_path(self, name, path):
+            self.sets += 1
+            if self.sets == 1:
+                self.applications[name] = path
+                raise WinIDEAError("Connection lost after write")
+            super().set_symbol_path(name, path)
+
+    adapter = WritesThenRaises(download_seconds=0.02)
+    error = run(adapter, rows)[3]
+    assert isinstance(error, WinIDEAError) and "after write" in str(error)
+    assert adapter.applications["CM7_0"] == r"C:\fake\old\cm7_0.elf"
     assert adapter.programs["App"] == OLD_APP
     assert error.rollback_failed is False

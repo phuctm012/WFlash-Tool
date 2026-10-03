@@ -91,8 +91,9 @@ class FlashWorkflow:
         try:
             self._step(Step.SET_PATHS)
             for row in req.mapping:
-                self._set_path(row.kind, row.target, str(row.selected.resolve()))
+                # Recorded before the call: a set that raises may still have been applied.
                 written.append((row.kind, row.target, old[(row.kind, row.target)]))
+                self._set_path(row.kind, row.target, str(row.selected.resolve()))
             self._read_current("after_set")
             cancel.raise_if_cancelled()
             self._step(Step.DOWNLOAD)

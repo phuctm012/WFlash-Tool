@@ -256,3 +256,15 @@ Review tìm ra 3 lỗi rollback quan trọng trong `FlashWorkflow`: rollback d�
 - `~/.venvs/wflash/bin/pytest tests/test_flash_workflow.py -q` (RED, code cũ): `8 failed, 10 passed` ✓ (expected).
 - `~/.venvs/wflash/bin/pytest tests/test_flash_workflow.py -v -W error` (GREEN): `18 passed in 0.42s` ✓.
 - `~/.venvs/wflash/bin/pytest -q`: `113 passed in 0.67s` ✓.
+
+### Fix Round 2 (R16)
+
+Re-review phát hiện một lỗ hổng còn lại: entry chỉ được ghi vào danh sách `written` sau khi `_set_path` trả về. Với adapter COM/SDK thật, một lệnh set ném lỗi (mất kết nối hoặc timeout sau khi đã gửi request) có thể đã được áp dụng, khiến entry đó kẹt ở path mới mà không ai biết.
+
+- **`wflash/core/flash_workflow.py`**: entry được thêm vào `written` ngay TRƯỚC khi gọi `_set_path`, nên entry có lệnh set ném lỗi cũng được restore (ghi lại giá trị cũ vô hại); các entry sau đó vẫn không nhận lệnh set nào.
+- **`tests/test_flash_workflow.py`**: thêm `test_set_that_raises_after_applying_is_restored`; `test_unwritten_entry_not_touched_on_rollback` nay mong đợi `["CM7_0", "CM7_0"]`; `test_rollback_failure_recorded` nay mong đợi 1 lỗi ghi nhận và `rollback_failed is True`.
+
+Đã kiểm tra:
+- `~/.venvs/wflash/bin/pytest tests/test_flash_workflow.py -q` (RED, code cũ): `3 failed, 16 passed` ✓ (expected).
+- `~/.venvs/wflash/bin/pytest tests/test_flash_workflow.py -v -W error` (GREEN): `19 passed in 0.42s` ✓.
+- `~/.venvs/wflash/bin/pytest -q`: `114 passed in 0.77s` ✓.
