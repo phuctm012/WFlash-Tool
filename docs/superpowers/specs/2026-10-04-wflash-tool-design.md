@@ -53,7 +53,7 @@ Vì tên option path cụ thể trong winIDEA 9.21 chưa được xác minh, **P
 wflash/
 ├── core/                    # Không phụ thuộc Qt
 │   ├── errors.py            # GitLabError, ArtifactError, MappingError, WinIDEAError, FlashError
-│   ├── gitlab_client.py     # python-gitlab: branch/tag → pipeline → job có artifact; tải zip
+│   ├── gitlab_client.py     # requests + GitLab REST v4: branch/tag → pipeline → job có artifact; tải zip
 │   ├── artifact_cache.py    # cache theo job_id, giải nén, giới hạn số job, xóa cache
 │   ├── profile.py           # đọc/validate profile YAML (pydantic)
 │   ├── file_matcher.py      # match file trong artifact theo pattern → mapping entry/core
@@ -86,8 +86,8 @@ class WinIDEAAdapter(Protocol):
     def list_instances(self) -> list[InstanceInfo]: ...
     def connect(self, instance_id: str) -> None: ...
     def get_info(self) -> dict: ...                     # version winIDEA, workspace path
-    def read_programs(self) -> list[ProgramEntry]: ...  # download files hiện tại
-    def read_applications(self) -> list[AppEntry]: ...  # symbol files theo core
+    def read_programs(self) -> list[FileEntry]: ...      # download files hiện tại
+    def read_applications(self) -> list[FileEntry]: ...  # symbol files theo core
     def set_program_path(self, entry: str, path: Path) -> None: ...
     def set_symbol_path(self, app: str, path: Path) -> None: ...
     def download(self, progress_cb, cancel_token, timeout_s: int) -> None: ...
@@ -186,5 +186,5 @@ Kết quả spike chốt interface `WinIDEAAdapter` và tên entry thật trong 
 
 ## 11. Đóng gói
 
-- `pyproject.toml` (Python 3.11+), dependency: `PySide6`, `python-gitlab`, `pydantic`, `PyYAML`, `keyring`; `isystem.connect` là dependency tùy chọn chỉ trên Windows.
+- `pyproject.toml` (Python 3.11+), dependency: `PySide6`, `requests`, `pydantic`, `PyYAML`, `keyring`; `isystem.connect` là dependency tùy chọn chỉ trên Windows.
 - PyInstaller spec tạo `.exe` một thư mục (onedir) cho Windows.
