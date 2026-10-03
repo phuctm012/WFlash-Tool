@@ -197,3 +197,19 @@ Phase này thêm lớp cấu hình người dùng: settings lưu JSON trong thư
 - **`wflash/core/settings.py`**: `AppSettings.load` chỉ nhận giá trị đúng kiểu của default (bool phải là bool thật, int không phải bool), sai kiểu thì cảnh báo và dùng default; `set_token` bọc `KeyringError` thành `GitLabError` kèm hint.
 - **`tests/test_settings.py`**: thêm 3 test (kiểu sai, bool không được nhận là int, lỗi keyring khi set_token); bỏ import `Path` thừa.
 - RED/GREEN và full suite: xem mục Fix Round 1 của Phase 1.7 (chạy chung 2 file test): 28 passed, toàn bộ 77 passed ✓.
+
+## Phase 1.9: Adapter interface và fake adapter
+
+Phase này vạch ranh giới giữa workflow flash và winIDEA: toàn bộ code phía trên chỉ nói chuyện với giao diện `WinIDEAAdapter`, chỉ adapter thật (Plan 2) mới được import `isystem.connect`. Fake adapter được viết trước để GUI, workflow flash và stress test chạy được mọi nhánh lỗi/rollback ngay trên macOS, nơi không có winIDEA, nên khả năng chèn lỗi (failure injection) là phần quan trọng nhất.
+
+### Thay đổi
+
+- **`wflash/core/winidea_adapter.py`** (mới): `ProgressCallback`, `InstanceInfo` (có `label()`), `FileEntry`, Protocol `WinIDEAAdapter` và `create_adapter` (`"fake"` trả fake từ biến môi trường, `"real"` báo `WinIDEAError` cho tới Plan 2, loại khác `ValueError`).
+- **`wflash/core/fake_adapter.py`** (mới): `FakeWinIDEAAdapter` giữ trạng thái trong bộ nhớ; chèn lỗi qua `fail_on` hoặc `WFLASH_FAKE_FAIL`: `connect`, `set_path`, `read_programs`, `read_applications`, `reset`, `download` (lỗi giữa chừng), `list_instances` (trả `[]`), `connection_lost` (connect thành công, các lệnh sau báo "Connection to winIDEA lost", `disconnect` vẫn chạy). Hỗ trợ cancel và timeout khi download.
+- **`tests/test_fake_adapter.py`** (mới): 14 test gồm kết nối, đường dẫn, download/reset, các kiểu lỗi chèn, cancel, timeout, `from_env`, `create_adapter`.
+
+### Đã kiểm tra
+
+- `~/.venvs/wflash/bin/pytest tests/test_fake_adapter.py -v` (RED): `ModuleNotFoundError: No module named 'wflash.core.fake_adapter'` ✓ (expected).
+- `~/.venvs/wflash/bin/pytest tests/test_fake_adapter.py -v -W error` (GREEN): 14 passed ✓.
+- `~/.venvs/wflash/bin/pytest -q`: 91 passed ✓.
