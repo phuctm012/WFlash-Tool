@@ -113,14 +113,14 @@ Phase này xây dựng schema cho profile — một YAML file khai báo project 
 ### Thay đổi
 
 - **`profiles/saf85xx_example.yaml`** (mới): ví dụ profile cho SAF85xx, khai báo 1 program entry "App" match `**/*App*.s3` và 2 application entries "CM7_0", "CM7_1" match theo pattern, timeout download 600s, reset sau flash.
-- **`wflash/core/profile.py`** (mới): Pydantic models cho `GitLabSpec`, `ProgramSpec`, `ApplicationSpec`, `PostFlash`, `Timeouts`, `Profile` với validator `_unique_targets()` để bảo đảm không trùng tên entry; hàm `load_profile(path)` để load YAML với error handling (OSError → `ProfileError`, YAMLError → `ProfileError`, non-dict → `ProfileError`, validation error → `ProfileError`); hàm `list_profiles(directory)` để liệt kê `.yaml`/`.yml` file theo tên.
-- **`tests/test_profile.py`** (mới): 10 test cases — load example, apply default, missing program rejected, unknown key rejected, duplicate entry rejected, invalid YAML rejected, non-mapping rejected, file not found rejected, list sorted, missing dir.
+- **`wflash/core/profile.py`** (mới): Pydantic models cho `GitLabSpec`, `ProgramSpec`, `ApplicationSpec`, `PostFlash`, `Timeouts`, `Profile` với validator `_unique_targets()` để bảo đảm không trùng tên entry; hàm `load_profile(path)` để load YAML với error handling (OSError, UnicodeError → `ProfileError`, YAMLError → `ProfileError`, non-dict → `ProfileError`, validation error → `ProfileError`); hàm `list_profiles(directory)` để liệt kê `.yaml`/`.yml` file theo tên.
+- **`tests/test_profile.py`** (mới): 11 test cases — load example, apply default, missing program rejected, unknown key rejected, duplicate entry rejected, invalid YAML rejected, non-mapping rejected, file not found rejected, non-UTF8 file rejected, list sorted, missing dir. (Fix R1: added test_non_utf8_file_rejected).
 
 ### Đã kiểm tra
 
-- `~/.venvs/wflash/bin/pytest tests/test_profile.py -v` (RED): `ModuleNotFoundError: No module named 'wflash.core.profile'` ✓ (expected).
-- `~/.venvs/wflash/bin/pytest tests/test_profile.py -v` (GREEN): 10 passed ✓.
-- `~/.venvs/wflash/bin/pytest -q`: 33 passed ✓ (23 trước + 10 task 1.4).
+- `~/.venvs/wflash/bin/pytest tests/test_profile.py::test_non_utf8_file_rejected -v` (RED): `UnicodeDecodeError` escapes from load_profile.
+- `~/.venvs/wflash/bin/pytest tests/test_profile.py::test_non_utf8_file_rejected -v` (GREEN): 1 passed ✓.
+- `~/.venvs/wflash/bin/pytest tests/test_profile.py -v`: 11 passed ✓.
 
 ## Phase 1.5: File matcher
 
@@ -143,12 +143,12 @@ Phase này xây dựng artifact cache để lưu trữ extracted artifact files 
 
 ### Thay đổi
 
-- **`wflash/core/artifact_cache.py`** (mới): `ArtifactCache` class với root path và max_jobs; `job_dir(project_id, job_id)` trả Path; `get(project_id, job_id)` trả `files/` dir nếu cached (touch marker để update mtime), None nếu miss; `store_zip(project_id, job_id, zip_path)` extract tới `.tmp`, validate với `_safe_extract()` reject unsafe path, write `.complete` marker, atomically move tới final, prune, return `files/` dir; `entries()` liệt kê tất cả cached entries; `prune()` keep only max_jobs most recent by mtime; `clear()` xóa toàn bộ cache. Exception xử lý: `BadZipFile` → `ArtifactError`, unsafe path → `ArtifactError`, fail extraction → cleanup `.tmp` rồi re-raise.
-- **`tests/test_artifact_cache.py`** (mới): 5 test cases — miss then store then hit, bad zip leaves no entry, zip slip rejected, prune keeps most recent, clear.
+- **`wflash/core/artifact_cache.py`** (mới): `ArtifactCache` class với root path và max_jobs; `job_dir(project_id, job_id)` trả Path; `get(project_id, job_id)` trả `files/` dir nếu cached (touch marker để update mtime), None nếu miss; `store_zip(project_id, job_id, zip_path)` extract tới `.tmp` với error handling (OSError → `ArtifactError`, BadZipFile → `ArtifactError`, unsafe path → `ArtifactError` với hint riêng), cleanup `.tmp` trên exception, write `.complete` marker, atomically move tới final, prune, return `files/` dir; `entries()` liệt kê cached entries (exclude `.tmp`); `prune()` keep only max_jobs most recent by mtime, remove stale `.tmp` dirs, remove incomplete job dirs (no marker); `clear()` xóa toàn bộ cache.
+- **`tests/test_artifact_cache.py`** (mới): 8 test cases — miss then store then hit, bad zip leaves no entry, zip slip rejected, prune keeps most recent, clear, missing zip_path raises and no tmp left, restore same job replaces content, leftover tmp and incomplete dirs cleaned. (Fix R2-R3: added missing_zip, restore, and cleanup tests).
 
 ### Đã kiểm tra
 
-- `~/.venvs/wflash/bin/pytest tests/test_artifact_cache.py -v` (RED): `ModuleNotFoundError: No module named 'wflash.core.artifact_cache'` ✓ (expected).
-- `~/.venvs/wflash/bin/pytest tests/test_artifact_cache.py -v` (GREEN): 5 passed ✓.
-- `~/.venvs/wflash/bin/pytest -q`: 44 passed ✓ (39 trước + 5 task 1.6).
+- `~/.venvs/wflash/bin/pytest tests/test_artifact_cache.py::test_missing_zip_raises_and_no_tmp_left tests/test_artifact_cache.py::test_restore_same_job_replaces_content tests/test_artifact_cache.py::test_leftover_tmp_and_incomplete_dirs_cleaned -v` (RED): FileNotFoundError not caught, .tmp dirs not cleaned.
+- `~/.venvs/wflash/bin/pytest tests/test_artifact_cache.py::test_missing_zip_raises_and_no_tmp_left tests/test_artifact_cache.py::test_restore_same_job_replaces_content tests/test_artifact_cache.py::test_leftover_tmp_and_incomplete_dirs_cleaned -v` (GREEN): 3 passed ✓.
+- `~/.venvs/wflash/bin/pytest tests/test_artifact_cache.py -v`: 8 passed ✓.
 
