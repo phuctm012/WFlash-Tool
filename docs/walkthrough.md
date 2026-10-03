@@ -106,3 +106,49 @@ Bản đầu tiên che header `PRIVATE-TOKEN`; sau đó (fix round 1, R8) mở r
 - `~/.venvs/wflash/bin/pytest tests/test_logging_setup.py -v` (GREEN): 13 passed ✓.
 - `~/.venvs/wflash/bin/pytest -q`: 23 passed ✓ (10 từ task 1.2 + 13 từ task 1.3).
 
+## Phase 1.4: Profile
+
+Phase này xây dựng schema cho profile — một YAML file khai báo project GitLab, các entry program/application từ workspace winIDEA, pattern để match file trong artifact, và các thông số timeout/reset. Mục đích là có bộ quy tắc khép kín để kiểm chứng user input (profile file) **trước** khi sử dụng — không để lỏng lẻo hoặc đoán. Pydantic làm công việc validation: duplicate entry bị từ chối, key lạ bị từ chối, miss required field bị từ chối. Example profile cho SAF85xx ghi rõ tên entry mà workspace phải có sẵn (từ spike 02_dump_options) và pattern để match file.
+
+### Thay đổi
+
+- **`profiles/saf85xx_example.yaml`** (mới): ví dụ profile cho SAF85xx, khai báo 1 program entry "App" match `**/*App*.s3` và 2 application entries "CM7_0", "CM7_1" match theo pattern, timeout download 600s, reset sau flash.
+- **`wflash/core/profile.py`** (mới): Pydantic models cho `GitLabSpec`, `ProgramSpec`, `ApplicationSpec`, `PostFlash`, `Timeouts`, `Profile` với validator `_unique_targets()` để bảo đảm không trùng tên entry; hàm `load_profile(path)` để load YAML với error handling (OSError → `ProfileError`, YAMLError → `ProfileError`, non-dict → `ProfileError`, validation error → `ProfileError`); hàm `list_profiles(directory)` để liệt kê `.yaml`/`.yml` file theo tên.
+- **`tests/test_profile.py`** (mới): 10 test cases — load example, apply default, missing program rejected, unknown key rejected, duplicate entry rejected, invalid YAML rejected, non-mapping rejected, file not found rejected, list sorted, missing dir.
+
+### Đã kiểm tra
+
+- `~/.venvs/wflash/bin/pytest tests/test_profile.py -v` (RED): `ModuleNotFoundError: No module named 'wflash.core.profile'` ✓ (expected).
+- `~/.venvs/wflash/bin/pytest tests/test_profile.py -v` (GREEN): 10 passed ✓.
+- `~/.venvs/wflash/bin/pytest -q`: 33 passed ✓ (23 trước + 10 task 1.4).
+
+## Phase 1.5: File matcher
+
+Phase này xây dựng matching engine để map file từ artifact tới entry/application trong profile. Mục đích là tách rõ phần pattern matching logic (không phụ thuộc profile schema) từ phần áp dụng logic vào từng profile instance. Quy tắc matching: `*` khớp across path separator (posix style), `**/` đầu pattern cũng khớp file gốc, không phân biệt hoa thường. Nếu một pattern match nhiều file → để user chọn (mapping row không "ok"). Nếu một pattern match đúng 1 file → auto-select (mapping row "ok"). Nếu 0 file → mapping row không "ok", pending user chọn.
+
+### Thay đổi
+
+- **`wflash/core/file_matcher.py`** (mới): `MappingRow` dataclass (kind, target, pattern, candidates, selected) với `.ok` property (selected is not None) và `.to_dict()` method; `match_pattern(rel_posix, pattern)` để match case-insensitive; `build_mapping(profile, root)` để tính toàn bộ mapping; `candidates_for_kind(root, kind)` để liệt kê file theo kiểu (program: .s3/.srec/.s19/.mot, application: .elf); `PROGRAM_SUFFIXES` và `SYMBOL_SUFFIXES` constant.
+- **`tests/test_file_matcher.py`** (mới): 6 test cases — match pattern rules, single candidate auto-select, multiple candidate not select, zero candidate, candidates by kind, to_dict serialization.
+
+### Đã kiểm tra
+
+- `~/.venvs/wflash/bin/pytest tests/test_file_matcher.py -v` (RED): `ModuleNotFoundError: No module named 'wflash.core.file_matcher'` ✓ (expected).
+- `~/.venvs/wflash/bin/pytest tests/test_file_matcher.py -v` (GREEN): 6 passed ✓.
+- `~/.venvs/wflash/bin/pytest -q`: 39 passed ✓ (33 trước + 6 task 1.5).
+
+## Phase 1.6: Artifact cache
+
+Phase này xây dựng artifact cache để lưu trữ extracted artifact files trên disk, organized by project_id/job_id. Mục đích là tránh phải download lại cùng artifact job nhiều lần trong session, đặc biệt tiếp theo nếu user "Refresh" GitLab browser hay thay profile. Cache có max_jobs limit (default 10) và prune oldest-by-mtime khi exceed. Extraction phải an toàn: reject path như `../../evil.txt` (zip slip). File `.complete` marker để mark cache entry thành công (dùng mtime để track "last used").
+
+### Thay đổi
+
+- **`wflash/core/artifact_cache.py`** (mới): `ArtifactCache` class với root path và max_jobs; `job_dir(project_id, job_id)` trả Path; `get(project_id, job_id)` trả `files/` dir nếu cached (touch marker để update mtime), None nếu miss; `store_zip(project_id, job_id, zip_path)` extract tới `.tmp`, validate với `_safe_extract()` reject unsafe path, write `.complete` marker, atomically move tới final, prune, return `files/` dir; `entries()` liệt kê tất cả cached entries; `prune()` keep only max_jobs most recent by mtime; `clear()` xóa toàn bộ cache. Exception xử lý: `BadZipFile` → `ArtifactError`, unsafe path → `ArtifactError`, fail extraction → cleanup `.tmp` rồi re-raise.
+- **`tests/test_artifact_cache.py`** (mới): 5 test cases — miss then store then hit, bad zip leaves no entry, zip slip rejected, prune keeps most recent, clear.
+
+### Đã kiểm tra
+
+- `~/.venvs/wflash/bin/pytest tests/test_artifact_cache.py -v` (RED): `ModuleNotFoundError: No module named 'wflash.core.artifact_cache'` ✓ (expected).
+- `~/.venvs/wflash/bin/pytest tests/test_artifact_cache.py -v` (GREEN): 5 passed ✓.
+- `~/.venvs/wflash/bin/pytest -q`: 44 passed ✓ (39 trước + 5 task 1.6).
+
