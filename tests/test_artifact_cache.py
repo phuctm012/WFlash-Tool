@@ -38,9 +38,10 @@ def test_bad_zip_raises_and_leaves_no_entry(tmp_path):
 def test_zip_slip_rejected(tmp_path):
     cache = ArtifactCache(tmp_path / "cache")
     z = make_zip(tmp_path / "evil.zip", {"../../evil.txt": "x"})
-    with pytest.raises(ArtifactError, match="Unsafe"):
+    with pytest.raises(ArtifactError, match="Unsafe") as exc_info:
         cache.store_zip(1, 10, z)
     assert not (tmp_path / "evil.txt").exists()
+    assert "unsafe" in exc_info.value.hint.lower()
 
 
 def test_prune_keeps_most_recent(tmp_path):
@@ -96,3 +97,13 @@ def test_leftover_tmp_and_incomplete_dirs_cleaned(tmp_path):
     assert cache.get(1, 7) is not None
     assert not (root / "1" / "5.tmp").exists()
     assert not (root / "1" / "6").exists()
+
+
+def test_artifact_with_tmp_folder_survives_prune(tmp_path):
+    cache = ArtifactCache(tmp_path / "cache")
+    z = make_zip(tmp_path / "a.zip", {"out/build.tmp/x.txt": "data"})
+    files = cache.store_zip(1, 10, z)
+    assert (files / "out" / "build.tmp" / "x.txt").read_text() == "data"
+    z2 = make_zip(tmp_path / "b.zip", {"f.s3": "y"})
+    cache.store_zip(2, 20, z2)
+    assert (files / "out" / "build.tmp" / "x.txt").read_text() == "data"

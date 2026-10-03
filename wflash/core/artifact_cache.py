@@ -19,7 +19,10 @@ def _safe_extract(zf: zipfile.ZipFile, dest: Path) -> None:
     for info in zf.infolist():
         target = (dest / info.filename).resolve()
         if not target.is_relative_to(dest_resolved):
-            raise ArtifactError(f"Unsafe path in artifact zip: {info.filename}")
+            raise ArtifactError(
+                f"Unsafe path in artifact zip: {info.filename}",
+                hint="The artifact contains unsafe file paths; do not use it — check the CI job output."
+            )
     zf.extractall(dest)
 
 
@@ -50,9 +53,15 @@ class ArtifactCache:
                 with zipfile.ZipFile(zip_path) as zf:
                     _safe_extract(zf, files_dir)
             except zipfile.BadZipFile as exc:
-                raise ArtifactError(f"Artifact is not a valid zip file: {exc}") from exc
+                raise ArtifactError(
+                    f"Artifact is not a valid zip file: {exc}",
+                    hint="Download the artifact again; it may be corrupt."
+                ) from exc
             except OSError as exc:
-                raise ArtifactError(f"Failed to extract artifact: {exc}") from exc
+                raise ArtifactError(
+                    f"Failed to extract artifact: {exc}",
+                    hint="Check free disk space and path length, then retry."
+                ) from exc
             except ArtifactError:
                 raise
             (tmp / MARKER).write_text(datetime.datetime.now().isoformat(), encoding="utf-8")
@@ -61,16 +70,19 @@ class ArtifactCache:
                 tmp.rename(final)
             except OSError as exc:
                 raise ArtifactError(
-                    f"Failed to cache artifact (file may be locked): {exc}. "
-                    "Close programs that may hold files in the cache folder (winIDEA, Explorer), "
-                    "then retry or clear the cache."
+                    f"Failed to cache artifact (file may be locked): {exc}",
+                    hint="Close programs that may hold files in the cache folder (winIDEA, Explorer), "
+                         "then retry or clear the cache."
                 ) from exc
         except ArtifactError:
             shutil.rmtree(tmp, ignore_errors=True)
             raise
-        except BaseException as exc:
+        except Exception as exc:
             shutil.rmtree(tmp, ignore_errors=True)
             raise ArtifactError(f"Unexpected error while caching artifact: {exc}") from exc
+        except BaseException:
+            shutil.rmtree(tmp, ignore_errors=True)
+            raise
         log.info("Cached artifact for project %s job %s at %s", project_id, job_id, final)
         self.prune()
         return final / "files"
@@ -87,7 +99,7 @@ class ArtifactCache:
         for old in jobs[self.max_jobs:]:
             log.info("Pruning cached artifact %s", old)
             shutil.rmtree(old, ignore_errors=True)
-        for tmp_dir in self.root.glob("**/*.tmp"):
+        for tmp_dir in self.root.glob("*/*.tmp"):
             log.info("Cleaning leftover temporary directory %s", tmp_dir)
             shutil.rmtree(tmp_dir, ignore_errors=True)
         for job_dir in self.root.glob("*/*"):
