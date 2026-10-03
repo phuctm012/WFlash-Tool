@@ -1,9 +1,9 @@
 import json
-from pathlib import Path
-
 import keyring
+import pytest
 
 from wflash.core import settings as st
+from wflash.core.errors import GitLabError
 from wflash.core.settings import AppSettings
 
 
@@ -56,3 +56,33 @@ def test_get_token_keyring_error_returns_none(monkeypatch):
 
     monkeypatch.setattr(keyring, "get_password", boom)
     assert st.get_token("https://gl") is None
+
+
+def test_wrong_typed_values_fall_back_to_defaults(tmp_path):
+    path = tmp_path / "s.json"
+    path.write_text(
+        json.dumps({"max_cached_jobs": "abc", "cache_dir": 5, "verbose": 1, "gitlab_url": None, "last_profile": "p"}),
+        encoding="utf-8",
+    )
+    loaded = AppSettings.load(path)
+    assert loaded.max_cached_jobs == 10
+    assert loaded.cache_dir == ""
+    assert loaded.verbose is False
+    assert loaded.gitlab_url == ""
+    assert loaded.last_profile == "p"
+
+
+def test_bool_not_accepted_as_int(tmp_path):
+    path = tmp_path / "s.json"
+    path.write_text(json.dumps({"max_cached_jobs": True}), encoding="utf-8")
+    assert AppSettings.load(path).max_cached_jobs == 10
+
+
+def test_set_token_keyring_error_raises_gitlab_error(monkeypatch):
+    def boom(service, user, pw):
+        raise keyring.errors.KeyringError("locked")
+
+    monkeypatch.setattr(keyring, "set_password", boom)
+    with pytest.raises(GitLabError) as info:
+        st.set_token("https://gl", "t")
+    assert "keyring" in info.value.hint

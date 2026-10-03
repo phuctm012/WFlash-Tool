@@ -2,15 +2,16 @@
 from __future__ import annotations
 
 import fnmatch
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Literal
+from typing import Callable, Iterator, Literal
 from urllib.parse import quote
 
 import requests
 
 from wflash.core.cancel import CancelToken
-from wflash.core.errors import GitLabError
+from wflash.core.errors import ArtifactError, GitLabError
 from wflash.core.logging_setup import get_logger, register_secret
 
 log = get_logger("gitlab")
@@ -22,6 +23,20 @@ _HINTS = {
     403: "Your token has no access to this project. Ask for project access or check the token scope.",
     404: "Not found. Check the project path in the profile; the artifact may also have expired.",
 }
+
+
+_BAD_RESPONSE_HINT = (
+    "GitLab returned something that is not its API (a proxy or login page?). "
+    "Check the GitLab URL in Settings and that you can open it in a browser."
+)
+
+
+@contextmanager
+def _parsing(path: str) -> Iterator[None]:
+    try:
+        yield
+    except (ValueError, KeyError, TypeError) as exc:
+        raise GitLabError(f"Unexpected response from GitLab for {path}", hint=_BAD_RESPONSE_HINT) from exc
 
 
 @dataclass(frozen=True)
@@ -89,31 +104,55 @@ class GitLabClient:
             )
         return resp
 
+    def _get_all(self, path: str, params: dict | None = None) -> list:
+        """Fetch every page of a list endpoint by following the X-Next-Page header."""
+        items: list = []
+        page = "1"
+        while page:
+            resp = self._get(path, {**(params or {}), "per_page": 100, "page": page})
+            with _parsing(path):
+                data = resp.json()
+                if not isinstance(data, list):
+                    raise TypeError("expected a JSON list")
+            items.extend(data)
+            page = resp.headers.get("X-Next-Page", "")
+        return items
+
     def get_project_id(self, project: str) -> int:
         if project.isdigit():
             return int(project)
-        return int(self._get(f"/projects/{quote(project, safe='')}").json()["id"])
+        path = f"/projects/{quote(project, safe='')}"
+        resp = self._get(path)
+        with _parsing(path):
+            return int(resp.json()["id"])
 
     def list_refs(self, project_id: int) -> list[Ref]:
-        branches = self._get(f"/projects/{project_id}/repository/branches", {"per_page": 100}).json()
-        tags = self._get(f"/projects/{project_id}/repository/tags", {"per_page": 100}).json()
-        return [Ref(b["name"], "branch") for b in branches] + [Ref(t["name"], "tag") for t in tags]
+        base = f"/projects/{project_id}/repository"
+        branches = self._get_all(f"{base}/branches")
+        tags = self._get_all(f"{base}/tags")
+        with _parsing(base):
+            return [Ref(b["name"], "branch") for b in branches] + [Ref(t["name"], "tag") for t in tags]
 
     def list_pipelines(self, project_id: int, ref: str, limit: int = 20) -> list[Pipeline]:
-        params = {"ref": ref, "per_page": limit, "order_by": "id", "sort": "desc"}
-        data = self._get(f"/projects/{project_id}/pipelines", params).json()
-        return [
-            Pipeline(p["id"], p.get("ref", ""), p.get("status", ""), p.get("sha", ""), p.get("created_at") or "")
-            for p in data
-        ]
+        """Latest pipelines of `ref`, newest first. `limit` is clamped to 1..100 (one GitLab page)."""
+        path = f"/projects/{project_id}/pipelines"
+        params = {"ref": ref, "per_page": max(1, min(limit, 100)), "order_by": "id", "sort": "desc"}
+        resp = self._get(path, params)
+        with _parsing(path):
+            return [
+                Pipeline(p["id"], p.get("ref", ""), p.get("status", ""), p.get("sha", ""), p.get("created_at") or "")
+                for p in resp.json()
+            ]
 
     def list_jobs(self, project_id: int, pipeline_id: int, name_glob: str = "*") -> list[Job]:
-        data = self._get(f"/projects/{project_id}/pipelines/{pipeline_id}/jobs", {"per_page": 100}).json()
-        jobs = [
-            Job(j["id"], j["name"], j.get("stage", ""), j.get("status", ""), j.get("finished_at") or "")
-            for j in data
-            if _has_archive(j) and fnmatch.fnmatchcase(j["name"], name_glob)
-        ]
+        path = f"/projects/{project_id}/pipelines/{pipeline_id}/jobs"
+        data = self._get_all(path)
+        with _parsing(path):
+            jobs = [
+                Job(j["id"], j["name"], j.get("stage", ""), j.get("status", ""), j.get("finished_at") or "")
+                for j in data
+                if _has_archive(j) and fnmatch.fnmatchcase(j["name"], name_glob)
+            ]
         return sorted(jobs, key=lambda j: j.name)
 
     def download_artifacts(
@@ -125,27 +164,35 @@ class GitLabClient:
         cancel: CancelToken | None = None,
     ) -> Path:
         resp = self._get(f"/projects/{project_id}/jobs/{job_id}/artifacts", stream=True)
-        dest.mkdir(parents=True, exist_ok=True)
         final = dest / f"artifacts_{job_id}.zip"
         part = final.with_suffix(".zip.part")
         total = int(resp.headers.get("Content-Length") or 0)
         done = 0
         log.info("Downloading artifacts of job #%s (%s bytes)", job_id, total or "unknown")
         try:
-            with resp, part.open("wb") as fh:
-                for chunk in resp.iter_content(CHUNK):
-                    if cancel is not None:
-                        cancel.raise_if_cancelled()
-                    fh.write(chunk)
-                    done += len(chunk)
-                    if progress_cb is not None:
-                        progress_cb(done, total)
-        except requests.exceptions.RequestException as exc:
-            part.unlink(missing_ok=True)
-            raise GitLabError(f"Artifact download interrupted: {exc}") from exc
-        except BaseException:
-            part.unlink(missing_ok=True)
+            with resp:
+                dest.mkdir(parents=True, exist_ok=True)
+                with part.open("wb") as fh:
+                    for chunk in resp.iter_content(CHUNK):
+                        if cancel is not None:
+                            cancel.raise_if_cancelled()
+                        fh.write(chunk)
+                        done += len(chunk)
+                        if progress_cb is not None:
+                            progress_cb(done, total)
+                part.replace(final)
+        except BaseException as exc:
+            try:
+                part.unlink(missing_ok=True)
+            except OSError:
+                pass
+            if isinstance(exc, requests.exceptions.RequestException):
+                raise GitLabError(f"Artifact download interrupted: {exc}") from exc
+            if isinstance(exc, OSError):
+                raise ArtifactError(
+                    f"Cannot write artifact to {dest}: {exc}",
+                    hint="Cannot write the downloaded artifact. Check free disk space and folder permissions, then retry.",
+                ) from exc
             raise
-        part.replace(final)
         log.info("Downloaded %.1f MB to %s", done / 1e6, final)
         return final

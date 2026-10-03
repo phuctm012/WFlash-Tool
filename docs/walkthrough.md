@@ -169,6 +169,14 @@ Phase này thêm client GitLab REST v4 tối giản để tool duyệt ref, pipe
 - `~/.venvs/wflash/bin/pytest tests/test_gitlab_client.py -q -W error` (GREEN): 12 passed ✓.
 - `~/.venvs/wflash/bin/pytest -q --ignore=tests/test_settings.py`: 61 passed ✓ (49 trước + 12 task 1.7; test_settings của task 1.8 chưa có module nên loại ra).
 
+### Fix Round 1 (R12)
+
+- **`wflash/core/gitlab_client.py`**: phản hồi 2xx không phải JSON/thiếu key (proxy, trang login) giờ thành `GitLabError("Unexpected response ...")` kèm hint; lỗi I/O khi tải (mkdir/open/write/replace) thành `ArtifactError`, luôn đóng response và xóa `.part`; phân trang theo header `X-Next-Page` cho branches/tags/jobs; `list_pipelines` kẹp `limit` vào 1..100.
+- **`tests/test_gitlab_client.py`**: thêm 6 test (HTML 200, JSON thiếu `id`, lỗi ghi file, lỗi mkdir, phân trang, kẹp limit).
+- `~/.venvs/wflash/bin/pytest tests/test_gitlab_client.py tests/test_settings.py -q` (RED): 9 failed, 19 passed (6 test gitlab mới + 3 test settings mới fail).
+- `~/.venvs/wflash/bin/pytest tests/test_gitlab_client.py tests/test_settings.py -v -W error` (GREEN): 28 passed ✓.
+- `~/.venvs/wflash/bin/pytest -q`: 77 passed ✓.
+
 ## Phase 1.8: Settings và token
 
 Phase này thêm lớp cấu hình người dùng: settings lưu JSON trong thư mục config của OS, còn GitLab PAT được lưu trong keyring của hệ điều hành thay vì file văn bản. Mục đích là không để token nằm trên đĩa dạng plain text, đồng thời file settings hỏng hoặc thiếu không làm app crash (rơi về mặc định) và lỗi keyring khi đọc chỉ trả `None` kèm cảnh báo.
@@ -183,3 +191,9 @@ Phase này thêm lớp cấu hình người dùng: settings lưu JSON trong thư
 - `~/.venvs/wflash/bin/pytest tests/test_settings.py -q` (RED): `ImportError: cannot import name 'settings' from 'wflash.core'` ✓ (expected).
 - `~/.venvs/wflash/bin/pytest tests/test_settings.py -q -W error` (GREEN): 7 passed ✓.
 - `~/.venvs/wflash/bin/pytest -q`: 68 passed ✓ (61 trước + 7 task 1.8).
+
+### Fix Round 1 (R12)
+
+- **`wflash/core/settings.py`**: `AppSettings.load` chỉ nhận giá trị đúng kiểu của default (bool phải là bool thật, int không phải bool), sai kiểu thì cảnh báo và dùng default; `set_token` bọc `KeyringError` thành `GitLabError` kèm hint.
+- **`tests/test_settings.py`**: thêm 3 test (kiểu sai, bool không được nhận là int, lỗi keyring khi set_token); bỏ import `Path` thừa.
+- RED/GREEN và full suite: xem mục Fix Round 1 của Phase 1.7 (chạy chung 2 file test): 28 passed, toàn bộ 77 passed ✓.

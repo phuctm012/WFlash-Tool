@@ -10,6 +10,7 @@ from pathlib import Path
 import keyring
 import keyring.errors
 
+from wflash.core.errors import GitLabError
 from wflash.core.logging_setup import get_logger
 
 KEYRING_SERVICE = "WFlash-GitLab"
@@ -71,8 +72,18 @@ class AppSettings:
         if not isinstance(data, dict):
             log.warning("Ignoring settings file %s: not a JSON object", path)
             return cls()
-        known = {f.name for f in fields(cls)}
-        return cls(**{k: v for k, v in data.items() if k in known})
+        defaults = cls()
+        values = {}
+        for f in fields(cls):
+            if f.name not in data:
+                continue
+            value, default = data[f.name], getattr(defaults, f.name)
+            # bool is a subclass of int, so require the exact type
+            if type(value) is type(default):
+                values[f.name] = value
+            else:
+                log.warning("Ignoring setting %r: expected %s, got %r", f.name, type(default).__name__, value)
+        return cls(**values)
 
     def save(self, path: Path | None = None) -> None:
         path = path or settings_path()
@@ -91,4 +102,10 @@ def get_token(gitlab_url: str) -> str | None:
 
 
 def set_token(gitlab_url: str, token: str) -> None:
-    keyring.set_password(KEYRING_SERVICE, gitlab_url, token)
+    try:
+        keyring.set_password(KEYRING_SERVICE, gitlab_url, token)
+    except keyring.errors.KeyringError as exc:
+        raise GitLabError(
+            "Cannot store the GitLab token",
+            hint="The system keyring is unavailable or locked. Unlock it (Windows Credential Manager) and try again.",
+        ) from exc

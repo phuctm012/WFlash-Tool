@@ -4,7 +4,7 @@ import responses
 from responses import matchers
 
 from wflash.core.cancel import CancelToken
-from wflash.core.errors import CancelledError, GitLabError
+from wflash.core.errors import ArtifactError, CancelledError, GitLabError
 from wflash.core.gitlab_client import GitLabClient, Job, Pipeline, Ref
 from wflash.core.logging_setup import clear_secrets, redact
 
@@ -121,3 +121,65 @@ def test_ssl_error_suggests_ca_bundle(client):
 
 def test_token_is_registered_for_redaction(client):
     assert redact(f"header {TOKEN}") == "header ***"
+
+
+@responses.activate
+def test_html_200_response_is_gitlab_error(client):
+    responses.get(f"{API}/projects/42/repository/branches", body="<html>login</html>", content_type="text/html")
+    with pytest.raises(GitLabError, match="Unexpected response") as info:
+        client.list_refs(42)
+    assert "proxy" in info.value.hint
+
+
+@responses.activate
+def test_json_missing_id_is_gitlab_error(client):
+    responses.get(f"{API}/projects/group%2Fx", json={"name": "x"})
+    with pytest.raises(GitLabError, match="Unexpected response"):
+        client.get_project_id("group/x")
+
+
+@responses.activate
+def test_download_write_error_raises_artifact_error_and_cleans_part(client, tmp_path, monkeypatch):
+    responses.get(f"{API}/projects/42/jobs/7/artifacts", body=b"x" * 10)
+
+    def boom(self, *a, **k):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(type(tmp_path), "open", boom)
+    with pytest.raises(ArtifactError) as info:
+        client.download_artifacts(42, 7, tmp_path)
+    assert "disk space" in info.value.hint
+    assert list(tmp_path.iterdir()) == []
+
+
+@responses.activate
+def test_download_mkdir_error_raises_artifact_error(client, tmp_path):
+    blocker = tmp_path / "file"
+    blocker.write_text("x")
+    responses.get(f"{API}/projects/42/jobs/7/artifacts", body=b"x")
+    with pytest.raises(ArtifactError):
+        client.download_artifacts(42, 7, blocker / "sub")
+
+
+@responses.activate
+def test_list_refs_follows_pagination(client):
+    def page(p, nxt):
+        return dict(
+            match=[matchers.query_param_matcher({"per_page": "100", "page": p})],
+            headers={"X-Next-Page": nxt},
+        )
+
+    responses.get(f"{API}/projects/42/repository/branches", json=[{"name": "a"}], **page("1", "2"))
+    responses.get(f"{API}/projects/42/repository/branches", json=[{"name": "b"}], **page("2", ""))
+    responses.get(f"{API}/projects/42/repository/tags", json=[{"name": "t"}], **page("1", ""))
+    assert client.list_refs(42) == [Ref("a", "branch"), Ref("b", "branch"), Ref("t", "tag")]
+
+
+@responses.activate
+def test_list_pipelines_clamps_limit(client):
+    responses.get(
+        f"{API}/projects/42/pipelines",
+        match=[matchers.query_param_matcher({"ref": "main", "per_page": "100", "order_by": "id", "sort": "desc"})],
+        json=[],
+    )
+    assert client.list_pipelines(42, "main", limit=500) == []
