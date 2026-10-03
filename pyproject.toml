@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wflash"
+version = "0.1.0"
+description = "Flash SAF85xx ECU via winIDEA from GitLab artifacts"
+requires-python = ">=3.11"
+dependencies = [
+    "PySide6>=6.6",
+    "requests>=2.31",
+    "pydantic>=2.5",
+    "PyYAML>=6.0",
+    "keyring>=24",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-qt>=4.4", "responses>=0.25", "pyinstaller>=6.3"]
+
+[project.scripts]
+wflash = "wflash.main:main"
+
+[tool.setuptools.packages.find]
+include = ["wflash*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+qt_api = "pyside6"
