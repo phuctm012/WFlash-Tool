@@ -168,3 +168,18 @@ Phase này thêm client GitLab REST v4 tối giản để tool duyệt ref, pipe
 - `~/.venvs/wflash/bin/pytest tests/test_gitlab_client.py -q` (RED): `ModuleNotFoundError: No module named 'wflash.core.gitlab_client'` ✓ (expected).
 - `~/.venvs/wflash/bin/pytest tests/test_gitlab_client.py -q -W error` (GREEN): 12 passed ✓.
 - `~/.venvs/wflash/bin/pytest -q --ignore=tests/test_settings.py`: 61 passed ✓ (49 trước + 12 task 1.7; test_settings của task 1.8 chưa có module nên loại ra).
+
+## Phase 1.8: Settings và token
+
+Phase này thêm lớp cấu hình người dùng: settings lưu JSON trong thư mục config của OS, còn GitLab PAT được lưu trong keyring của hệ điều hành thay vì file văn bản. Mục đích là không để token nằm trên đĩa dạng plain text, đồng thời file settings hỏng hoặc thiếu không làm app crash (rơi về mặc định) và lỗi keyring khi đọc chỉ trả `None` kèm cảnh báo.
+
+### Thay đổi
+
+- **`wflash/core/settings.py`** (mới): `config_dir`, `default_cache_dir`, `bundled_profiles_dir`, `settings_path` theo từng nền tảng; dataclass `AppSettings` với `load`/`save` (bỏ qua key lạ, file hỏng hoặc không phải object); `get_token`/`set_token` qua keyring với service `WFlash-GitLab`.
+- **`tests/test_settings.py`** (mới): 7 test — round trip, file thiếu, file hỏng, key lạ, resolved dirs (profile ví dụ có trong thư mục bundled), token qua keyring (mock), lỗi keyring trả `None`.
+
+### Đã kiểm tra
+
+- `~/.venvs/wflash/bin/pytest tests/test_settings.py -q` (RED): `ImportError: cannot import name 'settings' from 'wflash.core'` ✓ (expected).
+- `~/.venvs/wflash/bin/pytest tests/test_settings.py -q -W error` (GREEN): 7 passed ✓.
+- `~/.venvs/wflash/bin/pytest -q`: 68 passed ✓ (61 trước + 7 task 1.8).
