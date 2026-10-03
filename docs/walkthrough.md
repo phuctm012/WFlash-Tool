@@ -213,3 +213,18 @@ Phase này vạch ranh giới giữa workflow flash và winIDEA: toàn bộ code
 - `~/.venvs/wflash/bin/pytest tests/test_fake_adapter.py -v` (RED): `ModuleNotFoundError: No module named 'wflash.core.fake_adapter'` ✓ (expected).
 - `~/.venvs/wflash/bin/pytest tests/test_fake_adapter.py -v -W error` (GREEN): 14 passed ✓.
 - `~/.venvs/wflash/bin/pytest -q`: 91 passed ✓.
+
+## Phase 1.10: Debug bundle
+
+Phase này cho phép người dùng xuất một file zip duy nhất chứa mọi thứ cần để debug từ xa (log, môi trường, profile, mapping, snapshot workspace, lỗi). Lý do: tool chạy trên máy Windows có winIDEA mà dev không truy cập được, nên khi lỗi xảy ra cần một gói thông tin đầy đủ; mọi nội dung đều đi qua `redact` để token GitLab không bao giờ rời máy.
+
+### Thay đổi
+
+- **`wflash/core/debug_bundle.py`** (mới): `DebugContext` (mapping, adapter_info, snapshot `programs`/`applications` theo nhãn, danh sách lỗi kèm traceback), `collect_env_info` (phiên bản wflash, Python, nền tảng, PySide6, isystem.connect) và `create_debug_bundle` ghi zip `wflash_debug_<timestamp>.zip` gồm `log.txt`, `environment.json`, `profile.yaml`, `mapping.json`, `workspace_snapshots.json`, `errors.txt` (file log/profile thiếu thì bỏ qua).
+- **`tests/test_debug_bundle.py`** (mới): 4 test — thông tin môi trường, snapshot và lỗi, nội dung bundle kèm che secret, bundle không có log/profile.
+
+### Đã kiểm tra
+
+- `~/.venvs/wflash/bin/pytest tests/test_debug_bundle.py -q` (RED): `ModuleNotFoundError: No module named 'wflash.core.debug_bundle'` ✓ (expected).
+- `~/.venvs/wflash/bin/pytest tests/test_debug_bundle.py -q -W error` (GREEN): `4 passed in 0.09s` ✓.
+- `~/.venvs/wflash/bin/pytest -q`: `95 passed in 0.50s` ✓.
