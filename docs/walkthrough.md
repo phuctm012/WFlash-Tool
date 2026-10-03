@@ -143,12 +143,13 @@ Phase này xây dựng artifact cache để lưu trữ extracted artifact files 
 
 ### Thay đổi
 
-- **`wflash/core/artifact_cache.py`** (mới): `ArtifactCache` class với root path và max_jobs; `job_dir(project_id, job_id)` trả Path; `get(project_id, job_id)` trả `files/` dir nếu cached (touch marker để update mtime), None nếu miss; `store_zip(project_id, job_id, zip_path)` extract tới `.tmp` với error handling (OSError → `ArtifactError`, BadZipFile → `ArtifactError`, unsafe path → `ArtifactError` với hint riêng), cleanup `.tmp` trên exception, write `.complete` marker, atomically move tới final, prune, return `files/` dir; `entries()` liệt kê cached entries (exclude `.tmp`); `prune()` keep only max_jobs most recent by mtime, remove stale `.tmp` dirs, remove incomplete job dirs (no marker); `clear()` xóa toàn bộ cache.
-- **`tests/test_artifact_cache.py`** (mới): 8 test cases — miss then store then hit, bad zip leaves no entry, zip slip rejected, prune keeps most recent, clear, missing zip_path raises and no tmp left, restore same job replaces content, leftover tmp and incomplete dirs cleaned. (Fix R2-R3: added missing_zip, restore, and cleanup tests).
+- **`wflash/core/artifact_cache.py`** (mới + Fix R2): `store_zip()` error hints: BadZipFile → hint "Download again; corrupt", OSError extract → hint "Check disk space/path", unsafe path → hint "Artifact unsafe; check CI", rename OSError → hint "Close locked files..."; BaseException handling: catch only `Exception` subclasses, bare raise for non-Exception to allow KeyboardInterrupt/SystemExit; `prune()` uses `glob("*/*.tmp")` non-recursive so won't delete `.tmp` inside artifact `files/`.
+- **`tests/test_artifact_cache.py`** (mới + Fix R2): 9 test cases including `test_zip_slip_rejected` (with hint check) and `test_artifact_with_tmp_folder_survives_prune`.
 
 ### Đã kiểm tra
 
-- `~/.venvs/wflash/bin/pytest tests/test_artifact_cache.py::test_missing_zip_raises_and_no_tmp_left tests/test_artifact_cache.py::test_restore_same_job_replaces_content tests/test_artifact_cache.py::test_leftover_tmp_and_incomplete_dirs_cleaned -v` (RED): FileNotFoundError not caught, .tmp dirs not cleaned.
-- `~/.venvs/wflash/bin/pytest tests/test_artifact_cache.py::test_missing_zip_raises_and_no_tmp_left tests/test_artifact_cache.py::test_restore_same_job_replaces_content tests/test_artifact_cache.py::test_leftover_tmp_and_incomplete_dirs_cleaned -v` (GREEN): 3 passed ✓.
-- `~/.venvs/wflash/bin/pytest tests/test_artifact_cache.py -v`: 8 passed ✓.
+- `~/.venvs/wflash/bin/pytest tests/test_artifact_cache.py::test_zip_slip_rejected tests/test_artifact_cache.py::test_artifact_with_tmp_folder_survives_prune -v` (RED): unsafe hint not set; recursive glob deletes .tmp inside artifact.
+- `~/.venvs/wflash/bin/pytest tests/test_artifact_cache.py::test_zip_slip_rejected tests/test_artifact_cache.py::test_artifact_with_tmp_folder_survives_prune -v` (GREEN): 2 passed ✓.
+- `~/.venvs/wflash/bin/pytest tests/test_artifact_cache.py -v`: 9 passed ✓.
+- `~/.venvs/wflash/bin/pytest -q`: 49 passed ✓ (full suite).
 
