@@ -228,3 +228,18 @@ Phase này cho phép người dùng xuất một file zip duy nhất chứa mọ
 - `~/.venvs/wflash/bin/pytest tests/test_debug_bundle.py -q` (RED): `ModuleNotFoundError: No module named 'wflash.core.debug_bundle'` ✓ (expected).
 - `~/.venvs/wflash/bin/pytest tests/test_debug_bundle.py -q -W error` (GREEN): `4 passed in 0.09s` ✓.
 - `~/.venvs/wflash/bin/pytest -q`: `95 passed in 0.50s` ✓.
+
+## Phase 1.11: Flash workflow và rollback
+
+Đây là phần cốt lõi của tool: chuỗi connect, kiểm tra entry, đổi đường dẫn, download, reset. Lý do thiết kế theo Approach A (chỉ đổi path, không bao giờ tạo entry mới): workspace winIDEA của người dùng phải luôn quay về được trạng thái cũ, nên mọi lỗi hoặc hủy trong lúc set path/download đều rollback path cũ, và adapter luôn được disconnect.
+
+### Thay đổi
+
+- **`wflash/core/flash_workflow.py`** (mới): `Step`, `FlashRequest`, `FlashWorkflow.run`. Từ chối mapping thiếu file trước khi connect; kiểm tra entry tồn tại trong workspace (`MappingError` kèm danh sách entry thật); snapshot `before`, `after_set`, `after_rollback`; lỗi ngoài `WFlashError` được bọc thành `FlashError("<Type>: <msg>")`; lỗi rollback được ghi vào `ctx.errors` mà không che lỗi gốc.
+- **`tests/test_flash_workflow.py`** (mới): 12 test — 9 test theo brief cộng 3 test bổ sung (R14): lỗi khi set path thứ hai (path đầu được khôi phục), download timeout (rollback và bước ROLLBACK), mất kết nối giữa download (rollback thất bại ghi 1 lỗi, vẫn disconnect). Không phát hiện lỗi nào trong code workflow của brief.
+
+### Đã kiểm tra
+
+- `~/.venvs/wflash/bin/pytest tests/test_flash_workflow.py -q` (RED): `ModuleNotFoundError` khi collect `tests/test_flash_workflow.py` ✓ (expected).
+- `~/.venvs/wflash/bin/pytest tests/test_flash_workflow.py -q -W error` (GREEN): `12 passed in 0.30s` ✓.
+- `~/.venvs/wflash/bin/pytest -q`: `107 passed in 0.66s` ✓.
