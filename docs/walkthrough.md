@@ -153,3 +153,18 @@ Phase này xây dựng artifact cache để lưu trữ extracted artifact files 
 - `~/.venvs/wflash/bin/pytest tests/test_artifact_cache.py -v`: 9 passed ✓.
 - `~/.venvs/wflash/bin/pytest -q`: 49 passed ✓ (full suite).
 
+
+## Phase 1.7: GitLab client
+
+Phase này thêm client GitLab REST v4 tối giản để tool duyệt ref, pipeline, job rồi tải artifact mà không cần kéo thêm thư viện GitLab nặng. Token PAT được đăng ký với `register_secret` ngay khi tạo client nên không bao giờ lọt vào log ở dạng chưa che. Các lỗi hay gặp (401/403/404/SSL) được map sang hint cụ thể để người dùng biết cần làm gì tiếp (đổi token, xin quyền, chọn CA bundle...). Download ghi vào file `.part` rồi đổi tên, và xóa file dở khi hủy hoặc lỗi.
+
+### Thay đổi
+
+- **`wflash/core/gitlab_client.py`** (mới): `Ref`, `Pipeline`, `Job` (frozen dataclass) và `GitLabClient` với `get_project_id`, `list_refs`, `list_pipelines`, `list_jobs` (chỉ job có artifact archive, lọc theo glob), `download_artifacts` (stream, progress callback, hỗ trợ `CancelToken`).
+- **`tests/test_gitlab_client.py`** (mới): 12 test dùng `responses` — encode path project, header token, ref/pipeline/job, download + cancel, hint 401/404, lỗi kết nối, lỗi SSL, che token.
+
+### Đã kiểm tra
+
+- `~/.venvs/wflash/bin/pytest tests/test_gitlab_client.py -q` (RED): `ModuleNotFoundError: No module named 'wflash.core.gitlab_client'` ✓ (expected).
+- `~/.venvs/wflash/bin/pytest tests/test_gitlab_client.py -q -W error` (GREEN): 12 passed ✓.
+- `~/.venvs/wflash/bin/pytest -q --ignore=tests/test_settings.py`: 61 passed ✓ (49 trước + 12 task 1.7; test_settings của task 1.8 chưa có module nên loại ra).
