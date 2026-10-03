@@ -44,19 +44,33 @@ class ArtifactCache:
         tmp = final.with_name(final.name + ".tmp")
         shutil.rmtree(tmp, ignore_errors=True)
         files_dir = tmp / "files"
-        files_dir.mkdir(parents=True)
         try:
-            with zipfile.ZipFile(zip_path) as zf:
-                _safe_extract(zf, files_dir)
-        except zipfile.BadZipFile as exc:
-            shutil.rmtree(tmp, ignore_errors=True)
-            raise ArtifactError(f"Artifact is not a valid zip file: {exc}") from exc
+            files_dir.mkdir(parents=True)
+            try:
+                with zipfile.ZipFile(zip_path) as zf:
+                    _safe_extract(zf, files_dir)
+            except zipfile.BadZipFile as exc:
+                raise ArtifactError(f"Artifact is not a valid zip file: {exc}") from exc
+            except OSError as exc:
+                raise ArtifactError(f"Failed to extract artifact: {exc}") from exc
+            except ArtifactError:
+                raise
+            (tmp / MARKER).write_text(datetime.datetime.now().isoformat(), encoding="utf-8")
+            shutil.rmtree(final, ignore_errors=True)
+            try:
+                tmp.rename(final)
+            except OSError as exc:
+                raise ArtifactError(
+                    f"Failed to cache artifact (file may be locked): {exc}. "
+                    "Close programs that may hold files in the cache folder (winIDEA, Explorer), "
+                    "then retry or clear the cache."
+                ) from exc
         except ArtifactError:
             shutil.rmtree(tmp, ignore_errors=True)
             raise
-        (tmp / MARKER).write_text(datetime.datetime.now().isoformat(), encoding="utf-8")
-        shutil.rmtree(final, ignore_errors=True)
-        tmp.rename(final)
+        except BaseException as exc:
+            shutil.rmtree(tmp, ignore_errors=True)
+            raise ArtifactError(f"Unexpected error while caching artifact: {exc}") from exc
         log.info("Cached artifact for project %s job %s at %s", project_id, job_id, final)
         self.prune()
         return final / "files"
@@ -64,13 +78,22 @@ class ArtifactCache:
     def entries(self) -> list[Path]:
         if not self.root.is_dir():
             return []
-        return [m.parent for m in self.root.glob(f"*/*/{MARKER}")]
+        return [m.parent for m in self.root.glob(f"*/*/{MARKER}") if not m.parent.name.endswith(".tmp")]
 
     def prune(self) -> None:
+        if not self.root.is_dir():
+            return
         jobs = sorted(self.entries(), key=lambda d: (d / MARKER).stat().st_mtime, reverse=True)
         for old in jobs[self.max_jobs:]:
             log.info("Pruning cached artifact %s", old)
             shutil.rmtree(old, ignore_errors=True)
+        for tmp_dir in self.root.glob("**/*.tmp"):
+            log.info("Cleaning leftover temporary directory %s", tmp_dir)
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+        for job_dir in self.root.glob("*/*"):
+            if job_dir.is_dir() and not (job_dir / MARKER).exists() and not job_dir.name.endswith(".tmp"):
+                log.info("Cleaning incomplete job directory %s", job_dir)
+                shutil.rmtree(job_dir, ignore_errors=True)
 
     def clear(self) -> None:
         log.info("Clearing artifact cache %s", self.root)

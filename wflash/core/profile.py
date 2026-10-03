@@ -60,7 +60,7 @@ class Profile(_Strict):
 def load_profile(path: Path) -> Profile:
     try:
         data = yaml.safe_load(path.read_text(encoding="utf-8"))
-    except OSError as exc:
+    except (OSError, UnicodeError) as exc:
         raise ProfileError(f"Cannot read profile {path}: {exc}") from exc
     except yaml.YAMLError as exc:
         raise ProfileError(f"Invalid YAML in {path}: {exc}") from exc

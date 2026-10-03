@@ -1,5 +1,7 @@
 # Ví dụ profile SAF85xx. Tên entry/Application phải trùng với workspace winIDEA
 # (lấy từ kết quả spike 02_dump_options).
+# Pattern matching: case-insensitive, * khớp qua folder, **/ ở đầu cũng khớp file ở gốc,
+# ** ở giữa không đặc biệt (chỉ là *).
 name: SAF85xx_Radar
 gitlab:
   project: group/saf85xx-sw     # path hoặc id project

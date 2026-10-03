@@ -71,6 +71,13 @@ def test_missing_file_rejected(tmp_path):
         load_profile(tmp_path / "nope.yaml")
 
 
+def test_non_utf8_file_rejected(tmp_path):
+    path = tmp_path / "bad.yaml"
+    path.write_bytes(b"\xff\xfe")
+    with pytest.raises(ProfileError, match="Cannot read"):
+        load_profile(path)
+
+
 def test_list_profiles_sorted(tmp_path):
     write(tmp_path, MINIMAL, "b.yaml")
     write(tmp_path, MINIMAL, "a.yml")

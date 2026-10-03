@@ -61,3 +61,38 @@ def test_clear(tmp_path):
     cache.store_zip(1, 1, make_zip(tmp_path / "a.zip", {"f": "x"}))
     cache.clear()
     assert cache.entries() == []
+
+
+def test_missing_zip_raises_and_no_tmp_left(tmp_path):
+    cache = ArtifactCache(tmp_path / "cache")
+    with pytest.raises(ArtifactError):
+        cache.store_zip(1, 10, tmp_path / "nonexistent.zip")
+    assert cache.get(1, 10) is None
+    assert cache.entries() == []
+    assert not list(tmp_path.glob("cache/**/*.tmp"))
+
+
+def test_restore_same_job_replaces_content(tmp_path):
+    cache = ArtifactCache(tmp_path / "cache")
+    z1 = make_zip(tmp_path / "a.zip", {"f.s3": "content1"})
+    files = cache.store_zip(1, 10, z1)
+    assert (files / "f.s3").read_text() == "content1"
+    z2 = make_zip(tmp_path / "b.zip", {"f.s3": "content2", "g.elf": "elf_data"})
+    files2 = cache.store_zip(1, 10, z2)
+    assert files2 == files
+    assert (files / "f.s3").read_text() == "content2"
+    assert (files / "g.elf").read_text() == "elf_data"
+
+
+def test_leftover_tmp_and_incomplete_dirs_cleaned(tmp_path):
+    cache = ArtifactCache(tmp_path / "cache")
+    root = tmp_path / "cache"
+    (root / "1" / "5.tmp").mkdir(parents=True)
+    (root / "1" / "6").mkdir(parents=True)
+    z = make_zip(tmp_path / "a.zip", {"f.s3": "x"})
+    cache.store_zip(1, 7, z)
+    assert cache.get(1, 5) is None
+    assert cache.get(1, 6) is None
+    assert cache.get(1, 7) is not None
+    assert not (root / "1" / "5.tmp").exists()
+    assert not (root / "1" / "6").exists()
