@@ -80,3 +80,46 @@ def test_set_verbose_toggles_calls_logger():
 
 def test_default_log_dir_ends_with_wflash_component():
     assert "wflash" in str(ls.default_log_dir()).lower()
+
+
+def test_redact_bare_glpat_token_unregistered():
+    token = "glpat-Ab3dEf6hIj9kLm2nOp5q"
+    text = f"Fetched from https://example.com/api?token={token} successfully"
+    out = ls.redact(text)
+    assert token not in out
+    assert "token=***" in out
+
+
+def test_redact_bearer_token_unregistered():
+    token = "glpat-Ab3dEf6hIj9kLm2nOp5q"
+    text = f"Authorization: Bearer {token}"
+    out = ls.redact(text)
+    assert token not in out
+    assert "Bearer ***" in out
+
+
+def test_redact_bearer_token_case_insensitive():
+    token = "glpat-Xy9zAbCdEf1gHi2jKl3m4n"
+    text = f"authorization: bearer {token}"
+    out = ls.redact(text)
+    assert token not in out
+    assert "bearer ***" in out
+
+
+def test_redact_private_token_query_string_unregistered():
+    token = "glpat-1a2b3c4d5e6f7g8h9i0j1k2l"
+    text = f"https://gl/api?private_token={token}&x=1"
+    out = ls.redact(text)
+    assert token not in out
+    assert "private_token=***" in out
+    assert "&x=1" in out
+
+
+def test_setup_logging_masks_unregistered_glpat_in_file(tmp_path):
+    token = "glpat-Ab3dEf6hIj9kLm2nOp5q"
+    path = ls.setup_logging(tmp_path)
+    ls.get_logger("test").debug(f"Downloaded artifact with token {token}")
+    ls.close_file_handler()
+    content = path.read_text(encoding="utf-8")
+    assert token not in content
+    assert "***" in content

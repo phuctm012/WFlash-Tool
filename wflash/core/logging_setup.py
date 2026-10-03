@@ -15,6 +15,9 @@ DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 _SECRETS: set[str] = set()
 _HEADER_RE = re.compile(r"(PRIVATE-TOKEN['\"]?\s*[:=]\s*['\"]?)([^'\"\s,}]+)", re.IGNORECASE)
+_GLPAT_RE = re.compile(r"glpat-[A-Za-z0-9_-]{20,}")
+_BEARER_RE = re.compile(r"(bearer\s+)[^\s]+", re.IGNORECASE)
+_PRIVATE_TOKEN_RE = re.compile(r"(private_token\s*=\s*)([^&\s\"']+)", re.IGNORECASE)
 _file_handler: logging.Handler | None = None
 
 
@@ -33,6 +36,9 @@ def clear_secrets() -> None:
 
 def redact(text: str) -> str:
     text = _HEADER_RE.sub(r"\1***", text)
+    text = _GLPAT_RE.sub("***", text)
+    text = _BEARER_RE.sub(r"\1***", text)
+    text = _PRIVATE_TOKEN_RE.sub(r"\1***", text)
     for secret in _SECRETS:
         text = text.replace(secret, "***")
     return text

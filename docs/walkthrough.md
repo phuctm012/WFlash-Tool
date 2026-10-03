@@ -91,17 +91,18 @@ Phase này dựng khung project Python đầu tiên với error hierarchy và `C
 
 ## Phase 1.3: Logging và che token
 
-Phase này xây dựng tầng logging đầu tiên cho app, với tập trung vào việc **che giấu token GitLab và bất kỳ giá trị nhạy cảm nào** trước khi ghi vào log. Mục đích là tạo nền tảng đáng tin cậy cho việc log chi tiết mọi bước của workflow (download artifact, set path, flash) mà không lo lắng về việc vô tình lộ credential của user trong log file hay debug bundle. Logging setup tạo per-session DEBUG log file với naming dựa trên timestamp, tự động dọn dẹp các file log cũ, và hỗ trợ chế độ verbose để log mọi lời gọi `isystem.connect` khi debug.
+Phase này xây dựng tầng logging đầu tiên cho app, với tập trung vào việc **che giấu token GitLab và bất kỳ giá trị nhạy cảm nào** trước khi ghi vào log. Mục đích là tạo nền tảng đáng tin cậy cho việc log chi tiết mọi bước của workflow (download artifact, set path, flash) mà không lo lắng về việc vô tình lộ credential của user trong log file hay debug bundle. Logging setup tạo per-session DEBUG log file với naming dựa trên timestamp, tự động dọn dẹp các file log cũ, và hỗ trợ chế độ verbose để log mọi lời gọi `isystem.connect` khi debug. 
+
+Bản đầu tiên che header `PRIVATE-TOKEN`; sau đó (fix round 1, R8) mở rộng che: glpat- token (20+ ký tự), `Bearer <token>`, và `private_token=<value>` trong URL/query string, tất cả không cần đăng ký, để bảo vệ ngay cả khi code quên gọi `register_secret()`.
 
 ### Thay đổi
 
-- **`wflash/core/logging_setup.py`** (mới): module logging với `RedactingFormatter` để che token, interface công khai gồm: `LOGGER_NAME`, `CALLS_LOGGER`, `LOG_FORMAT`, `DATE_FORMAT`, hàm `get_logger()`, `register_secret()` / `clear_secrets()` / `redact()` cho quản lý token, `default_log_dir()` trả về đường dẫn platform-specific (macOS: `~/Library/Logs/WFlash`, Windows: `%LOCALAPPDATA%/WFlash/logs`, Linux: `~/.local/state/wflash/logs`), `setup_logging()` khởi tạo file handler với tên `wflash_YYYYMMDD_HHMMSS.log` và tự động dọn dẹp chỉ giữ 20 file mới nhất, `set_verbose()` để bật DEBUG cho `wflash.calls` logger.
-- **`tests/test_logging_setup.py`** (mới): 8 test cases — test regex redaction cho header `PRIVATE-TOKEN`, redact registered secret anywhere trong text, ignore short/empty secret, redact exception trace, verify file handler write + redaction, verify keep-only-latest pruning, toggle verbose mode, verify platform-specific log dir.
+- **`wflash/core/logging_setup.py`** (mới): module logging với `RedactingFormatter` để che token, interface công khai gồm: `LOGGER_NAME`, `CALLS_LOGGER`, `LOG_FORMAT`, `DATE_FORMAT`, hàm `get_logger()`, `register_secret()` / `clear_secrets()` / `redact()` cho quản lý token, `default_log_dir()` trả về đường dẫn platform-specific (macOS: `~/Library/Logs/WFlash`, Windows: `%LOCALAPPDATA%/WFlash/logs`, Linux: `~/.local/state/wflash/logs`), `setup_logging()` khởi tạo file handler với tên `wflash_YYYYMMDD_HHMMSS.log` và tự động dọn dẹp chỉ giữ 20 file mới nhất, `set_verbose()` để bật DEBUG cho `wflash.calls` logger. (Fix R8: hardening với regex cho glpat-, Bearer token, private_token query param).
+- **`tests/test_logging_setup.py`** (mới): 13 test cases — 8 gốc (test regex redaction cho header `PRIVATE-TOKEN`, redact registered secret anywhere, ignore short/empty secret, redact exception trace, verify file handler write + redaction, verify keep-only-latest pruning, toggle verbose mode, verify platform-specific log dir) + 5 hardening (test glpat- bare token, Bearer token case-insensitive, private_token in query string, file sink with unregistered glpat).
 
 ### Đã kiểm tra
 
-- `~/.venvs/wflash/bin/pytest tests/test_logging_setup.py -v` (RED): `ModuleNotFoundError: No module named 'logging_setup'` ✓ (expected).
-- Implement `wflash/core/logging_setup.py` với đầy đủ interface từ brief.
-- `~/.venvs/wflash/bin/pytest tests/test_logging_setup.py -v` (GREEN): 8 passed ✓.
-- `~/.venvs/wflash/bin/pytest -q`: 18 passed ✓ (all tasks 1-3 together).
+- `~/.venvs/wflash/bin/pytest tests/test_logging_setup.py -v` (RED): `ImportError: cannot import name 'logging_setup' from 'wflash.core'` (từ dòng 8 của test file).
+- `~/.venvs/wflash/bin/pytest tests/test_logging_setup.py -v` (GREEN): 13 passed ✓.
+- `~/.venvs/wflash/bin/pytest -q`: 23 passed ✓ (10 từ task 1.2 + 13 từ task 1.3).
 
