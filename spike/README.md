@@ -8,9 +8,13 @@ Mục đích: xác minh API `isystem.connect` trên winIDEA 9.21 + workspace SAF
 2. `py -m venv %USERPROFILE%\.venvs\wflash-spike`
 3. `%USERPROFILE%\.venvs\wflash-spike\Scripts\activate`
 4. Cài `isystem.connect` từ thư mục cài đặt winIDEA 9.21:
-   - Tìm thư mục SDK Python trong cài đặt winIDEA, thường là `<winIDEA install dir>\sdk\python\`
-   - Chạy: `pip install "<winIDEA install dir>\sdk\python\<package file>"`
-   - Xác minh: `python -c "import isystem.connect as ic; print(ic.getModuleVersion())"`
+   - Tìm thư mục SDK Python trong cài đặt winIDEA (mỗi cài đặt có đường dẫn khác nhau)
+   - Tìm file package Python trong thư mục SDK đó
+   - Chạy: `pip install "<đường dẫn đầy đủ tới file package>"`
+   - Xác minh cài đặt thành công:
+     - `python -c "import isystem.connect as ic; print(ic.__file__)"`
+     - `python -c "import importlib.metadata as m; print(m.version('isystem.connect'))"`
+     - Nếu hàm `getModuleVersion()` tồn tại: `python -c "import isystem.connect as ic; print(ic.getModuleVersion())"`
    - Kiểm tra bitness Python khớp với winIDEA (cả 64-bit): `python -c "import platform; print(platform.architecture())"`
 5. Mở winIDEA với workspace SAF85xx, kiểm tra flash tay hoạt động.
 

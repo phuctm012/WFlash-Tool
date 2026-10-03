@@ -57,15 +57,18 @@ def main() -> None:
         derived = []
         report.section(f"workspace XML: {ws}")
         if ws and Path(ws).is_file():
-            root = ET.parse(ws).getroot()
-            report.line(f"root tag: {root.tag}")
-            report.line("top-level children: " + ", ".join(c.tag for c in root))
-            hits = []
-            walk(root, "", hits)
-            for p, text, attrib in hits:
-                report.line(f"{p} = {text!r} {attrib}")
-                derived.append("/IDE/" + p)
-                derived.append("/IDE/" + p.split(".", 1)[-1])
+            try:
+                root = ET.parse(ws).getroot()
+                report.line(f"root tag: {root.tag}")
+                report.line("top-level children: " + ", ".join(c.tag for c in root))
+                hits = []
+                walk(root, "", hits)
+                for p, text, attrib in hits:
+                    report.line(f"{p} = {text!r} {attrib}")
+                    derived.append("/IDE/" + p)
+                    derived.append("/IDE/" + p.split(".", 1)[-1])
+            except Exception:
+                report.exc("parse workspace XML")
         else:
             report.line("workspace file not found; pass --workspace")
 
