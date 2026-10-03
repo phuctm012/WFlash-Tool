@@ -243,3 +243,16 @@ Phase này cho phép người dùng xuất một file zip duy nhất chứa mọ
 - `~/.venvs/wflash/bin/pytest tests/test_flash_workflow.py -q` (RED): `ModuleNotFoundError` khi collect `tests/test_flash_workflow.py` ✓ (expected).
 - `~/.venvs/wflash/bin/pytest tests/test_flash_workflow.py -q -W error` (GREEN): `12 passed in 0.30s` ✓.
 - `~/.venvs/wflash/bin/pytest -q`: `107 passed in 0.66s` ✓.
+
+### Fix Round 1 (R15)
+
+Review tìm ra 3 lỗi rollback quan trọng trong `FlashWorkflow`: rollback dừng ở lần restore lỗi đầu tiên (các entry sau vẫn trỏ file mới), callback `on_step(ROLLBACK)` ném lỗi thì bỏ qua rollback và che lỗi gốc, và rollback thất bại không hiện trong lỗi trả về.
+
+- **`wflash/core/flash_workflow.py`**: chỉ restore các entry đã ghi thành công (`written`), mỗi entry một try riêng và ghi lỗi vào `ctx.errors`; thông báo `Step.ROLLBACK` nằm trong guard; khi có restore lỗi, lỗi cuối được gắn `rollback_failed = True` và hint bắt đầu bằng "ROLLBACK FAILED"; lỗi đọc snapshot `after_rollback` được log riêng; lỗi không phải `WFlashError` được ghi cả traceback vào `ctx.errors` khi bọc thành `FlashError`.
+- **`wflash/core/errors.py`**: `WFlashError.rollback_failed = False`.
+- **`tests/test_flash_workflow.py`**: 6 test mới (restore tiếp tục sau lỗi, entry chưa ghi không bị đụng, callback ROLLBACK ném lỗi, cờ rollback_failed, ctx.errors có traceback, lỗi snapshot), test mất kết nối dùng thông báo download riêng, `test_rollback_failure_recorded` nay khẳng định `ctx.errors == []` vì chưa có gì được ghi thì không cần restore.
+
+Đã kiểm tra:
+- `~/.venvs/wflash/bin/pytest tests/test_flash_workflow.py -q` (RED, code cũ): `8 failed, 10 passed` ✓ (expected).
+- `~/.venvs/wflash/bin/pytest tests/test_flash_workflow.py -v -W error` (GREEN): `18 passed in 0.42s` ✓.
+- `~/.venvs/wflash/bin/pytest -q`: `113 passed in 0.67s` ✓.

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 class WFlashError(Exception):
     default_hint = ""
+    rollback_failed = False
 
     def __init__(self, message: str, hint: str = "") -> None:
         super().__init__(message)

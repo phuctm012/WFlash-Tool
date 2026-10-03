@@ -14,6 +14,11 @@ from wflash.core.winidea_adapter import ProgressCallback, WinIDEAAdapter
 
 log = get_logger("flash")
 
+ROLLBACK_FAILED_HINT = (
+    "ROLLBACK FAILED \u2014 the winIDEA workspace may still point to the new files; "
+    "check the download/symbol file list in winIDEA before flashing again. "
+)
+
 
 class Step(str, Enum):
     CONNECT = "Connecting to winIDEA"
@@ -46,6 +51,7 @@ class FlashWorkflow:
         self.ctx = ctx
         self._on_step = on_step or (lambda step: None)
         self._on_progress = on_progress or (lambda percent, message: None)
+        self._rollback_failed = False
 
     def run(self, req: FlashRequest, cancel: CancelToken) -> None:
         missing = [row.target for row in req.mapping if not row.ok]
@@ -55,6 +61,7 @@ class FlashWorkflow:
                 hint="Choose a file for every red row in the mapping table.",
             )
         self.ctx.mapping = [row.to_dict() for row in req.mapping]
+        self._rollback_failed = False
         try:
             self._step(Step.CONNECT)
             self.adapter.connect(req.instance_id)
@@ -64,28 +71,34 @@ class FlashWorkflow:
                 self._run_connected(req, cancel)
             finally:
                 self._disconnect()
-        except WFlashError:
+        except WFlashError as exc:
+            self._mark_rollback_failed(exc)
             raise
         except Exception as exc:
-            raise FlashError(f"{type(exc).__name__}: {exc}") from exc
+            self.ctx.add_error(exc)
+            wrapped = FlashError(f"{type(exc).__name__}: {exc}")
+            self._mark_rollback_failed(wrapped)
+            raise wrapped from exc
         self._step(Step.DONE)
 
     def _run_connected(self, req: FlashRequest, cancel: CancelToken) -> None:
         self._step(Step.VALIDATE)
         current = self._read_current("before")
         self._check_targets(req.mapping, current)
-        backup = [(row.kind, row.target, current[row.kind][row.target]) for row in req.mapping]
+        old = {(row.kind, row.target): current[row.kind][row.target] for row in req.mapping}
+        written: list[tuple[str, str, str]] = []
         cancel.raise_if_cancelled()
         try:
             self._step(Step.SET_PATHS)
             for row in req.mapping:
                 self._set_path(row.kind, row.target, str(row.selected.resolve()))
+                written.append((row.kind, row.target, old[(row.kind, row.target)]))
             self._read_current("after_set")
             cancel.raise_if_cancelled()
             self._step(Step.DOWNLOAD)
             self.adapter.download(self._on_progress, cancel, req.timeout_s)
         except BaseException:
-            self._rollback(backup)
+            self._rollback(written)
             raise
         if req.reset:
             self._step(Step.RESET)
@@ -118,15 +131,33 @@ class FlashWorkflow:
         else:
             self.adapter.set_symbol_path(target, path)
 
-    def _rollback(self, backup: list[tuple[str, str, str]]) -> None:
-        self._step(Step.ROLLBACK)
+    def _rollback(self, written: list[tuple[str, str, str]]) -> None:
         try:
-            for kind, target, old in backup:
+            self._step(Step.ROLLBACK)
+        except Exception:
+            log.warning("Step callback failed for ROLLBACK; continuing with restore", exc_info=True)
+        restored_all = True
+        for kind, target, old in written:
+            try:
                 self._set_path(kind, target, old)
+            except Exception as exc:
+                restored_all = False
+                self._rollback_failed = True
+                log.error("Rollback failed for %s '%s'; it may still point to the new file: %s", kind, target, exc)
+                self.ctx.add_error(exc)
+        if not restored_all:
+            return
+        try:
             self._read_current("after_rollback")
         except Exception as exc:
-            log.error("Rollback failed; the workspace may still point to the new files: %s", exc)
+            log.error("Snapshot after rollback failed: %s", exc)
             self.ctx.add_error(exc)
+
+    def _mark_rollback_failed(self, exc: WFlashError) -> None:
+        if self._rollback_failed:
+            exc.rollback_failed = True
+            if not exc.hint.startswith(ROLLBACK_FAILED_HINT):
+                exc.hint = ROLLBACK_FAILED_HINT + exc.hint
 
     def _disconnect(self) -> None:
         try:

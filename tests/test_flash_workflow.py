@@ -114,8 +114,9 @@ def test_unexpected_exception_wrapped(rows):
 def test_rollback_failure_recorded(rows):
     adapter = FakeWinIDEAAdapter(fail_on={"set_path"})
     ctx, _, _, error = run(adapter, rows)
-    assert isinstance(error, WinIDEAError)
-    assert len(ctx.errors) == 1 and "set_path" in ctx.errors[0]
+    assert isinstance(error, WinIDEAError) and "set_path" in str(error)
+    assert ctx.errors == []  # nothing was written, so nothing needed restoring
+    assert error.rollback_failed is False
 
 
 def test_second_path_failure_restores_first(rows):
@@ -154,7 +155,7 @@ def test_connection_lost_during_download(rows):
 
         def download(self, progress, cancel, timeout_s):
             self.lost = True
-            raise WinIDEAError("Connection to winIDEA lost")
+            raise WinIDEAError("Connection to winIDEA lost during download")
 
         def set_program_path(self, name, path):
             if self.lost:
@@ -167,7 +168,98 @@ def test_connection_lost_during_download(rows):
             super().set_symbol_path(name, path)
 
     adapter = Dropping(download_seconds=0.02)
-    ctx, _, _, error = run(adapter, rows)
-    assert isinstance(error, WinIDEAError) and "Connection to winIDEA lost" in str(error)
-    assert len(ctx.errors) == 1
+    ctx, steps, _, error = run(adapter, rows)
+    assert isinstance(error, WinIDEAError) and "during download" in str(error)
+    assert Step.ROLLBACK in steps
+    assert len(ctx.errors) == 3  # every written entry's restore failed and was recorded
     assert adapter.connected_to is None
+    assert error.rollback_failed is True
+
+
+class RestoreFailsOnce(FakeWinIDEAAdapter):
+    """Restoring program 'App' to its old path fails (the first set is the new path)."""
+
+    def set_program_path(self, name, path):
+        if path == OLD_APP:
+            raise WinIDEAError("restore App failed")
+        super().set_program_path(name, path)
+
+
+def test_rollback_continues_after_failed_restore(rows):
+    adapter = RestoreFailsOnce(download_seconds=0.02, fail_on={"download"})
+    ctx, _, _, error = run(adapter, rows)
+    assert isinstance(error, FlashError) and "Fake failure" in str(error)
+    assert adapter.applications["CM7_0"] == r"C:\fake\old\cm7_0.elf"
+    assert adapter.applications["CM7_1"] == r"C:\fake\old\cm7_1.elf"
+    assert adapter.programs["App"] != OLD_APP
+    assert len(ctx.errors) == 1 and "restore App failed" in ctx.errors[0]
+    assert error.rollback_failed is True
+    assert error.hint.startswith("ROLLBACK FAILED")
+
+
+def test_unwritten_entry_not_touched_on_rollback(rows):
+    class FailSecondSet(FakeWinIDEAAdapter):
+        sets = 0
+        touched: list[str] = []
+
+        def set_symbol_path(self, name, path):
+            self.touched.append(name)
+            self.sets += 1
+            if self.sets == 1:
+                raise WinIDEAError("second set failed")
+            super().set_symbol_path(name, path)
+
+    adapter = FailSecondSet(download_seconds=0.02)
+    adapter.touched = []
+    error = run(adapter, rows)[3]
+    assert isinstance(error, WinIDEAError)
+    assert adapter.touched == ["CM7_0"]  # failed once; never restored, CM7_1 never touched
+    assert adapter.programs["App"] == OLD_APP
+    assert error.rollback_failed is False
+
+
+def test_raising_rollback_callback_does_not_break_restore(rows):
+    adapter = FakeWinIDEAAdapter(download_seconds=0.02, fail_on={"download"})
+
+    def on_step(step):
+        if step is Step.ROLLBACK:
+            raise RuntimeError("signal emit failed")
+
+    wf = FlashWorkflow(adapter, DebugContext(), on_step=on_step)
+    with pytest.raises(FlashError, match="Fake failure"):
+        wf.run(FlashRequest("fake-1", rows), CancelToken())
+    assert adapter.programs["App"] == OLD_APP
+
+
+def test_rollback_flag_false_on_success_and_clean_rollback(rows):
+    adapter = FakeWinIDEAAdapter(download_seconds=0.02, fail_on={"download"})
+    error = run(adapter, rows)[3]
+    assert error.rollback_failed is False
+    assert not error.hint.startswith("ROLLBACK FAILED")
+
+
+def test_wrapped_unexpected_error_recorded_in_ctx(rows):
+    class Broken(FakeWinIDEAAdapter):
+        def download(self, progress, cancel, timeout_s):
+            raise RuntimeError("COM error")
+
+    ctx, _, _, error = run(Broken(), rows)
+    assert isinstance(error, FlashError)
+    assert len(ctx.errors) == 1 and "RuntimeError: COM error" in ctx.errors[0]
+
+
+def test_snapshot_failure_after_rollback_not_reported_as_rollback_failure(rows):
+    class SnapFails(FakeWinIDEAAdapter):
+        reads = 0
+
+        def read_programs(self):
+            self.reads += 1
+            if self.reads == 3:  # before, after_set, after_rollback
+                raise WinIDEAError("snapshot read failed")
+            return super().read_programs()
+
+    adapter = SnapFails(download_seconds=0.02, fail_on={"download"})
+    ctx, _, _, error = run(adapter, rows)
+    assert isinstance(error, FlashError)
+    assert adapter.programs["App"] == OLD_APP
+    assert error.rollback_failed is False
