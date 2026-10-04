@@ -633,3 +633,16 @@ Tab Package Registry làm giống SFlash: package generic, mỗi version có fil
 ### Đã kiểm tra
 
 - RED / GREEN, `pytest -q`: RED: `ImportError: cannot import name 'PackageVersion'`; GREEN: `31 passed in 0.20s`; `pytest -q`: `258 passed in 13.05s`.
+
+## Phase 1.32: firmware_fetch — logic tìm/tải firmware nằm ở core
+
+Popup GitLab chỉ nên lo giao diện; phần "job mới nhất thành công khớp ref + job name", "liệt kê job của các pipeline gần nhất", "tải qua cache rồi mô tả nguồn" là logic thuần, đặt ở core để test không cần Qt hay mạng. Nhiều job khớp mà không có tên job là lỗi có hint, không bao giờ tự chọn (CLAUDE.md: chọn sai file là điều tệ nhất tool có thể làm). Package zip được giải nén, file khác được giữ nguyên.
+
+### Thay đổi
+
+- **`wflash/core/firmware_fetch.py`** (mới): `JobRow`, `browse_jobs`, `find_latest_job`, `fetch_ci_artifact`, `latest_package`, `fetch_package`, `count_files`.
+- **`tests/test_firmware_fetch.py`** (mới): 11 test với client giả.
+
+### Đã kiểm tra
+
+- RED / GREEN, `pytest -q`, `pytest -k "not gui" -q`: RED: `ModuleNotFoundError: No module named 'wflash.core.firmware_fetch'`; GREEN: `11 passed in 0.26s`; `pytest -q`: `269 passed in 13.13s`; `grep PySide6 wflash/core/firmware_fetch.py`: không có.
