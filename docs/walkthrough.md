@@ -388,3 +388,19 @@ Review chỉ ra `ArtifactCache.clear()` là `rmtree(root, ignore_errors=True)`: 
 - RED (test viết trước, code cũ): `~/.venvs/wflash/bin/pytest tests/test_artifact_cache.py tests/test_gui_settings_dialog.py tests/test_gui_mapping_table.py -q`: `5 failed, 17 passed, 1 error` (clear xóa cả root, không raise, không có eventFilter).
 - GREEN: cùng lệnh với `-v`: `22 passed in 0.61s` ✓.
 - `~/.venvs/wflash/bin/pytest -q`: `158 passed in 1.70s`; `~/.venvs/wflash/bin/pytest -k thread -q`: `14 passed, 144 deselected` ✓.
+
+## Phase 1.18: Duyệt GitLab và tải artifact
+
+GUI không bao giờ gọi GitLab trực tiếp: mỗi bước ref → pipeline → job → download là một worker `gitlab-*`. Kết quả mang "generation" để kết quả cũ (sau khi refresh hoặc đổi profile) bị bỏ thay vì hiện sai. Hủy tải đặt cờ guard trước khi hủy token, nên một kết quả đã nằm trong hàng đợi cũng không nạp artifact sau khi người dùng bấm Cancel (quy tắc 4). Lỗi 401/403/404/SSL/mất kết nối hiện đúng gợi ý của `GitLabClient`.
+
+### Thay đổi
+
+- **`wflash/gui/gitlab_browser.py`** (mới): `default_client_factory`, `GitlabBrowserMixin` (refresh, chọn ref/pipeline/job, tải có cache, cancel, xử lý lỗi).
+- **`tests/test_gui_gitlab_browser.py`** (mới): 11 test (duyệt + tải, cache, double-click, cancel, completion đã queue trước cancel, 401/403/404, mất kết nối, đổi profile giữa chừng, factory).
+
+### Đã kiểm tra
+
+- `~/.venvs/wflash/bin/pytest tests/test_gui_gitlab_browser.py -q` (RED, chưa có `gitlab_browser.py`): collection error `ImportError: cannot import name 'gitlab_browser' from 'wflash.gui'` ✓ (expected).
+- `~/.venvs/wflash/bin/pytest tests/test_gui_gitlab_browser.py tests/test_gui_ui_files.py -q` (GREEN): `17 passed in 1.91s` ✓.
+- Chạy `tests/test_gui_gitlab_browser.py` 3 lần: `11 passed` mỗi lần (1.60s, 1.63s, 1.59s) ✓.
+- `~/.venvs/wflash/bin/pytest -q`: `169 passed in 2.99s`; `~/.venvs/wflash/bin/pytest -k thread -q`: `14 passed, 155 deselected` ✓.
