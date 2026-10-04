@@ -12,6 +12,7 @@ from __future__ import annotations
 from functools import partial
 from pathlib import Path
 
+from PySide6.QtCore import QEvent
 from PySide6.QtWidgets import QComboBox, QHeaderView, QTableWidgetItem
 
 from wflash.core.file_matcher import MappingRow, build_mapping, candidates_for_kind
@@ -57,6 +58,7 @@ class MappingTableMixin:
             for column, text in enumerate((kind_text, row.target, row.pattern)):
                 table.setItem(index, column, QTableWidgetItem(text))
             combo = QComboBox()
+            combo.installEventFilter(self)  # swallow wheel events, see eventFilter
             combo.addItem(NONE_TEXT, None)
             options = row.candidates or candidates_for_kind(root, row.kind)
             for option in options:
@@ -70,6 +72,12 @@ class MappingTableMixin:
             self._paint_mapping_row(index)
         table.resizeColumnsToContents()
         self._update_flash_controls()
+
+    def eventFilter(self, watched, event) -> bool:
+        # Scrolling the table must never silently change which file gets flashed.
+        if event.type() == QEvent.Type.Wheel and isinstance(watched, QComboBox):
+            return True
+        return super().eventFilter(watched, event)
 
     def clear_mapping(self) -> None:
         self._mapping_rows = []

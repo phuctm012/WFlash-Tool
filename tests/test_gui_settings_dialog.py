@@ -2,6 +2,7 @@ import pytest
 from PySide6.QtWidgets import QDialog, QLineEdit, QMessageBox
 
 from wflash.core.artifact_cache import ArtifactCache
+from wflash.core.errors import ArtifactError
 from wflash.core.settings import AppSettings
 from wflash.gui.settings_dialog import SettingsDialog
 
@@ -70,6 +71,20 @@ def test_gui_clear_cache_after_confirmation(qtbot, tmp_path, monkeypatch):
     assert root.exists() and not dialog.cache_cleared
     monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.StandardButton.Yes)
     dialog.ui.pushButton_clearCache.click()
-    assert not root.exists()
+    assert ArtifactCache(root).entries() == [] and root.exists()  # root itself is never deleted
     assert dialog.cache_cleared
     assert ArtifactCache(root).entries() == []
+
+
+def test_gui_clear_cache_failure_is_shown_not_reported_as_cleared(qtbot, tmp_path, monkeypatch):
+    dialog = make(qtbot, cache_dir=str(tmp_path / "cache"))
+    monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.StandardButton.Yes)
+
+    def boom(self):
+        raise ArtifactError("Could not clear 2 cached artifact(s)", hint="Close programs holding files.")
+
+    monkeypatch.setattr(ArtifactCache, "clear", boom)
+    dialog.ui.pushButton_clearCache.click()
+    assert not dialog.cache_cleared
+    assert "Could not clear 2" in dialog.ui.label_error.text()
+    assert "Close programs" in dialog.ui.label_error.text()

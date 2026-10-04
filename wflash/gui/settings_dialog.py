@@ -7,6 +7,7 @@ from pathlib import Path
 from PySide6.QtWidgets import QDialog, QDialogButtonBox, QFileDialog, QMessageBox, QWidget
 
 from wflash.core.artifact_cache import ArtifactCache
+from wflash.core.errors import ArtifactError
 from wflash.core.logging_setup import get_logger
 from wflash.core.settings import AppSettings, bundled_profiles_dir, default_cache_dir
 from wflash.gui.ui_settings_dialog import Ui_SettingsDialog
@@ -69,7 +70,12 @@ class SettingsDialog(QDialog):
         answer = QMessageBox.question(self, "Clear cache", f"Delete every cached artifact in\n{root}?")
         if answer != QMessageBox.StandardButton.Yes:
             return
-        ArtifactCache(root).clear()
+        try:
+            ArtifactCache(root).clear()
+        except ArtifactError as exc:
+            self.ui.label_error.setText(f"{exc}\n{exc.hint}")
+            log.error("Cannot clear the artifact cache %s: %s", root, exc)
+            return
         self.cache_cleared = True
         self.ui.label_error.setText("")
         log.info("Artifact cache cleared: %s", root)

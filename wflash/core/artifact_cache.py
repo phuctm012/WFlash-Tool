@@ -108,5 +108,29 @@ class ArtifactCache:
                 shutil.rmtree(job_dir, ignore_errors=True)
 
     def clear(self) -> None:
+        """Delete only cache-layout entries (<root>/<digits>/<digits>[.tmp]); never root or anything else."""
         log.info("Clearing artifact cache %s", self.root)
-        shutil.rmtree(self.root, ignore_errors=True)
+        if not self.root.is_dir():
+            return
+        failures: list[OSError] = []
+        for project in self.root.iterdir():
+            if not (project.name.isdigit() and project.is_dir() and not project.is_symlink()):
+                continue
+            for entry in project.iterdir():
+                name = entry.name.removesuffix(".tmp")
+                if not (name.isdigit() and entry.is_dir() and not entry.is_symlink()):
+                    continue
+                try:
+                    shutil.rmtree(entry)
+                except OSError as exc:
+                    log.warning("Cannot remove cache entry %s: %s", entry, exc)
+                    failures.append(exc)
+            try:
+                project.rmdir()  # only succeeds when it is now empty
+            except OSError:
+                pass
+        if failures:
+            raise ArtifactError(
+                f"Could not clear {len(failures)} cached artifact(s)",
+                hint="Close programs that may hold files in the cache folder (winIDEA, Explorer), then try again.",
+            ) from failures[0]

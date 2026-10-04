@@ -378,3 +378,13 @@ Chọn nhầm file là lỗi tệ nhất tool này có thể gây ra (flash sai 
 - `~/.venvs/wflash/bin/pytest tests/test_gui_mapping_table.py -q` (RED, chưa có `mapping_table.py`): `ERROR tests/test_gui_mapping_table.py`, `1 error in 0.28s` (`ModuleNotFoundError: No module named 'wflash.gui.mapping_table'`) ✓ (expected).
 - `~/.venvs/wflash/bin/pytest tests/test_gui_mapping_table.py tests/test_gui_ui_files.py -q` (GREEN): `10 passed in 0.59s` ✓.
 - `~/.venvs/wflash/bin/pytest -q`: `154 passed in 1.72s`; `~/.venvs/wflash/bin/pytest -k thread -q`: `14 passed, 140 deselected` ✓.
+
+## Phase 1.16 / 1.17 - sửa vòng 1 (an toàn dữ liệu)
+
+Review chỉ ra `ArtifactCache.clear()` là `rmtree(root, ignore_errors=True)`: nếu người dùng gõ nhầm thư mục cache thành `~/Desktop` thì cả thư mục bị xóa, và lỗi quyền bị nuốt nhưng vẫn báo "cleared". Sửa: `clear()` (thay đổi nhỏ ở `wflash/core/artifact_cache.py`) chỉ xóa đúng layout cache (`<root>/<số>/<số>` và `<số>.tmp`), rồi `rmdir` thư mục project nếu rỗng; không bao giờ xóa root hay file lạ; lỗi xóa được gom lại và ném `ArtifactError("Could not clear N cached artifact(s)")` sau khi đã xóa phần còn lại. Dialog Settings hiện lỗi + hint và không đặt `cache_cleared`. Mỗi combo trong bảng mapping nuốt sự kiện cuộn chuột để cuộn bảng không đổi file được chọn.
+
+### Đã kiểm tra
+
+- RED (test viết trước, code cũ): `~/.venvs/wflash/bin/pytest tests/test_artifact_cache.py tests/test_gui_settings_dialog.py tests/test_gui_mapping_table.py -q`: `5 failed, 17 passed, 1 error` (clear xóa cả root, không raise, không có eventFilter).
+- GREEN: cùng lệnh với `-v`: `22 passed in 0.61s` ✓.
+- `~/.venvs/wflash/bin/pytest -q`: `158 passed in 1.70s`; `~/.venvs/wflash/bin/pytest -k thread -q`: `14 passed, 144 deselected` ✓.

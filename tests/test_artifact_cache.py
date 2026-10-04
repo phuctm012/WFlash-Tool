@@ -107,3 +107,43 @@ def test_artifact_with_tmp_folder_survives_prune(tmp_path):
     z2 = make_zip(tmp_path / "b.zip", {"f.s3": "y"})
     cache.store_zip(2, 20, z2)
     assert (files / "out" / "build.tmp" / "x.txt").read_text() == "data"
+
+
+def test_clear_removes_only_cache_layout_entries(tmp_path):
+    root = tmp_path / "cache"
+    (root / "42" / "7" / "files").mkdir(parents=True)
+    (root / "42" / "7" / ".complete").write_text("x")
+    (root / "42" / "8.tmp" / "files").mkdir(parents=True)
+    (root / "42" / "keep.txt").write_text("k")
+    (root / "notes.txt").write_text("n")
+    (root / "Documents").mkdir()
+    (root / "Documents" / "a.doc").write_text("d")
+    (root / "43" / "9" / "files").mkdir(parents=True)
+    ArtifactCache(root).clear()
+    assert not (root / "42" / "7").exists() and not (root / "42" / "8.tmp").exists()
+    assert not (root / "43").exists()  # emptied project dir is removed
+    assert (root / "42" / "keep.txt").exists()  # non-empty project dir stays
+    assert (root / "notes.txt").exists() and (root / "Documents" / "a.doc").exists()
+    assert root.exists()
+
+
+def test_clear_failure_raises_after_removing_the_rest(tmp_path, monkeypatch):
+    import shutil
+
+    root = tmp_path / "cache"
+    for job in ("1", "2", "3"):
+        (root / "42" / job / "files").mkdir(parents=True)
+    real = shutil.rmtree
+
+    def flaky(path, *args, **kwargs):
+        if str(path).endswith("2"):
+            raise PermissionError("locked")
+        return real(path, *args, **kwargs)
+
+    monkeypatch.setattr("wflash.core.artifact_cache.shutil.rmtree", flaky)
+    with pytest.raises(ArtifactError, match="Could not clear 1 cached") as info:
+        ArtifactCache(root).clear()
+    assert "Close programs" in info.value.hint
+    assert isinstance(info.value.__cause__, PermissionError)
+    assert not (root / "42" / "1").exists() and not (root / "42" / "3").exists()
+    assert (root / "42" / "2").exists()

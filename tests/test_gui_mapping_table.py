@@ -1,4 +1,6 @@
 import pytest
+from PySide6.QtCore import QEvent, QPoint, QPointF, Qt
+from PySide6.QtGui import QWheelEvent
 
 from tests.gui_stubs import EXAMPLE_PROFILE, HostWindow, make_artifact_tree
 from wflash.core.profile import load_profile
@@ -71,3 +73,17 @@ def test_gui_no_profile_ignores_artifact(host, tmp_path):
     host.profile = None
     host.on_artifact_ready(make_artifact_tree(tmp_path / "art"), "job #7")
     assert host.ui.tableWidget_mapping.rowCount() == 0
+
+
+def test_gui_wheel_over_a_row_combo_does_not_change_the_choice(host, tmp_path, qtbot):
+    root = make_artifact_tree(tmp_path / "art", {"a/App.s3": b"1", "b/App.s3": b"2", "x_cm7_0.elf": b"3"})
+    host.on_artifact_ready(root, "job #7")
+    combo = host.mapping_combo(0)
+    before = combo.currentIndex()
+    event = QWheelEvent(
+        QPointF(5, 5), QPointF(5, 5), QPoint(0, 0), QPoint(0, -120),
+        Qt.MouseButton.NoButton, Qt.KeyboardModifier.NoModifier, Qt.ScrollPhase.NoScrollPhase, False,
+    )
+    assert host.eventFilter(combo, event) is True
+    assert combo.currentIndex() == before
+    assert host.eventFilter(combo, QEvent(QEvent.Type.Enter)) is False
