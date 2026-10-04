@@ -348,3 +348,18 @@ Log panel là nơi người dùng thấy chuyện gì đang xảy ra và là ngu
 - `~/.venvs/wflash/bin/pytest tests/test_gui_log_panel.py -v` (RED, chưa có `log_panel.py`): `ModuleNotFoundError: No module named 'wflash.gui.log_panel'`, `1 error in 0.30s` ✓ (expected).
 - `~/.venvs/wflash/bin/pytest tests/test_gui_log_panel.py -v` (GREEN): `7 passed in 0.45s` ✓.
 - `~/.venvs/wflash/bin/pytest -q`: `145 passed in 1.64s`; `~/.venvs/wflash/bin/pytest -k thread -q`: `14 passed, 131 deselected` ✓.
+
+## Phase 1.16: Hộp thoại Settings
+
+Settings là nơi duy nhất nhập GitLab URL, token, CA bundle (cho chứng chỉ nội bộ — spec §8) và nút xóa cache (spec §2). Layout nằm trong `settings_dialog.ui`; Python chỉ nạp giá trị, kiểm tra hợp lệ và trả về bản sao `AppSettings`. Token chỉ đi ra qua `result_token()`, việc lưu vào keyring do cửa sổ chính làm.
+
+### Thay đổi
+
+- **`wflash/gui/settings_dialog.py`** (mới): `SettingsDialog` (validate URL/CA bundle, browse, Clear cache có xác nhận).
+- **`tests/test_gui_settings_dialog.py`** (mới): 5 test.
+
+### Đã kiểm tra
+
+- `~/.venvs/wflash/bin/pytest tests/test_gui_settings_dialog.py -q` (RED, chưa có `settings_dialog.py`): `ERROR tests/test_gui_settings_dialog.py`, `1 error in 0.18s` (`ModuleNotFoundError: No module named 'wflash.gui.settings_dialog'`) ✓ (expected).
+- `~/.venvs/wflash/bin/pytest tests/test_gui_settings_dialog.py tests/test_gui_ui_files.py -v` (GREEN): `11 passed in 0.51s` ✓.
+- `~/.venvs/wflash/bin/pytest -q`: `150 passed in 1.73s`; `~/.venvs/wflash/bin/pytest -k thread -q`: `14 passed, 136 deselected` ✓.
