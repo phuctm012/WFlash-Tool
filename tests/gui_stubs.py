@@ -20,8 +20,10 @@ from PySide6.QtWidgets import QMainWindow
 from requests.structures import CaseInsensitiveDict
 
 from wflash.core.debug_bundle import DebugContext
+from wflash.core.firmware_source import FirmwareSource
 from wflash.core.gitlab_client import GitLabClient
 from wflash.core.settings import AppSettings
+from wflash.gui import gitlab_dialog
 from wflash.gui.ui_main_window import Ui_MainWindow
 from wflash.gui.workers import WorkerRegistry
 
@@ -35,10 +37,33 @@ PROJECT = "group/saf85xx-sw"
 PROJECT_ID = 42
 PIPELINE_ID = 100
 JOB_ID = 7
+PKG_PROJECT = "group/saf85xx-packages"
+PKG_PROJECT_ID = 43
+PKG_NAME = "saf85xx-firmware"
+PKG_ZIP_ID = 502  # version 1.4.0: one zip with the usual artifact files
+PKG_RAW_ID = 501  # version 1.3.0: one plain .s3 file (not a zip)
 OLD_APP = r"C:\fake\old\App.s3"
 OLD_CM7_0 = r"C:\fake\old\cm7_0.elf"
 OLD_CM7_1 = r"C:\fake\old\cm7_1.elf"
 ARTIFACT_FILES = {"out/App.s3": b"S0", "out/x_cm7_0.elf": b"E0", "out/x_cm7_1.elf": b"E1"}
+
+
+# What a CI download of JOB_ID reports; tests that load a local tree use it as the source.
+SOURCE = FirmwareSource(
+    kind="ci",
+    project=PROJECT,
+    title=f"CI artifact \u00b7 job #{JOB_ID} build_app",
+    detail=f"{PROJECT} \u00b7 main \u00b7 pipeline #{PIPELINE_ID}",
+    cache_note="Downloaded \u00b7 3 files",
+)
+
+
+def patch_keyring(monkeypatch, store: dict | None = None) -> dict:
+    """Keep the GitLab dialog away from the real system keyring; returns the fake store."""
+    store = {} if store is None else store
+    monkeypatch.setattr(gitlab_dialog, "get_token", lambda url: store.get(url))
+    monkeypatch.setattr(gitlab_dialog, "set_token", lambda url, token: store.__setitem__(url, token))
+    return store
 
 
 def artifact_zip_bytes(files: dict[str, bytes] = ARTIFACT_FILES, padding: int = 64 * 1024) -> bytes:
@@ -100,6 +125,12 @@ class FakeGitLabSession:
         self.connection_error = connection_error
         self.chunk_delay_s = chunk_delay_s
         self.zip_bytes = artifact_zip_bytes()
+        self.package_versions = [
+            {"id": PKG_ZIP_ID, "name": PKG_NAME, "version": "1.4.0", "created_at": "2026-10-04T09:20:00Z"},
+            {"id": 503, "name": PKG_NAME + "-debug", "version": "9.9.9", "created_at": "2026-10-03T08:00:00Z"},
+            {"id": PKG_RAW_ID, "name": PKG_NAME, "version": "1.3.0", "created_at": "2026-10-01T07:00:00Z"},
+        ]
+        self.package_files = {PKG_ZIP_ID: f"{PKG_NAME}-1.4.0.zip", PKG_RAW_ID: "App.s3"}
         self.calls: list[str] = []
         self._lock = threading.Lock()
 
@@ -138,13 +169,27 @@ class FakeGitLabSession:
                  {"id": 8, "name": "lint", "stage": "test", "status": "success", "artifacts": []}],
             )
         if path == f"/projects/{PROJECT_ID}/jobs/{JOB_ID}/artifacts":
-            resp = requests.Response()
-            resp.status_code = 200
-            resp.url = url
-            resp.headers = CaseInsensitiveDict({"Content-Length": str(len(self.zip_bytes))})
-            resp.raw = _SlowRaw(self.zip_bytes, 4096, self.chunk_delay_s)
-            return resp
+            return self._stream(url, self.zip_bytes)
+        if path == f"/projects/{PKG_PROJECT}":
+            return self._response(200, {"id": PKG_PROJECT_ID})
+        if path == f"/projects/{PKG_PROJECT_ID}/packages":
+            name = (params or {}).get("package_name", "")
+            return self._response(200, [p for p in self.package_versions if p["name"].startswith(name)])
+        for package_id, file_name in self.package_files.items():
+            if path == f"/projects/{PKG_PROJECT_ID}/packages/{package_id}/package_files":
+                return self._response(200, [{"id": 1, "file_name": file_name}])
+            version = next((p["version"] for p in self.package_versions if p["id"] == package_id), None)
+            if path == f"/projects/{PKG_PROJECT_ID}/packages/generic/{PKG_NAME}/{version}/{file_name}":
+                return self._stream(url, self.zip_bytes if file_name.endswith(".zip") else b"S0 raw")
         return self._response(404, {"message": "404 Not Found"})
+
+    def _stream(self, url: str, data: bytes) -> requests.Response:
+        resp = requests.Response()
+        resp.status_code = 200
+        resp.url = url
+        resp.headers = CaseInsensitiveDict({"Content-Length": str(len(data))})
+        resp.raw = _SlowRaw(data, 4096, self.chunk_delay_s)
+        return resp
 
     @staticmethod
     def _response(status: int, payload) -> requests.Response:
@@ -168,16 +213,18 @@ class SessionClientFactory:
 class HostWindow(QMainWindow):
     """Minimal stand-in for MainWindow's shared state, to test one mixin at a time.
 
-    Provides exactly the host contract the mixins document: ui, settings, adapter, ctx,
-    profile, log_file, _workers, _closing, _client_factory, show_error(), plus no-op
-    versions of the cross-mixin hooks that a mixin under test may call.
+    Provides exactly the host contract the mixins and GitlabDialog document: ui, settings,
+    adapter, ctx, profile, log_file, _workers, _closing, _client_factory, show_error(),
+    _save_settings(), plus no-op versions of the cross-mixin hooks a part under test may call.
     """
 
     def __init__(self, tmp: Path, adapter=None, client_factory=None) -> None:
         super().__init__()
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
-        self.settings = AppSettings(cache_dir=str(tmp / "cache"), profiles_dir=str(tmp / "profiles"))
+        self.settings = AppSettings(
+            gitlab_url=GITLAB_URL, cache_dir=str(tmp / "cache"), profiles_dir=str(tmp / "profiles")
+        )
         self.adapter = adapter
         self.ctx = DebugContext()
         self.profile = None
@@ -188,10 +235,15 @@ class HostWindow(QMainWindow):
         self._workers = WorkerRegistry(self._pool, self)
         self.errors_shown: list[BaseException] = []
         self.artifacts_loaded: list[tuple[Path, str]] = []
+        self.firmware_loaded: list[tuple[Path, FirmwareSource]] = []
         self.flash_control_updates = 0
+        self.settings_saved = 0
 
     def show_error(self, exc: BaseException) -> None:
         self.errors_shown.append(exc)
+
+    def _save_settings(self) -> None:
+        self.settings_saved += 1
 
     # Cross-mixin hooks; the real mixin wins over these when it is in the MRO first.
     def _update_flash_controls(self) -> None:
@@ -199,6 +251,9 @@ class HostWindow(QMainWindow):
 
     def on_artifact_ready(self, path: Path, label: str) -> None:
         self.artifacts_loaded.append((path, label))
+
+    def on_firmware_ready(self, path: Path, source: FirmwareSource) -> None:
+        self.firmware_loaded.append((path, source))
 
     def flash_active(self) -> bool:
         return False

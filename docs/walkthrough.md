@@ -702,3 +702,17 @@ Popup GitLab theo CLAUDE.md là Designer trước: khung GitLab Connection (URL,
 ### Đã kiểm tra
 
 - RED / GREEN, `pytest -q`: RED: `4 failed, 6 passed` (thiếu `gitlab_dialog.ui` / `ui_gitlab_dialog`); GREEN: `10 passed in 0.68s`; `pytest -q`: `291 passed in 16.54s`.
+
+## Phase 1.37: Popup Load from GitLab (CI Artifact + Package Registry)
+
+Logic duyệt/tải GitLab rời khỏi cửa sổ chính sang một dialog modal giống SFlash. Dialog dùng `WorkerRegistry` của cửa sổ chính (key `gitlab-`), giữ đủ 8 quy tắc threading: slot luôn là bound method, `_generation` tăng *trước* mọi lần hủy (Stop, đóng dialog, đóng cửa sổ) nên kết quả đã xếp hàng bị bỏ, đóng dialog chờ có giới hạn và bơm event (chỉ worker `gitlab-`), quá giờ thì "bỏ" worker thay vì treo. Tải qua `firmware_fetch` (core) nên cache và mô tả nguồn giống nhau cho CI và package. Token chỉ vào keyring; log riêng của dialog đi qua `redact()` và logger `wflash.gitlab`. Tắt Verify TLS được phép nhưng ghi WARNING một lần mỗi phiên. Tải xong dialog phát `firmwareReady(path, source)` rồi tự đóng.
+
+### Thay đổi
+
+- **`wflash/gui/gitlab_dialog.py`** (mới): `GitlabDialog`, `default_client_factory` (chuyển từ `gitlab_browser.py`, thêm `verify`), `byte_progress`, `warn_tls_disabled_once`.
+- **`tests/gui_stubs.py`**: endpoint Package Registry giả, `patch_keyring`, `SOURCE`, `HostWindow._save_settings/on_firmware_ready`.
+- **`tests/test_gui_gitlab_dialog.py`** (mới): 25 test, trong đó 5 test `thread`.
+
+### Đã kiểm tra
+
+- RED / GREEN, `pytest -k thread -v`, `pytest -q`: RED: `ImportError: cannot import name 'gitlab_dialog' from 'wflash.gui'`; GREEN: `25 passed in 2.69s`; `pytest -k thread -q`: `36 passed, 280 deselected`; `pytest -q`: `316 passed in 18.55s`.
