@@ -579,3 +579,17 @@ Phần đầu cửa sổ mới hiện `phần trăm | ETA | Speed` giống SFlas
 ### Đã kiểm tra
 
 - RED / GREEN `tests/test_progress.py`, `pytest -q`: RED: `ModuleNotFoundError: No module named 'wflash.core.progress'`; GREEN: `8 passed in 0.02s`; `pytest -q`: `228 passed in 13.74s`.
+
+## Phase 1.28: FirmwareSource — firmware đang dùng đến từ đâu
+
+Thẻ nguồn firmware trong vùng Setting và debug bundle cần cùng một mô tả: CI artifact hay package, project nào, job/version nào, lấy từ cache hay vừa tải. `FirmwareSource` (core) chứa đúng các chuỗi đó; `DebugContext.source` giữ bản dict và bundle có thêm `source.json` (đã che token như mọi file khác), vì câu hỏi đầu tiên khi debug luôn là "đã flash bản nào".
+
+### Thay đổi
+
+- **`wflash/core/firmware_source.py`** (mới): `FirmwareSource`, `files_note`, `short_timestamp`.
+- **`wflash/core/debug_bundle.py`**: field `DebugContext.source`, file `source.json` trong bundle.
+- **`tests/test_firmware_source.py`** (mới, 3 test), **`tests/test_debug_bundle.py`** (thêm `source.json` vào danh sách file, thêm 2 test).
+
+### Đã kiểm tra
+
+- RED / GREEN, `pytest -q`: RED: `ModuleNotFoundError: No module named 'wflash.core.firmware_source'`; GREEN: `11 passed in 0.11s`; `pytest -q`: `233 passed in 13.67s`.

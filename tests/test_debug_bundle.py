@@ -40,7 +40,8 @@ def test_bundle_contents_and_redaction(tmp_path):
     with zipfile.ZipFile(path) as zf:
         names = set(zf.namelist())
         assert names == {
-            "log.txt", "environment.json", "profile.yaml", "mapping.json", "workspace_snapshots.json", "errors.txt",
+            "log.txt", "environment.json", "profile.yaml", "mapping.json", "source.json",
+            "workspace_snapshots.json", "errors.txt",
         }
         assert "glpat-SECRET-1" not in zf.read("log.txt").decode()
         env = json.loads(zf.read("environment.json"))
@@ -70,3 +71,23 @@ def test_env_info_pyside6_version_falls_back_to_module_when_metadata_missing(mon
 
 def test_env_info_pyside6_version_reported():
     assert collect_env_info()["PySide6"] != "not installed"
+
+
+def test_bundle_records_the_firmware_source_redacted(tmp_path):
+    from wflash.core.firmware_source import FirmwareSource
+
+    register_secret("glpat-SECRET-2")
+    source = FirmwareSource("ci", "group/p", "CI artifact · job #7 build_app", "x glpat-SECRET-2", "Cached · 3 files")
+    ctx = DebugContext(source=source.to_dict())
+    path = create_debug_bundle(ctx, tmp_path, None)
+    clear_secrets()
+    with zipfile.ZipFile(path) as zf:
+        data = json.loads(zf.read("source.json"))
+    assert data["kind"] == "ci" and data["title"] == "CI artifact · job #7 build_app"
+    assert data["detail"] == "x ***"
+
+
+def test_bundle_source_is_empty_object_when_nothing_loaded(tmp_path):
+    path = create_debug_bundle(DebugContext(), tmp_path, None)
+    with zipfile.ZipFile(path) as zf:
+        assert json.loads(zf.read("source.json")) == {}

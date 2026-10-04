@@ -23,6 +23,7 @@ class DebugContext:
     adapter_info: dict[str, str] = field(default_factory=dict)
     snapshots: dict[str, dict] = field(default_factory=dict)
     errors: list[str] = field(default_factory=list)
+    source: dict[str, str] = field(default_factory=dict)  # FirmwareSource.to_dict() of the loaded firmware
 
     def snapshot(self, label: str, programs: list[FileEntry], applications: list[FileEntry]) -> None:
         self.snapshots[label] = {
@@ -77,6 +78,7 @@ def create_debug_bundle(ctx: DebugContext, dest_dir: Path, log_file: Path | None
         if ctx.profile_path is not None and ctx.profile_path.is_file():
             zf.writestr("profile.yaml", redact(ctx.profile_path.read_text(encoding="utf-8", errors="replace")))
         zf.writestr("mapping.json", redact(json.dumps(ctx.mapping, indent=2)))
+        zf.writestr("source.json", redact(json.dumps(ctx.source, indent=2)))
         zf.writestr("workspace_snapshots.json", redact(json.dumps(ctx.snapshots, indent=2)))
         zf.writestr("errors.txt", redact("\n\n".join(ctx.errors) or "(no errors recorded)"))
     return path
