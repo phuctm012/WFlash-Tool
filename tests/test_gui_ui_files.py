@@ -15,8 +15,9 @@ UI_FILES = {
     "main_window.ui": "ui_main_window.py",
     "settings_dialog.ui": "ui_settings_dialog.py",
     "preferences_dialog.ui": "ui_preferences_dialog.py",
+    "gitlab_dialog.ui": "ui_gitlab_dialog.py",
 }
-TOP_LEVEL = {"MainWindow", "SettingsDialog", "PreferencesDialog"}
+TOP_LEVEL = {"MainWindow", "SettingsDialog", "PreferencesDialog", "GitlabDialog"}
 # <kind>_<what>, e.g. verticalLayout_gitlabBrowser, tableWidget_mapping.
 MEANINGFUL = re.compile(r"^[a-z][A-Za-z]*_[a-z][A-Za-z0-9]*$")
 
@@ -78,6 +79,7 @@ def test_gui_every_self_ui_reference_exists_in_a_ui_file():
 def test_gui_generated_modules_import(qapp):
     from PySide6.QtWidgets import QDialog, QMainWindow
 
+    from wflash.gui.ui_gitlab_dialog import Ui_GitlabDialog
     from wflash.gui.ui_main_window import Ui_MainWindow
     from wflash.gui.ui_preferences_dialog import Ui_PreferencesDialog
     from wflash.gui.ui_settings_dialog import Ui_SettingsDialog
@@ -92,6 +94,14 @@ def test_gui_generated_modules_import(qapp):
     Ui_SettingsDialog().setupUi(dialog)
     preferences = QDialog()
     Ui_PreferencesDialog().setupUi(preferences)
+    gitlab = QDialog()
+    gitlab_ui = Ui_GitlabDialog()
+    gitlab_ui.setupUi(gitlab)
+    assert gitlab_ui.tableWidget_jobs.columnCount() == 6
+    assert gitlab_ui.tableWidget_versions.columnCount() == 3
+    assert gitlab_ui.tabWidget_source.count() == 2
+    assert gitlab_ui.checkBox_verifyTls.isChecked()
     window.deleteLater()
     dialog.deleteLater()
     preferences.deleteLater()
+    gitlab.deleteLater()

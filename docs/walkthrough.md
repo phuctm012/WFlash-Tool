@@ -689,3 +689,16 @@ Settings cũ bị tách làm hai: phần kết nối GitLab (URL, token, TLS, CA
 ### Đã kiểm tra
 
 - RED / GREEN, `pytest -q`: RED: `ModuleNotFoundError: No module named 'wflash.gui.preferences_dialog'`; GREEN: `14 passed in 0.78s`; `pytest -q`: `289 passed in 16.43s`.
+
+## Phase 1.36: File Designer cho popup Load from GitLab
+
+Popup GitLab theo CLAUDE.md là Designer trước: khung GitLab Connection (URL, token, Verify TLS, CA bundle, ghi chú scope `read_api`), hai tab CI Artifact và Package Registry, thanh tải + trạng thái + Stop, ô GitLab log và nút Cancel. Mọi widget/layout có tên `<loại>_<ý nghĩa>`; chỉ các dòng của hai bảng (và nút Download từng dòng) sẽ dựng bằng Python ở task sau.
+
+### Thay đổi
+
+- **`wflash/gui/gitlab_dialog.ui`** (mới) + **`ui_gitlab_dialog.py`** (sinh bằng `pyside6-uic`).
+- **`tests/test_gui_ui_files.py`**: kiểm tên, đồng bộ file sinh, số cột hai bảng, hai tab, Verify TLS bật sẵn.
+
+### Đã kiểm tra
+
+- RED / GREEN, `pytest -q`: RED: `4 failed, 6 passed` (thiếu `gitlab_dialog.ui` / `ui_gitlab_dialog`); GREEN: `10 passed in 0.68s`; `pytest -q`: `291 passed in 16.54s`.

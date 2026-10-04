@@ -1,0 +1,547 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>GitlabDialog</class>
+ <widget class="QDialog" name="GitlabDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>880</width>
+    <height>720</height>
+   </rect>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>760</width>
+    <height>600</height>
+   </size>
+  </property>
+  <property name="windowTitle">
+   <string>Load from GitLab</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout_gitlabDialog">
+   <item>
+    <widget class="QGroupBox" name="groupBox_connection">
+     <property name="title">
+      <string>GitLab Connection</string>
+     </property>
+     <layout class="QGridLayout" name="gridLayout_connection">
+      <item row="0" column="0">
+       <widget class="QLabel" name="label_gitlabUrl">
+        <property name="text">
+         <string>Instance URL:</string>
+        </property>
+        <property name="buddy">
+         <cstring>lineEdit_gitlabUrl</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QLineEdit" name="lineEdit_gitlabUrl">
+        <property name="placeholderText">
+         <string>https://gitlab.company.com</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="label_token">
+        <property name="text">
+         <string>Access token:</string>
+        </property>
+        <property name="buddy">
+         <cstring>lineEdit_token</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QLineEdit" name="lineEdit_token">
+        <property name="echoMode">
+         <enum>QLineEdit::EchoMode::Password</enum>
+        </property>
+        <property name="placeholderText">
+         <string>Personal Access Token (scope read_api)</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QCheckBox" name="checkBox_verifyTls">
+        <property name="text">
+         <string>Verify TLS certificate (recommended)</string>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="0">
+       <widget class="QLabel" name="label_caBundle">
+        <property name="text">
+         <string>CA bundle:</string>
+        </property>
+        <property name="buddy">
+         <cstring>lineEdit_caBundle</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <layout class="QHBoxLayout" name="horizontalLayout_caBundle">
+        <item>
+         <widget class="QLineEdit" name="lineEdit_caBundle">
+          <property name="placeholderText">
+           <string>Optional: .pem file for an internal certificate</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="pushButton_browseCa">
+          <property name="text">
+           <string>Browse…</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item row="4" column="0" colspan="2">
+       <widget class="QLabel" name="label_connectionHint">
+        <property name="text">
+         <string>Required token scope: read_api (branches/tags, pipelines, jobs, artifacts, packages). The token is stored in the system keyring (Windows Credential Manager), never in a file.</string>
+        </property>
+        <property name="wordWrap">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QTabWidget" name="tabWidget_source">
+     <property name="currentIndex">
+      <number>0</number>
+     </property>
+     <widget class="QWidget" name="tab_ciArtifact">
+      <attribute name="title">
+       <string>CI Artifact</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_ciArtifact">
+       <item>
+        <layout class="QGridLayout" name="gridLayout_ciArtifact">
+         <item row="0" column="0">
+          <widget class="QLabel" name="label_ciProject">
+           <property name="text">
+            <string>Project:</string>
+           </property>
+           <property name="buddy">
+            <cstring>lineEdit_ciProject</cstring>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <layout class="QHBoxLayout" name="horizontalLayout_ciProject">
+           <item>
+            <widget class="QLineEdit" name="lineEdit_ciProject">
+             <property name="placeholderText">
+              <string>group/project (empty = the profile's project)</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="label_ciProjectSource">
+             <property name="text">
+              <string>from profile</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+         <item row="1" column="0">
+          <widget class="QLabel" name="label_ref">
+           <property name="text">
+            <string>Branch/tag:</string>
+           </property>
+           <property name="buddy">
+            <cstring>comboBox_ref</cstring>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <layout class="QHBoxLayout" name="horizontalLayout_ref">
+           <item>
+            <widget class="QComboBox" name="comboBox_ref">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+               <horstretch>1</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="editable">
+              <bool>true</bool>
+             </property>
+             <property name="insertPolicy">
+              <enum>QComboBox::InsertPolicy::NoInsert</enum>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="pushButton_loadRefs">
+             <property name="text">
+              <string>Load branches/tags</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+         <item row="2" column="0">
+          <widget class="QLabel" name="label_jobName">
+           <property name="text">
+            <string>Job name:</string>
+           </property>
+           <property name="buddy">
+            <cstring>comboBox_jobName</cstring>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="1">
+          <widget class="QComboBox" name="comboBox_jobName">
+           <property name="editable">
+            <bool>true</bool>
+           </property>
+           <property name="insertPolicy">
+            <enum>QComboBox::InsertPolicy::NoInsert</enum>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_ciActions">
+         <item>
+          <widget class="QPushButton" name="pushButton_downloadSelected">
+           <property name="text">
+            <string>Download Selected Artifact</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="pushButton_browseJobs">
+           <property name="text">
+            <string>Browse jobs…</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer_ciActions">
+           <property name="orientation">
+            <enum>Qt::Orientation::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <widget class="QTableWidget" name="tableWidget_jobs">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>128</height>
+          </size>
+         </property>
+         <property name="editTriggers">
+          <set>QAbstractItemView::EditTrigger::NoEditTriggers</set>
+         </property>
+         <property name="selectionMode">
+          <enum>QAbstractItemView::SelectionMode::SingleSelection</enum>
+         </property>
+         <property name="selectionBehavior">
+          <enum>QAbstractItemView::SelectionBehavior::SelectRows</enum>
+         </property>
+         <attribute name="verticalHeaderVisible">
+          <bool>false</bool>
+         </attribute>
+         <column>
+          <property name="text">
+           <string>Pipeline</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Job</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Ref</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Status</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>When</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Download</string>
+          </property>
+         </column>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="tab_packageRegistry">
+      <attribute name="title">
+       <string>Package Registry</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_packageRegistry">
+       <item>
+        <layout class="QGridLayout" name="gridLayout_package">
+         <item row="0" column="0">
+          <widget class="QLabel" name="label_pkgProject">
+           <property name="text">
+            <string>Project:</string>
+           </property>
+           <property name="buddy">
+            <cstring>lineEdit_pkgProject</cstring>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="QLineEdit" name="lineEdit_pkgProject">
+           <property name="placeholderText">
+            <string>group/project holding the generic package</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="0">
+          <widget class="QLabel" name="label_packageName">
+           <property name="text">
+            <string>Package name:</string>
+           </property>
+           <property name="buddy">
+            <cstring>lineEdit_packageName</cstring>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <widget class="QLineEdit" name="lineEdit_packageName">
+           <property name="placeholderText">
+            <string>e.g. saf85xx-firmware</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_packageActions">
+         <item>
+          <widget class="QPushButton" name="pushButton_fetchLatest">
+           <property name="text">
+            <string>Fetch Latest Version</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="pushButton_browseVersions">
+           <property name="text">
+            <string>Browse versions…</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer_packageActions">
+           <property name="orientation">
+            <enum>Qt::Orientation::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <widget class="QTableWidget" name="tableWidget_versions">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>128</height>
+          </size>
+         </property>
+         <property name="editTriggers">
+          <set>QAbstractItemView::EditTrigger::NoEditTriggers</set>
+         </property>
+         <property name="selectionMode">
+          <enum>QAbstractItemView::SelectionMode::SingleSelection</enum>
+         </property>
+         <property name="selectionBehavior">
+          <enum>QAbstractItemView::SelectionBehavior::SelectRows</enum>
+         </property>
+         <attribute name="verticalHeaderVisible">
+          <bool>false</bool>
+         </attribute>
+         <column>
+          <property name="text">
+           <string>Version</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Uploaded</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Download</string>
+          </property>
+         </column>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </widget>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="horizontalLayout_download">
+     <item>
+      <widget class="QProgressBar" name="progressBar_download">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+         <horstretch>1</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>16777215</width>
+         <height>20</height>
+        </size>
+       </property>
+       <property name="value">
+        <number>0</number>
+       </property>
+       <property name="textVisible">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="label_downloadStatus">
+       <property name="minimumSize">
+        <size>
+         <width>220</width>
+         <height>0</height>
+        </size>
+       </property>
+       <property name="text">
+        <string>Ready</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="pushButton_stopDownload">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
+       <property name="text">
+        <string>Stop</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QLabel" name="label_gitlabLog">
+     <property name="text">
+      <string>GitLab log</string>
+     </property>
+     <property name="buddy">
+      <cstring>plainTextEdit_gitlabLog</cstring>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QPlainTextEdit" name="plainTextEdit_gitlabLog">
+     <property name="maximumSize">
+      <size>
+       <width>16777215</width>
+       <height>120</height>
+      </size>
+     </property>
+     <property name="lineWrapMode">
+      <enum>QPlainTextEdit::LineWrapMode::NoWrap</enum>
+     </property>
+     <property name="readOnly">
+      <bool>true</bool>
+     </property>
+     <property name="maximumBlockCount">
+      <number>2000</number>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="horizontalLayout_dialogButtons">
+     <item>
+      <spacer name="horizontalSpacer_dialogButtons">
+       <property name="orientation">
+        <enum>Qt::Orientation::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QPushButton" name="pushButton_cancel">
+       <property name="text">
+        <string>Cancel</string>
+       </property>
+       <property name="autoDefault">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <tabstops>
+  <tabstop>lineEdit_gitlabUrl</tabstop>
+  <tabstop>lineEdit_token</tabstop>
+  <tabstop>checkBox_verifyTls</tabstop>
+  <tabstop>lineEdit_caBundle</tabstop>
+  <tabstop>pushButton_browseCa</tabstop>
+  <tabstop>tabWidget_source</tabstop>
+  <tabstop>lineEdit_ciProject</tabstop>
+  <tabstop>comboBox_ref</tabstop>
+  <tabstop>pushButton_loadRefs</tabstop>
+  <tabstop>comboBox_jobName</tabstop>
+  <tabstop>pushButton_downloadSelected</tabstop>
+  <tabstop>pushButton_browseJobs</tabstop>
+  <tabstop>tableWidget_jobs</tabstop>
+  <tabstop>lineEdit_pkgProject</tabstop>
+  <tabstop>lineEdit_packageName</tabstop>
+  <tabstop>pushButton_fetchLatest</tabstop>
+  <tabstop>pushButton_browseVersions</tabstop>
+  <tabstop>tableWidget_versions</tabstop>
+  <tabstop>pushButton_stopDownload</tabstop>
+  <tabstop>pushButton_cancel</tabstop>
+ </tabstops>
+ <resources/>
+ <connections/>
+</ui>
