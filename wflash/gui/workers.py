@@ -211,29 +211,32 @@ class WorkerRegistry(QObject):
         for worker in self._running.values():
             worker.cancel.cancel()
 
-    def wait_idle(self, timeout_s: float) -> bool:
+    def wait_idle(self, timeout_s: float, prefix: str = "") -> bool:
         """Pump events until every finished signal was handled, or the deadline passes.
+
+        With `prefix`, only workers whose key starts with it are waited for (a dialog waits
+        for its own "gitlab-" workers without depending on unrelated ones).
 
         Rule 3: never block the GUI loop on the pool — the workers' queued signals can only
         be delivered while this loop runs.
         """
         deadline = time.monotonic() + timeout_s
-        while self._running:
+        while self.has_running(prefix):
             if time.monotonic() >= deadline:
                 return False
             QCoreApplication.processEvents(QEventLoop.ProcessEventsFlag.AllEvents, 50)
-            pending = next(iter(self._running.values()), None)
+            pending = next((w for k, w in self._running.items() if k.startswith(prefix)), None)
             if pending is not None:
                 pending.done.wait(0.01)
         return True
 
-    def abandon_running(self) -> list[str]:
-        """Park still-running workers for the rest of the process; return their keys."""
-        keys = list(self._running)
+    def abandon_running(self, prefix: str = "") -> list[str]:
+        """Park still-running workers (keys starting with `prefix`) for the rest of the process."""
+        keys = [key for key in self._running if key.startswith(prefix)]
         for key in keys:
             worker = self._running.pop(key)
             log.warning("Worker %s did not stop in time; abandoning it", key)
             _ABANDONED.append(worker)
-        _ABANDONED.extend(self._retired)
-        self._retired = []
+        _ABANDONED.extend(w for w in self._retired if w.key.startswith(prefix))
+        self._retired = [w for w in self._retired if not w.key.startswith(prefix)]
         return keys

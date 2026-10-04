@@ -646,3 +646,16 @@ Popup GitLab chỉ nên lo giao diện; phần "job mới nhất thành công kh
 ### Đã kiểm tra
 
 - RED / GREEN, `pytest -q`, `pytest -k "not gui" -q`: RED: `ModuleNotFoundError: No module named 'wflash.core.firmware_fetch'`; GREEN: `11 passed in 0.26s`; `pytest -q`: `269 passed in 13.13s`; `grep PySide6 wflash/core/firmware_fetch.py`: không có.
+
+## Phase 1.33: WorkerRegistry chờ/bỏ theo tiền tố key
+
+Popup GitLab dùng chung `WorkerRegistry` của cửa sổ chính. Khi đóng popup, nó phải chờ (có giới hạn, vẫn bơm event — quy tắc 3) đúng các worker `gitlab-` của nó, không chờ worker liệt kê instance winIDEA, và khi hết giờ chỉ được "bỏ" (park trong `_ABANDONED`, quy tắc 1) worker của nó. Không truyền tiền tố thì hành vi y như cũ, nên `closeEvent` của cửa sổ chính không đổi.
+
+### Thay đổi
+
+- **`wflash/gui/workers.py`**: tham số `prefix` cho `wait_idle` và `abandon_running`.
+- **`tests/test_gui_workers.py`**: thêm `test_thread_wait_idle_with_prefix_ignores_other_workers`, `test_thread_abandon_with_prefix_parks_only_matching_workers`.
+
+### Đã kiểm tra
+
+- RED / GREEN, `pytest -k thread -v`, `pytest -q`: RED: `2 failed, 13 passed` (`wait_idle`/`abandon_running` chưa nhận `prefix`); GREEN: `15 passed in 0.69s`; `pytest -k thread -q`: `31 passed, 240 deselected`; `pytest -q`: `271 passed in 13.33s`.

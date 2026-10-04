@@ -265,3 +265,30 @@ def test_thread_pool_retains_finished_runnables(env):
         "retention; the deallocation race (CLAUDE.md rule 6) must be revisited, see "
         "docs/walkthrough.md Phase 1.12"
     )
+
+
+def test_thread_wait_idle_with_prefix_ignores_other_workers(env):
+    registry, rx = env
+    gate = threading.Event()
+    other = start(registry, rx, lambda ctx: gate.wait(5), "winidea-instances")
+    mine = start(registry, rx, lambda ctx: "done", "gitlab-refs")
+    assert registry.wait_idle(5.0, prefix="gitlab-") is True
+    assert mine in rx.finished
+    assert registry.is_running(other)
+    assert registry.wait_idle(0.2) is False  # without a prefix the stuck one still counts
+    gate.set()
+    assert registry.wait_idle(5.0) is True
+
+
+def test_thread_abandon_with_prefix_parks_only_matching_workers(env):
+    registry, rx = env
+    gate = threading.Event()
+    other = start(registry, rx, lambda ctx: gate.wait(5), "flash")
+    mine = start(registry, rx, lambda ctx: gate.wait(5), "gitlab-download")
+    before = len(workers._ABANDONED)
+    assert registry.abandon_running(prefix="gitlab-") == [mine]
+    assert [w.key for w in workers._ABANDONED[before:]] == [mine]
+    assert registry.running_keys() == [other]
+    gate.set()
+    assert registry.wait_idle(5.0) is True
+    assert workers._ABANDONED[-1].done.wait(5)
