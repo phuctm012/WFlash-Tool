@@ -63,6 +63,7 @@ class FlashMixin:
             not flashing
             and not self._closing
             and not self.gitlab_busy()
+            and not self._workers.is_running(self._instances_key)  # the real adapter may not be thread-safe
             and self.profile is not None
             and self.mapping_complete()
             and self.selected_instance() is not None
@@ -93,8 +94,13 @@ class FlashMixin:
             return safe_list_instances(adapter)
 
         self._instances_key = self._workers.start(
-            "winidea-instances", job, on_succeeded=self._on_instances_loaded, on_failed=self._on_instances_failed
+            "winidea-instances",
+            job,
+            on_succeeded=self._on_instances_loaded,
+            on_failed=self._on_instances_failed,
+            on_finished=self._on_instances_finished,
         )
+        self._update_flash_controls()
 
     def _on_instances_loaded(self, _key: str, instances: list[InstanceInfo]) -> None:
         if self._closing:
@@ -116,6 +122,10 @@ class FlashMixin:
             log.warning("No running winIDEA instance found. Open winIDEA with the SAF85xx workspace and click Refresh.")
         self._update_flash_controls()
 
+    def _on_instances_finished(self, _key: str) -> None:
+        if not self._closing:
+            self._update_flash_controls()  # the worker only stops counting as running now
+
     def _on_instances_failed(self, _key: str, exc: BaseException) -> None:
         # safe_list_instances never raises; this only catches a bug in the job itself.
         if self._closing:
@@ -124,7 +134,12 @@ class FlashMixin:
 
     # -- flash ------------------------------------------------------------------------
     def start_flash(self, *_args) -> None:
-        if self.flash_active() or self._closing or not self.ui.pushButton_flash.isEnabled():
+        if (
+            self.flash_active()
+            or self._closing
+            or self._workers.is_running(self._instances_key)
+            or not self.ui.pushButton_flash.isEnabled()
+        ):
             return
         instance = self.selected_instance()
         if instance is None:
@@ -165,7 +180,7 @@ class FlashMixin:
         self._update_flash_controls()
 
     def cancel_flash(self, *_args) -> None:
-        if not self.flash_active():
+        if not self.flash_active() or self._flash_cancel_requested:
             return
         # Guard first (threading rule 4), then the token the workflow checks inside download().
         self._flash_cancel_requested = True

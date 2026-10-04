@@ -1,3 +1,6 @@
+import logging
+import threading
+
 import pytest
 from PySide6.QtCore import Qt
 
@@ -163,3 +166,52 @@ def test_gui_incomplete_mapping_blocks_flash(qtbot, tmp_path):
     assert not w.ui.pushButton_flash.isEnabled()
     w.start_flash()
     assert not w.flash_active()
+
+
+def test_gui_thread_cancel_during_download_with_failed_restore_warns(qtbot, tmp_path, caplog):
+    adapter = RestoreFails(download_seconds=5)
+    w = make_host(qtbot, tmp_path, adapter)
+    w.start_flash()
+    qtbot.waitUntil(lambda: w.ui.label_step.text() == Step.DOWNLOAD.value, timeout=3000)
+    with caplog.at_level(logging.CRITICAL):
+        w.cancel_flash()
+        qtbot.waitUntil(lambda: bool(w.errors_shown), timeout=5000)
+        wait_idle(w, qtbot)
+    assert w.ui.label_rollbackWarning.isVisibleTo(w)
+    assert any(r.levelno == logging.CRITICAL for r in caplog.records)
+    assert getattr(w.errors_shown[0], "rollback_failed", False) is True
+
+
+def test_gui_thread_flash_refused_while_instances_worker_runs(qtbot, tmp_path):
+    gate = threading.Event()
+
+    class Gated(FakeWinIDEAAdapter):
+        def list_instances(self):
+            gate.wait(5)
+            return super().list_instances()
+
+    adapter = Gated(download_seconds=0.1)
+    gate.set()
+    w = make_host(qtbot, tmp_path, adapter)
+    gate.clear()
+    w.refresh_instances()
+    assert w._workers.is_running(w._instances_key)
+    assert not w.ui.pushButton_flash.isEnabled()
+    w.start_flash()
+    assert not w.flash_active()
+    assert "download" not in adapter.calls
+    gate.set()
+    qtbot.waitUntil(lambda: not w._workers.is_running(w._instances_key), timeout=3000)
+    qtbot.waitUntil(w.ui.pushButton_flash.isEnabled, timeout=3000)
+
+
+def test_gui_thread_second_cancel_keeps_label_step(qtbot, tmp_path):
+    w = make_host(qtbot, tmp_path, FakeWinIDEAAdapter(download_seconds=5))
+    w.start_flash()
+    qtbot.waitUntil(lambda: w.ui.label_step.text() == Step.DOWNLOAD.value, timeout=3000)
+    w.cancel_flash()
+    w.ui.label_step.setText("sentinel")
+    w.cancel_flash()
+    assert w.ui.label_step.text() == "sentinel"
+    qtbot.waitUntil(lambda: w.ui.label_step.text() == "Cancelled", timeout=3000)
+    wait_idle(w, qtbot)
