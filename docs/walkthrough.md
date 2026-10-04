@@ -511,3 +511,17 @@ Unit test cô lập không bắt được lớp lỗi nguy hiểm nhất (worker
 - Thêm pattern Qt threading ("different thread", "another thread", "outside the GUI thread"); in mọi cảnh báo Qt khác; message handler giữ đến sau khi teardown.
 - Cancel kiểm tra khôi phục đúng chính xác program *và* symbol path của lần flash đầu (cả section races).
 - Kết quả: chạy đủ `CHECKPOINTS=255 FAILED=0 QT_THREADING_WARNINGS=0`, `STRESS_RESULT=PASS`; `--section flash --section races`: `CHECKPOINTS=93`, PASS; phá `wait_idle(0.0)` → `FAIL: no worker was abandoned: ['flash-2', 'gitlab-refs-2']`, `STRESS_RESULT=FAIL`, rồi `git checkout` khôi phục (diff sạch); `pytest -q`: `206 passed`; `-k thread`: `29 passed, 177 deselected`.
+
+## Phase 1.24: Đóng gói PyInstaller và README
+
+Người dùng cuối dùng bản `.exe` onedir (spec §11). Spec PyInstaller chỉ gói `isystem.connect` nếu máy build có (cài từ thư mục winIDEA, R1) — không có thì `.exe` vẫn chạy với `--adapter fake`. Script build trên Windows chạy toàn bộ test, `-k thread` và stress test trước khi build, đúng quy trình trước khi push trong CLAUDE.md.
+
+### Thay đổi
+
+- **`wflash.spec`** (mới), **`scripts/build_windows.bat`** (mới).
+- **`README.md`**: viết lại (chạy từ source, cấu hình, quy trình, ROLLBACK FAILED, log/bundle, phát triển với Designer, test, build).
+
+### Đã kiểm tra
+
+- Build thử trên macOS: `~/.venvs/wflash/bin/pyinstaller --noconfirm wflash.spec` dừng ở `SystemError: lipo command (['lipo', '-thin', 'arm64', '.../build/wflash/WFlash', ...]) failed with error code 69! output: You have not agreed to the Xcode license agreements. Please run 'sudo xcodebuild -license' ...`. Đây là do máy (Xcode licence chưa chấp nhận), không phải spec; không chạy sudo; build Windows (Task 25) là căn cứ. Đã `rm -rf build dist`.
+- `pytest -q`: `206 passed in 9.05s`; `pytest -k thread -q`: `29 passed, 177 deselected in 5.07s`; `tools/stress_test.py`: `STRESS_RESULT=PASS`; `QT_QPA_PLATFORM=offscreen ~/.venvs/wflash/bin/python -m wflash --adapter fake --smoke`: `exit=0`.
