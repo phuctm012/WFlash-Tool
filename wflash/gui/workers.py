@@ -113,7 +113,15 @@ def _require_qobject_slot(slot: Callable[..., Any] | None, name: str) -> None:
 
 
 class WorkerRegistry(QObject):
-    """Main-thread owner of every running Worker of one window."""
+    """Main-thread owner of every running Worker of one window.
+
+    Lifetime note: PySide6 (verified on 6.11) keeps every started runnable referenced from
+    the QThreadPool wrapper for the pool's lifetime, so the pool itself is the real lifetime
+    guarantee for Worker and WorkerSignals (CLAUDE.md rules 1 and 6); releasing a runnable
+    would let a connected QObject be deallocated on a pool thread. The references and the
+    `_retired` list kept here are belt-and-braces plus idle tracking. Memory grows by one
+    small Worker per operation, which is accepted.
+    """
 
     def __init__(self, pool: QThreadPool, parent: QObject | None = None) -> None:
         super().__init__(parent)

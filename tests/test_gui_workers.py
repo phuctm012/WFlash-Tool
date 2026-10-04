@@ -1,6 +1,8 @@
 """Worker lifecycle tests. Every test name contains `thread` so `pytest -k thread` selects them."""
+import gc
 import threading
 import time
+import weakref
 
 import pytest
 from PySide6.QtCore import QObject, QThreadPool
@@ -246,3 +248,20 @@ def test_thread_just_finished_worker_stays_referenced_until_a_later_event(env, q
     second = start(registry, rx, lambda ctx: 2, "second")
     qtbot.waitUntil(lambda: rx.finished == [first, second], timeout=3000)
     assert [w.key for w in registry._retired] == [second]
+
+
+def test_thread_pool_retains_finished_runnables(env):
+    registry, rx = env
+    refs = []
+    for i in range(20):
+        key = start(registry, rx, lambda ctx, i=i: i, f"keep{i}")
+        refs.append(weakref.ref(registry.worker(key)))
+        assert registry.wait_idle(5.0)
+    registry._retired.clear()  # drop the registry's own references too
+    gc.collect()
+    alive = sum(1 for r in refs if r() is not None)
+    assert alive == 20, (
+        f"only {alive}/20 finished Workers alive: a PySide upgrade changed QThreadPool runnable "
+        "retention; the deallocation race (CLAUDE.md rule 6) must be revisited, see "
+        "docs/walkthrough.md Phase 1.12"
+    )

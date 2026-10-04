@@ -286,3 +286,17 @@ Bắt đầu phần GUI bằng lớp chạy việc nặng ngoài GUI thread, vì
 - `~/.venvs/wflash/bin/pytest -k thread -v`: `12 passed, 114 deselected in 0.78s` ✓.
 - `~/.venvs/wflash/bin/pytest -k "not gui" -q`: `114 passed, 12 deselected in 0.68s`, không có `PytestUnknownMarkWarning` ✓.
 - `~/.venvs/wflash/bin/pytest -q` (chạy 5 lần liên tiếp): `126 passed` mỗi lần (~1.1s) ✓.
+
+### Fix Round 1 (R20)
+
+Review chứng minh PySide6 6.11 giữ tham chiếu Python tới mọi runnable đã `QThreadPool.start()` trong suốt đời pool (200 worker chạy tuần tự + `wait_idle` + `gc.collect()` vẫn còn 200 `Worker` và 200 `WorkerSignals`). Vì vậy cơ chế retire/purge của registry thực ra không giải phóng gì, và các test về vòng đời pass bất kể registry.
+
+Quyết định: giữ việc pool giữ runnable làm bảo đảm vòng đời thật sự, KHÔNG thêm đường giải phóng (giải phóng sẽ khiến QObject đã connect bị hủy trên pool thread, vi phạm quy tắc 6). Bộ nhớ tăng một `Worker` nhỏ mỗi thao tác, chấp nhận.
+
+- **`wflash/gui/workers.py`**: ghi chú cạnh `setAutoDelete(False)` và trong docstring `WorkerRegistry`: pool là bảo đảm chính, tham chiếu/`_retired` của registry chỉ là lớp phụ cộng theo dõi idle.
+- **`tests/test_gui_workers.py`**: thêm `test_thread_pool_retains_finished_runnables` (20 worker tuần tự, xóa mọi tham chiếu, `gc.collect()`, khẳng định cả 20 vẫn sống; nếu nâng cấp PySide đổi hành vi, test báo cần xem lại race).
+
+Đã kiểm tra:
+- RED (tạm đảo khẳng định thành `alive == 0`): `AssertionError ... assert 20 == 0`, `1 failed` ✓ (chứng minh pool giữ đủ 20; đã hoàn nguyên).
+- `~/.venvs/wflash/bin/pytest -k thread -v`: `13 passed, 114 deselected in 0.82s` ✓.
+- `~/.venvs/wflash/bin/pytest -q`: `127 passed in 1.09s` ✓.
