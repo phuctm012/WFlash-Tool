@@ -566,3 +566,16 @@ User muốn chạy giao diện bằng cách gọi trực tiếp một file `main
 - GREEN: cùng lệnh -> `2 passed in 4.47s`.
 - `~/.venvs/wflash/bin/pytest -q` -> `220 passed in 13.09s`; `pytest -k thread -q` -> `29 passed, 191 deselected in 4.94s`.
 - `QT_QPA_PLATFORM=offscreen ~/.venvs/wflash/bin/python main.py --adapter fake --smoke` -> exit 0.
+
+## Phase 1.27: Ước lượng ETA và tốc độ (ProgressEstimator)
+
+Phần đầu cửa sổ mới hiện `phần trăm | ETA | Speed` giống SFlash, nhưng winIDEA chỉ báo phần trăm. `ProgressEstimator` (core, không Qt) tính ETA từ thời gian đã trôi và phần trăm, còn tốc độ là **ước lượng** từ kích thước file `.s3` trên đĩa. Thời gian luôn được truyền vào (`now`) nên test dùng đồng hồ giả, không phụ thuộc máy.
+
+### Thay đổi
+
+- **`wflash/core/progress.py`** (mới): `ProgressEstimator`, `format_mmss`, `IDLE_TEXT`, `CALCULATING_TEXT`; đủ các chuỗi của spec §2.1 (đang chạy, xong, lỗi, hủy).
+- **`tests/test_progress.py`** (mới): 8 test.
+
+### Đã kiểm tra
+
+- RED / GREEN `tests/test_progress.py`, `pytest -q`: RED: `ModuleNotFoundError: No module named 'wflash.core.progress'`; GREEN: `8 passed in 0.02s`; `pytest -q`: `228 passed in 13.74s`.
