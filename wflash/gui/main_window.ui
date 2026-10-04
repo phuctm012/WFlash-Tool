@@ -11,168 +11,128 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>WFlash — winIDEA ECU flasher</string>
+   <string>WFlash</string>
   </property>
   <widget class="QWidget" name="centralWidget_main">
-   <layout class="QVBoxLayout" name="verticalLayout_main">
+   <layout class="QVBoxLayout" name="verticalLayout_main" stretch="0,0,3,2">
     <item>
-     <layout class="QHBoxLayout" name="horizontalLayout_profileBar">
+     <layout class="QHBoxLayout" name="horizontalLayout_flashHeader">
       <item>
-       <widget class="QLabel" name="label_profile">
-        <property name="text">
-         <string>Profile:</string>
-        </property>
-        <property name="buddy">
-         <cstring>comboBox_profile</cstring>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QComboBox" name="comboBox_profile">
+       <widget class="QPushButton" name="pushButton_flash">
         <property name="minimumSize">
          <size>
-          <width>220</width>
-          <height>0</height>
+          <width>90</width>
+          <height>70</height>
          </size>
         </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QPushButton" name="pushButton_reloadProfiles">
-        <property name="text">
-         <string>Reload</string>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <spacer name="horizontalSpacer_profileBar">
-        <property name="orientation">
-         <enum>Qt::Orientation::Horizontal</enum>
-        </property>
-        <property name="sizeHint" stdset="0">
+        <property name="maximumSize">
          <size>
-          <width>40</width>
-          <height>20</height>
+          <width>90</width>
+          <height>70</height>
          </size>
         </property>
-       </spacer>
-      </item>
-      <item>
-       <widget class="QPushButton" name="pushButton_settings">
         <property name="text">
-         <string>Settings…</string>
+         <string>Flash</string>
+        </property>
+        <property name="state" stdset="0">
+         <string>idle</string>
         </property>
        </widget>
+      </item>
+      <item>
+       <layout class="QVBoxLayout" name="verticalLayout_flashProgress">
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_progressRow">
+          <item>
+           <widget class="QProgressBar" name="progressBar_flash">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+              <horstretch>1</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="minimumSize">
+             <size>
+              <width>0</width>
+              <height>20</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>16777215</width>
+              <height>20</height>
+             </size>
+            </property>
+            <property name="value">
+             <number>0</number>
+            </property>
+            <property name="textVisible">
+             <bool>false</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="label_flashStats">
+            <property name="minimumSize">
+             <size>
+              <width>280</width>
+              <height>0</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>ETA: -- | Speed: --</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <widget class="QLabel" name="label_step">
+          <property name="text">
+           <string>Step: Idle</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
       </item>
      </layout>
     </item>
     <item>
-     <widget class="QSplitter" name="splitter_mainVertical">
-      <property name="orientation">
-       <enum>Qt::Orientation::Vertical</enum>
+     <widget class="QLabel" name="label_rollbackWarning">
+      <property name="visible">
+       <bool>false</bool>
       </property>
-      <widget class="QSplitter" name="splitter_upperHorizontal">
-       <property name="orientation">
-        <enum>Qt::Orientation::Horizontal</enum>
-       </property>
-       <widget class="QGroupBox" name="groupBox_gitlab">
-        <property name="title">
-         <string>1. GitLab artifact</string>
+      <property name="text">
+       <string>ROLLBACK FAILED — the winIDEA workspace may still point to the new files. Check the download and symbol file list in winIDEA before flashing again.</string>
+      </property>
+      <property name="wordWrap">
+       <bool>true</bool>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <layout class="QHBoxLayout" name="horizontalLayout_workArea">
+      <item>
+       <widget class="QFrame" name="frame_settingPanel">
+        <property name="minimumSize">
+         <size>
+          <width>360</width>
+          <height>0</height>
+         </size>
         </property>
-        <layout class="QVBoxLayout" name="verticalLayout_gitlabBrowser">
-         <item>
-          <widget class="QLabel" name="label_project">
-           <property name="text">
-            <string>No profile</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <layout class="QHBoxLayout" name="horizontalLayout_refBar">
-           <item>
-            <widget class="QLabel" name="label_ref">
-             <property name="text">
-              <string>Branch/tag:</string>
-             </property>
-             <property name="buddy">
-              <cstring>comboBox_ref</cstring>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QComboBox" name="comboBox_ref">
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-               <horstretch>1</horstretch>
-               <verstretch>0</verstretch>
-              </sizepolicy>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QPushButton" name="pushButton_refreshRefs">
-             <property name="text">
-              <string>Refresh</string>
-             </property>
-            </widget>
-           </item>
-          </layout>
-         </item>
-         <item>
-          <widget class="QLabel" name="label_pipelines">
-           <property name="text">
-            <string>Pipelines:</string>
-           </property>
-           <property name="buddy">
-            <cstring>listWidget_pipelines</cstring>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QListWidget" name="listWidget_pipelines"/>
-         </item>
-         <item>
-          <widget class="QLabel" name="label_jobs">
-           <property name="text">
-            <string>Jobs with artifacts:</string>
-           </property>
-           <property name="buddy">
-            <cstring>listWidget_jobs</cstring>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QListWidget" name="listWidget_jobs"/>
-         </item>
-         <item>
-          <layout class="QHBoxLayout" name="horizontalLayout_artifactDownload">
-           <item>
-            <widget class="QProgressBar" name="progressBar_artifact">
-             <property name="value">
-              <number>0</number>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QPushButton" name="pushButton_cancelArtifact">
-             <property name="text">
-              <string>Cancel</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QPushButton" name="pushButton_downloadArtifact">
-             <property name="text">
-              <string>Download artifact</string>
-             </property>
-            </widget>
-           </item>
-          </layout>
-         </item>
-        </layout>
-       </widget>
-       <widget class="QWidget" name="widget_rightColumn">
-        <layout class="QVBoxLayout" name="verticalLayout_rightColumn">
+        <property name="maximumSize">
+         <size>
+          <width>360</width>
+          <height>16777215</height>
+         </size>
+        </property>
+        <property name="frameShape">
+         <enum>QFrame::Shape::StyledPanel</enum>
+        </property>
+        <layout class="QVBoxLayout" name="verticalLayout_settingPanel">
+         <property name="spacing">
+          <number>0</number>
+         </property>
          <property name="leftMargin">
           <number>0</number>
          </property>
@@ -186,202 +146,299 @@
           <number>0</number>
          </property>
          <item>
-          <widget class="QGroupBox" name="groupBox_mapping">
-           <property name="title">
-            <string>2. Files → winIDEA</string>
+          <widget class="QLabel" name="label_settingHeader">
+           <property name="text">
+            <string>Setting</string>
            </property>
-           <layout class="QVBoxLayout" name="verticalLayout_mapping">
-            <item>
-             <widget class="QLabel" name="label_artifact">
-              <property name="text">
-               <string>No artifact loaded</string>
-              </property>
-              <property name="textInteractionFlags">
-               <set>Qt::TextInteractionFlag::TextSelectableByMouse</set>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QTableWidget" name="tableWidget_mapping">
-              <property name="editTriggers">
-               <set>QAbstractItemView::EditTrigger::NoEditTriggers</set>
-              </property>
-              <property name="selectionMode">
-               <enum>QAbstractItemView::SelectionMode::NoSelection</enum>
-              </property>
-              <attribute name="horizontalHeaderStretchLastSection">
-               <bool>true</bool>
-              </attribute>
-              <attribute name="verticalHeaderVisible">
-               <bool>false</bool>
-              </attribute>
-              <column>
-               <property name="text">
-                <string>Type</string>
-               </property>
-              </column>
-              <column>
-               <property name="text">
-                <string>winIDEA target</string>
-               </property>
-              </column>
-              <column>
-               <property name="text">
-                <string>Pattern</string>
-               </property>
-              </column>
-              <column>
-               <property name="text">
-                <string>File</string>
-               </property>
-              </column>
-             </widget>
-            </item>
-           </layout>
           </widget>
          </item>
          <item>
-          <widget class="QGroupBox" name="groupBox_flash">
-           <property name="title">
-            <string>3. Flash</string>
+          <layout class="QGridLayout" name="gridLayout_setting">
+           <property name="leftMargin">
+            <number>10</number>
            </property>
-           <layout class="QVBoxLayout" name="verticalLayout_flash">
-            <item>
-             <layout class="QHBoxLayout" name="horizontalLayout_instance">
+           <property name="topMargin">
+            <number>10</number>
+           </property>
+           <property name="rightMargin">
+            <number>10</number>
+           </property>
+           <property name="bottomMargin">
+            <number>6</number>
+           </property>
+           <property name="verticalSpacing">
+            <number>8</number>
+           </property>
+           <item row="0" column="0">
+            <widget class="QLabel" name="label_profile">
+             <property name="text">
+              <string>Profile</string>
+             </property>
+             <property name="buddy">
+              <cstring>comboBox_profile</cstring>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="1">
+            <layout class="QHBoxLayout" name="horizontalLayout_profile">
+             <item>
+              <widget class="QComboBox" name="comboBox_profile">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                 <horstretch>1</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="pushButton_reloadProfiles">
+               <property name="text">
+                <string>Reload</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item row="1" column="0">
+            <widget class="QLabel" name="label_firmwareSource">
+             <property name="text">
+              <string>Firmware source</string>
+             </property>
+             <property name="buddy">
+              <cstring>pushButton_loadFromGitlab</cstring>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <widget class="QPushButton" name="pushButton_loadFromGitlab">
+             <property name="text">
+              <string>Load from GitLab…</string>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="0" colspan="2">
+            <widget class="QFrame" name="frame_sourceCard">
+             <property name="frameShape">
+              <enum>QFrame::Shape::StyledPanel</enum>
+             </property>
+             <layout class="QVBoxLayout" name="verticalLayout_sourceCard">
+              <property name="spacing">
+               <number>2</number>
+              </property>
               <item>
-               <widget class="QLabel" name="label_instance">
+               <widget class="QLabel" name="label_sourceTitle">
                 <property name="text">
-                 <string>winIDEA instance:</string>
+                 <string>No firmware loaded — use Load from GitLab…</string>
                 </property>
-                <property name="buddy">
-                 <cstring>comboBox_instance</cstring>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <widget class="QComboBox" name="comboBox_instance">
-                <property name="sizePolicy">
-                 <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-                  <horstretch>1</horstretch>
-                  <verstretch>0</verstretch>
-                 </sizepolicy>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <widget class="QPushButton" name="pushButton_refreshInstances">
-                <property name="text">
-                 <string>Refresh</string>
-                </property>
-               </widget>
-              </item>
-             </layout>
-            </item>
-            <item>
-             <layout class="QHBoxLayout" name="horizontalLayout_flashButtons">
-              <item>
-               <widget class="QCheckBox" name="checkBox_reset">
-                <property name="text">
-                 <string>Reset after flash</string>
-                </property>
-                <property name="checked">
+                <property name="wordWrap">
                  <bool>true</bool>
                 </property>
                </widget>
               </item>
               <item>
-               <widget class="QCheckBox" name="checkBox_run">
+               <widget class="QLabel" name="label_sourceDetail">
                 <property name="text">
-                 <string>Run after reset</string>
+                 <string/>
+                </property>
+                <property name="wordWrap">
+                 <bool>true</bool>
+                </property>
+                <property name="textInteractionFlags">
+                 <set>Qt::TextInteractionFlag::TextSelectableByMouse</set>
                 </property>
                </widget>
               </item>
               <item>
-               <spacer name="horizontalSpacer_flashButtons">
-                <property name="orientation">
-                 <enum>Qt::Orientation::Horizontal</enum>
-                </property>
-                <property name="sizeHint" stdset="0">
-                 <size>
-                  <width>40</width>
-                  <height>20</height>
-                 </size>
-                </property>
-               </spacer>
-              </item>
-              <item>
-               <widget class="QPushButton" name="pushButton_cancelFlash">
+               <widget class="QLabel" name="label_sourceCache">
                 <property name="text">
-                 <string>Cancel</string>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <widget class="QPushButton" name="pushButton_flash">
-                <property name="text">
-                 <string>Flash</string>
+                 <string/>
                 </property>
                </widget>
               </item>
              </layout>
-            </item>
-            <item>
-             <layout class="QHBoxLayout" name="horizontalLayout_flashStatus">
-              <item>
-               <widget class="QLabel" name="label_step">
-                <property name="text">
-                 <string>Idle</string>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <widget class="QProgressBar" name="progressBar_flash">
-                <property name="sizePolicy">
-                 <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-                  <horstretch>1</horstretch>
-                  <verstretch>0</verstretch>
-                 </sizepolicy>
-                </property>
-                <property name="value">
-                 <number>0</number>
-                </property>
-               </widget>
-              </item>
-             </layout>
-            </item>
-            <item>
-             <widget class="QLabel" name="label_rollbackWarning">
-              <property name="visible">
-               <bool>false</bool>
-              </property>
-              <property name="styleSheet">
-               <string notr="true">color: #d32f2f; font-weight: bold;</string>
-              </property>
-              <property name="text">
-               <string>ROLLBACK FAILED — the winIDEA workspace may still point to the new files. Check the download and symbol file list in winIDEA before flashing again.</string>
-              </property>
-              <property name="wordWrap">
-               <bool>true</bool>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </widget>
+            </widget>
+           </item>
+           <item row="3" column="0">
+            <widget class="QLabel" name="label_instance">
+             <property name="text">
+              <string>winIDEA</string>
+             </property>
+             <property name="buddy">
+              <cstring>comboBox_instance</cstring>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="1">
+            <layout class="QHBoxLayout" name="horizontalLayout_instance">
+             <item>
+              <widget class="QComboBox" name="comboBox_instance">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                 <horstretch>1</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="pushButton_refreshInstances">
+               <property name="text">
+                <string>Refresh</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item row="4" column="0">
+            <widget class="QLabel" name="label_afterFlash">
+             <property name="text">
+              <string>After flash</string>
+             </property>
+            </widget>
+           </item>
+           <item row="4" column="1">
+            <layout class="QHBoxLayout" name="horizontalLayout_afterFlash">
+             <item>
+              <widget class="QCheckBox" name="checkBox_reset">
+               <property name="text">
+                <string>Reset target</string>
+               </property>
+               <property name="checked">
+                <bool>true</bool>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QCheckBox" name="checkBox_run">
+               <property name="text">
+                <string>Run after reset</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+          </layout>
+         </item>
+         <item>
+          <spacer name="verticalSpacer_settingPanel">
+           <property name="orientation">
+            <enum>Qt::Orientation::Vertical</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>20</width>
+             <height>40</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item>
+          <layout class="QHBoxLayout" name="horizontalLayout_preferences">
+           <property name="leftMargin">
+            <number>10</number>
+           </property>
+           <property name="rightMargin">
+            <number>10</number>
+           </property>
+           <property name="bottomMargin">
+            <number>10</number>
+           </property>
+           <item>
+            <spacer name="horizontalSpacer_preferences">
+             <property name="orientation">
+              <enum>Qt::Orientation::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>40</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+           <item>
+            <widget class="QPushButton" name="pushButton_preferences">
+             <property name="text">
+              <string>Preferences…</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
          </item>
         </layout>
        </widget>
-      </widget>
-      <widget class="QGroupBox" name="groupBox_log">
-       <property name="title">
-        <string>Log</string>
-       </property>
-       <layout class="QVBoxLayout" name="verticalLayout_logPanel">
+      </item>
+      <item>
+       <layout class="QVBoxLayout" name="verticalLayout_mapping">
+        <item>
+         <widget class="QTableWidget" name="tableWidget_mapping">
+          <property name="editTriggers">
+           <set>QAbstractItemView::EditTrigger::NoEditTriggers</set>
+          </property>
+          <property name="selectionMode">
+           <enum>QAbstractItemView::SelectionMode::NoSelection</enum>
+          </property>
+          <attribute name="horizontalHeaderStretchLastSection">
+           <bool>true</bool>
+          </attribute>
+          <attribute name="verticalHeaderVisible">
+           <bool>false</bool>
+          </attribute>
+          <column>
+           <property name="text">
+            <string>#</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>Type</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>winIDEA target</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>Pattern</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>File</string>
+           </property>
+          </column>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="label_mappingHint">
+          <property name="text">
+           <string>Load firmware to fill the mapping.</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </item>
+    <item>
+     <widget class="QTabWidget" name="tabWidget_output">
+      <property name="currentIndex">
+       <number>0</number>
+      </property>
+      <widget class="QWidget" name="tab_information">
+       <attribute name="title">
+        <string>Information</string>
+       </attribute>
+       <layout class="QVBoxLayout" name="verticalLayout_information">
         <item>
          <layout class="QHBoxLayout" name="horizontalLayout_logBar">
           <item>
            <widget class="QLabel" name="label_logLevel">
             <property name="text">
-             <string>Log level:</string>
+             <string>Log level</string>
             </property>
             <property name="buddy">
              <cstring>comboBox_logLevel</cstring>

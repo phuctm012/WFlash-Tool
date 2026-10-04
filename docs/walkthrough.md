@@ -716,3 +716,22 @@ Logic duyệt/tải GitLab rời khỏi cửa sổ chính sang một dialog moda
 ### Đã kiểm tra
 
 - RED / GREEN, `pytest -k thread -v`, `pytest -q`: RED: `ImportError: cannot import name 'gitlab_dialog' from 'wflash.gui'`; GREEN: `25 passed in 2.69s`; `pytest -k thread -q`: `36 passed, 280 deselected`; `pytest -q`: `316 passed in 18.55s`.
+
+## Phase 1.38: Cửa sổ chính mới — một cửa sổ, nút Flash/Cancel, vùng Setting, tab Information
+
+Cửa sổ chính chuyển sang bố cục SFlash (spec redesign §2): phần đầu có nút Flash 90×70 — khi đang flash chính nút đó thành Cancel màu đỏ (dynamic property `state="flashing"`, màu từ QSS), thanh tiến trình không chữ, nhãn `phần trăm | ETA | Speed` từ `ProgressEstimator`, nhãn `Step: …`. Bên trái là vùng Setting rộng 360 px (profile, Load from GitLab… với thẻ nguồn firmware, instance winIDEA, Reset/Run, Preferences…), bên phải bảng mapping có cột `#` và dòng gợi ý; dưới cùng chỉ một tab Information; thanh trạng thái ghi version và tác giả. `GitlabBrowserMixin` và `SettingsDialog` bị xóa trong cùng commit với các test thay thế. Cửa sổ giữ một `GitlabDialog` suốt đời; `closeEvent` hạ cờ của dialog trước khi hủy worker (quy tắc 4) rồi mới đóng nó.
+
+### Thay đổi
+
+- **`wflash/gui/main_window.ui`** (viết lại) + **`ui_main_window.py`** (sinh lại).
+- **`wflash/gui/main_window.py`**: 3 mixin, popup GitLab, Preferences, `apply_dark_mode`, status bar, `closeEvent` có dialog.
+- **`wflash/gui/mapping_table.py`**: `on_firmware_ready`, cột `#`, thẻ nguồn, gợi ý, màu dòng đỏ theo theme.
+- **`wflash/gui/flash_mixin.py`**: một nút Flash/Cancel, ETA/Speed, `Step: …`, màu thanh theo trạng thái.
+- **`wflash/__init__.py`**: `APP_AUTHOR`.
+- Xóa **`wflash/gui/gitlab_browser.py`**, **`wflash/gui/settings_dialog.*`**, **`wflash/gui/ui_settings_dialog.py`**, **`tests/test_gui_gitlab_browser.py`**, **`tests/test_gui_settings_dialog.py`**.
+- Test viết lại: **`test_gui_ui_files.py`**, **`test_gui_mapping_table.py`**, **`test_gui_flash.py`**, **`test_gui_main_window.py`**, **`test_gui_close_window.py`**; **`tests/gui_stubs.py`** bỏ `on_artifact_ready`.
+
+### Đã kiểm tra
+
+- RED / GREEN, `pytest -k thread -v`, `pytest -q`, smoke `--adapter fake --smoke`: RED: 3 lỗi collection (`HINT_COMPLETE`, `program_bytes`, `APP_AUTHOR` chưa có); GREEN: 5 file test GUI `56 passed in 7.97s`; `pytest -k thread -q`: `38 passed, 266 deselected`; `pytest -q`: `304 passed in 18.64s`; smoke `--adapter fake --smoke`: exit 0. `tools/stress_test.py` chưa chạy được cho tới Task 13 (vẫn gọi GitLab browser cũ).
+- `tools/stress_test.py` chưa chạy được (còn gọi GitLab browser cũ) — sửa ở Phase 1.39, chưa push.

@@ -234,7 +234,6 @@ class HostWindow(QMainWindow):
         self._pool = QThreadPool(self)
         self._workers = WorkerRegistry(self._pool, self)
         self.errors_shown: list[BaseException] = []
-        self.artifacts_loaded: list[tuple[Path, str]] = []
         self.firmware_loaded: list[tuple[Path, FirmwareSource]] = []
         self.flash_control_updates = 0
         self.settings_saved = 0
@@ -249,8 +248,6 @@ class HostWindow(QMainWindow):
     def _update_flash_controls(self) -> None:
         self.flash_control_updates += 1
 
-    def on_artifact_ready(self, path: Path, label: str) -> None:
-        self.artifacts_loaded.append((path, label))
 
     def on_firmware_ready(self, path: Path, source: FirmwareSource) -> None:
         self.firmware_loaded.append((path, source))

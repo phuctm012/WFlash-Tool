@@ -4,12 +4,13 @@ import threading
 import pytest
 from PySide6.QtCore import Qt
 
-from tests.gui_stubs import EXAMPLE_PROFILE, OLD_APP, OLD_CM7_0, HostWindow, make_artifact_tree
+from tests.gui_stubs import EXAMPLE_PROFILE, OLD_APP, OLD_CM7_0, SOURCE, HostWindow, make_artifact_tree
 from wflash.core.errors import FlashError, MappingError, WinIDEAError
 from wflash.core.fake_adapter import FakeWinIDEAAdapter
 from wflash.core.flash_workflow import Step
 from wflash.core.profile import load_profile
-from wflash.gui.flash_mixin import FlashMixin, safe_list_instances
+from wflash.core.progress import IDLE_TEXT
+from wflash.gui.flash_mixin import FlashMixin, program_bytes, safe_list_instances
 from wflash.gui.mapping_table import MappingTableMixin
 
 pytestmark = pytest.mark.gui
@@ -37,7 +38,7 @@ def make_host(qtbot, tmp_path, adapter):
     w = FlashHost(tmp_path, adapter)
     qtbot.addWidget(w)
     qtbot.waitUntil(lambda: w.ui.comboBox_instance.count() == 1, timeout=3000)
-    w.on_artifact_ready(make_artifact_tree(tmp_path / "art"), "job #7")
+    w.on_firmware_ready(make_artifact_tree(tmp_path / "art"), SOURCE)
     return w
 
 
@@ -56,7 +57,7 @@ def test_gui_no_instance_keeps_flash_disabled(qtbot, tmp_path):
     w = FlashHost(tmp_path, FakeWinIDEAAdapter(fail_on={"list_instances"}))
     qtbot.addWidget(w)
     qtbot.waitUntil(lambda: not w._workers.running_keys(), timeout=3000)
-    w.on_artifact_ready(make_artifact_tree(tmp_path / "art"), "job #7")
+    w.on_firmware_ready(make_artifact_tree(tmp_path / "art"), SOURCE)
     assert w.ui.comboBox_instance.count() == 0
     assert not w.ui.pushButton_flash.isEnabled()
 
@@ -73,15 +74,23 @@ def test_gui_flash_happy_path(qtbot, tmp_path):
     adapter = FakeWinIDEAAdapter(download_seconds=0.2)
     w = make_host(qtbot, tmp_path, adapter)
     assert w.ui.pushButton_flash.isEnabled()
+    assert w.ui.label_flashStats.text() == IDLE_TEXT and w.ui.label_step.text() == "Step: Idle"
     qtbot.mouseClick(w.ui.pushButton_flash, Qt.MouseButton.LeftButton)
     assert w.flash_active()
-    assert not w.ui.pushButton_flash.isEnabled() and w.ui.pushButton_cancelFlash.isEnabled()
+    # The same button is now a red Cancel.
+    assert w.ui.pushButton_flash.isEnabled() and w.ui.pushButton_flash.text() == "Cancel"
+    assert w.ui.pushButton_flash.property("state") == "flashing"
     assert not w.ui.tableWidget_mapping.isEnabled() and not w.ui.pushButton_exportBundle.isEnabled()
-    qtbot.waitUntil(lambda: w.ui.label_step.text() == Step.DONE.value, timeout=5000)
+    assert not w.ui.pushButton_loadFromGitlab.isEnabled() and not w.ui.pushButton_preferences.isEnabled()
+    qtbot.waitUntil(lambda: w.current_step() == Step.DONE.value, timeout=5000)
     wait_idle(w, qtbot)
     assert adapter.programs["App"] == str((tmp_path / "art" / "out" / "App.s3").resolve())
     assert adapter.target_state == "halted"
     assert w.ui.progressBar_flash.value() == 100
+    assert w.ui.progressBar_flash.property("state") == "done"
+    assert w.ui.label_flashStats.text().startswith("100% | Time: ")
+    assert w.ui.label_flashStats.text().endswith(" KB/s")
+    assert w.ui.pushButton_flash.text() == "Flash" and w.ui.pushButton_flash.property("state") == "idle"
     assert w.errors_shown == []
     assert not w.ui.label_rollbackWarning.isVisibleTo(w)
 
@@ -91,7 +100,7 @@ def test_gui_flash_run_after_reset(qtbot, tmp_path):
     w = make_host(qtbot, tmp_path, adapter)
     w.ui.checkBox_run.setChecked(True)
     w.start_flash()
-    qtbot.waitUntil(lambda: w.ui.label_step.text() == Step.DONE.value, timeout=5000)
+    qtbot.waitUntil(lambda: w.current_step() == Step.DONE.value, timeout=5000)
     assert adapter.target_state == "running"
 
 
@@ -99,9 +108,11 @@ def test_gui_flash_download_failure_rolls_back_and_shows_error(qtbot, tmp_path):
     adapter = FakeWinIDEAAdapter(download_seconds=0.1, fail_on={"download"})
     w = make_host(qtbot, tmp_path, adapter)
     w.start_flash()
-    qtbot.waitUntil(lambda: w.ui.label_step.text() == "Failed", timeout=5000)
+    qtbot.waitUntil(lambda: w.current_step() == "Failed", timeout=5000)
     wait_idle(w, qtbot)
     assert isinstance(w.errors_shown[0], FlashError)
+    assert w.ui.label_flashStats.text().startswith("Failed | Time: ")
+    assert w.ui.progressBar_flash.property("state") == "failed"
     assert adapter.programs["App"] == OLD_APP
     assert adapter.applications["CM7_0"] == OLD_CM7_0
     assert not w.ui.label_rollbackWarning.isVisibleTo(w)
@@ -113,7 +124,7 @@ def test_gui_missing_workspace_entry_is_a_mapping_error(qtbot, tmp_path):
     adapter = FakeWinIDEAAdapter(download_seconds=0.1, programs={"Other": r"C:\x.s3"})
     w = make_host(qtbot, tmp_path, adapter)
     w.start_flash()
-    qtbot.waitUntil(lambda: w.ui.label_step.text() == "Failed", timeout=5000)
+    qtbot.waitUntil(lambda: w.current_step() == "Failed", timeout=5000)
     assert isinstance(w.errors_shown[0], MappingError)
     assert "Other" in w.errors_shown[0].hint
 
@@ -122,7 +133,7 @@ def test_gui_flash_rollback_failure_is_shown_to_the_user(qtbot, tmp_path):
     adapter = RestoreFails(download_seconds=0.1, fail_on={"download"})
     w = make_host(qtbot, tmp_path, adapter)
     w.start_flash()
-    qtbot.waitUntil(lambda: w.ui.label_step.text() == "Failed", timeout=5000)
+    qtbot.waitUntil(lambda: w.current_step() == "Failed", timeout=5000)
     wait_idle(w, qtbot)
     assert w.ui.label_rollbackWarning.isVisibleTo(w)
     exc = w.errors_shown[0]
@@ -132,21 +143,24 @@ def test_gui_flash_rollback_failure_is_shown_to_the_user(qtbot, tmp_path):
     adapter.fail_on = set()
     w.start_flash()
     assert not w.ui.label_rollbackWarning.isVisibleTo(w)
-    qtbot.waitUntil(lambda: w.ui.label_step.text() == Step.DONE.value, timeout=5000)
+    qtbot.waitUntil(lambda: w.current_step() == Step.DONE.value, timeout=5000)
 
 
 def test_gui_thread_cancel_flash_mid_download_rolls_back(qtbot, tmp_path):
     adapter = FakeWinIDEAAdapter(download_seconds=5)
     w = make_host(qtbot, tmp_path, adapter)
     w.start_flash()
-    qtbot.waitUntil(lambda: w.ui.label_step.text() == Step.DOWNLOAD.value, timeout=3000)
-    qtbot.mouseClick(w.ui.pushButton_cancelFlash, Qt.MouseButton.LeftButton)
+    qtbot.waitUntil(lambda: w.current_step() == Step.DOWNLOAD.value, timeout=3000)
+    qtbot.mouseClick(w.ui.pushButton_flash, Qt.MouseButton.LeftButton)  # "Cancel"
+    assert not w.ui.pushButton_flash.isEnabled()  # one cancel; now it waits for the rollback
     w.cancel_flash()  # a second cancel is harmless
-    qtbot.waitUntil(lambda: w.ui.label_step.text() == "Cancelled", timeout=3000)
+    qtbot.waitUntil(lambda: w.current_step() == "Cancelled", timeout=3000)
     wait_idle(w, qtbot)
     assert adapter.programs["App"] == OLD_APP
     assert adapter.connected_to is None
     assert w.errors_shown == []
+    assert w.ui.label_flashStats.text().startswith("Cancelled | Time: ")
+    assert w.ui.pushButton_flash.text() == "Flash"
 
 
 def test_gui_thread_double_flash_starts_one_worker(qtbot, tmp_path):
@@ -155,7 +169,7 @@ def test_gui_thread_double_flash_starts_one_worker(qtbot, tmp_path):
     w.start_flash()
     w.start_flash()
     assert [k for k in w._workers.running_keys() if k.startswith("flash")] == [w._flash_key]
-    qtbot.waitUntil(lambda: w.ui.label_step.text() == Step.DONE.value, timeout=5000)
+    qtbot.waitUntil(lambda: w.current_step() == Step.DONE.value, timeout=5000)
     assert adapter.calls.count("download") == 1
 
 
@@ -172,7 +186,7 @@ def test_gui_thread_cancel_during_download_with_failed_restore_warns(qtbot, tmp_
     adapter = RestoreFails(download_seconds=5)
     w = make_host(qtbot, tmp_path, adapter)
     w.start_flash()
-    qtbot.waitUntil(lambda: w.ui.label_step.text() == Step.DOWNLOAD.value, timeout=3000)
+    qtbot.waitUntil(lambda: w.current_step() == Step.DOWNLOAD.value, timeout=3000)
     with caplog.at_level(logging.CRITICAL):
         w.cancel_flash()
         qtbot.waitUntil(lambda: bool(w.errors_shown), timeout=5000)
@@ -208,10 +222,29 @@ def test_gui_thread_flash_refused_while_instances_worker_runs(qtbot, tmp_path):
 def test_gui_thread_second_cancel_keeps_label_step(qtbot, tmp_path):
     w = make_host(qtbot, tmp_path, FakeWinIDEAAdapter(download_seconds=5))
     w.start_flash()
-    qtbot.waitUntil(lambda: w.ui.label_step.text() == Step.DOWNLOAD.value, timeout=3000)
+    qtbot.waitUntil(lambda: w.current_step() == Step.DOWNLOAD.value, timeout=3000)
     w.cancel_flash()
-    w.ui.label_step.setText("sentinel")
+    w._set_step("sentinel")
     w.cancel_flash()
-    assert w.ui.label_step.text() == "sentinel"
-    qtbot.waitUntil(lambda: w.ui.label_step.text() == "Cancelled", timeout=3000)
+    assert w.current_step() == "sentinel"
+    qtbot.waitUntil(lambda: w.current_step() == "Cancelled", timeout=3000)
     wait_idle(w, qtbot)
+
+
+def test_gui_thread_eta_and_speed_shown_while_downloading(qtbot, tmp_path):
+    w = make_host(qtbot, tmp_path, FakeWinIDEAAdapter(download_seconds=1.0))
+    w.start_flash()
+    assert w.ui.label_flashStats.text() == "ETA: calculating\u2026 | Speed: --"
+    qtbot.waitUntil(lambda: "ETA: 0" in w.ui.label_flashStats.text(), timeout=3000)
+    text = w.ui.label_flashStats.text()
+    assert text.split("%")[0].isdigit() and "KB/s" in text
+    qtbot.waitUntil(lambda: w.current_step() == Step.DONE.value, timeout=5000)
+    wait_idle(w, qtbot)
+
+
+def test_gui_program_bytes_counts_only_mapped_program_files(qtbot, tmp_path):
+    w = make_host(qtbot, tmp_path, FakeWinIDEAAdapter(download_seconds=0.1))
+    assert program_bytes(w.mapping_rows()) == len(b"S0")
+    rows = w.mapping_rows()
+    rows[0].selected.unlink()
+    assert program_bytes(rows) == 0

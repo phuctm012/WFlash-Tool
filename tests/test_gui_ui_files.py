@@ -13,11 +13,10 @@ pytestmark = pytest.mark.gui
 GUI = Path(__file__).resolve().parents[1] / "wflash" / "gui"
 UI_FILES = {
     "main_window.ui": "ui_main_window.py",
-    "settings_dialog.ui": "ui_settings_dialog.py",
     "preferences_dialog.ui": "ui_preferences_dialog.py",
     "gitlab_dialog.ui": "ui_gitlab_dialog.py",
 }
-TOP_LEVEL = {"MainWindow", "SettingsDialog", "PreferencesDialog", "GitlabDialog"}
+TOP_LEVEL = {"MainWindow", "PreferencesDialog", "GitlabDialog"}
 # <kind>_<what>, e.g. verticalLayout_gitlabBrowser, tableWidget_mapping.
 MEANINGFUL = re.compile(r"^[a-z][A-Za-z]*_[a-z][A-Za-z0-9]*$")
 
@@ -82,16 +81,19 @@ def test_gui_generated_modules_import(qapp):
     from wflash.gui.ui_gitlab_dialog import Ui_GitlabDialog
     from wflash.gui.ui_main_window import Ui_MainWindow
     from wflash.gui.ui_preferences_dialog import Ui_PreferencesDialog
-    from wflash.gui.ui_settings_dialog import Ui_SettingsDialog
 
     window = QMainWindow()
     ui = Ui_MainWindow()
     ui.setupUi(window)
-    assert ui.tableWidget_mapping.columnCount() == 4
+    assert ui.tableWidget_mapping.columnCount() == 5
+    assert ui.tableWidget_mapping.horizontalHeaderItem(0).text() == "#"
+    assert ui.tabWidget_output.count() == 1 and ui.tabWidget_output.tabText(0) == "Information"
     assert ui.comboBox_logLevel.currentText() == "INFO"
     assert ui.label_rollbackWarning.isHidden()
-    dialog = QDialog()
-    Ui_SettingsDialog().setupUi(dialog)
+    assert ui.label_step.text() == "Step: Idle"
+    assert ui.pushButton_flash.minimumSize().width() == 90 and ui.pushButton_flash.maximumSize().height() == 70
+    assert not ui.progressBar_flash.isTextVisible()
+    assert ui.frame_settingPanel.maximumWidth() == 360
     preferences = QDialog()
     Ui_PreferencesDialog().setupUi(preferences)
     gitlab = QDialog()
@@ -102,6 +104,16 @@ def test_gui_generated_modules_import(qapp):
     assert gitlab_ui.tabWidget_source.count() == 2
     assert gitlab_ui.checkBox_verifyTls.isChecked()
     window.deleteLater()
-    dialog.deleteLater()
     preferences.deleteLater()
     gitlab.deleteLater()
+
+
+def test_gui_old_widgets_are_gone():
+    names = set(ui_names(GUI / "main_window.ui"))
+    gone = {
+        "groupBox_gitlab", "comboBox_ref", "listWidget_pipelines", "listWidget_jobs",
+        "pushButton_downloadArtifact", "progressBar_artifact", "pushButton_settings",
+        "pushButton_cancelFlash", "splitter_mainVertical", "splitter_upperHorizontal",
+    }
+    assert names & gone == set()
+    assert not (GUI / "settings_dialog.ui").exists() and not (GUI / "gitlab_browser.py").exists()
