@@ -593,3 +593,16 @@ Thẻ nguồn firmware trong vùng Setting và debug bundle cần cùng một m�
 ### Đã kiểm tra
 
 - RED / GREEN, `pytest -q`: RED: `ModuleNotFoundError: No module named 'wflash.core.firmware_source'`; GREEN: `11 passed in 0.11s`; `pytest -q`: `233 passed in 13.67s`.
+
+## Phase 1.29: AppSettings cho popup GitLab, TLS và theme
+
+Popup Load from GitLab và Preferences cần nhớ thêm: có kiểm tra chứng chỉ TLS không, dark mode, project CI người dùng sửa (nhớ theo từng profile), tên job, project và tên package. Cơ chế kiểm kiểu khi load được giữ và mở rộng cho `dict`: chỉ nhận dict str→str, sai thì về mặc định kèm warning — một file settings hỏng không được làm app chết. Cache package nằm trong `<cache_dir>/packages`.
+
+### Thay đổi
+
+- **`wflash/core/settings.py`**: 6 field mới, `_same_type` kiểm cả dict, `PACKAGES_SUBDIR`, `resolved_package_cache_dir()`.
+- **`tests/test_settings.py`**: thêm 9 test (mặc định, round-trip, dict không dùng chung, dict sai kiểu, bool sai kiểu, thư mục cache package).
+
+### Đã kiểm tra
+
+- RED / GREEN, `pytest -q`: RED: `9 failed, 10 passed` (`AttributeError` cho field mới); GREEN: `19 passed in 0.09s`; `pytest -q`: `242 passed in 13.91s`.

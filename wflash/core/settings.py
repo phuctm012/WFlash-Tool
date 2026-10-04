@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 import os
 import sys
-from dataclasses import asdict, dataclass, fields
+from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
 
 import keyring
@@ -14,6 +14,7 @@ from wflash.core.errors import GitLabError
 from wflash.core.logging_setup import get_logger
 
 KEYRING_SERVICE = "WFlash-GitLab"
+PACKAGES_SUBDIR = "packages"  # Package Registry downloads are cached in <cache_dir>/packages
 log = get_logger("settings")
 
 
@@ -43,6 +44,19 @@ def settings_path() -> Path:
     return config_dir() / "settings.json"
 
 
+def _same_type(value: object, default: object) -> bool:
+    # bool is a subclass of int, so require the exact type; a dict must map str -> str.
+    if type(value) is not type(default):
+        return False
+    if isinstance(default, dict):
+        return all(isinstance(k, str) and isinstance(v, str) for k, v in value.items())
+    return True
+
+
+def _type_name(default: object) -> str:
+    return "dict[str, str]" if isinstance(default, dict) else type(default).__name__
+
+
 @dataclass
 class AppSettings:
     gitlab_url: str = ""
@@ -52,9 +66,19 @@ class AppSettings:
     profiles_dir: str = ""
     last_profile: str = ""
     verbose: bool = False
+    verify_tls: bool = True
+    dark_mode: bool = False
+    # Profile file name (e.g. "saf.yaml") -> CI project typed in Load from GitLab.
+    ci_project_overrides: dict[str, str] = field(default_factory=dict)
+    ci_job_name: str = ""
+    package_project: str = ""
+    package_name: str = ""
 
     def resolved_cache_dir(self) -> Path:
         return Path(self.cache_dir) if self.cache_dir else default_cache_dir()
+
+    def resolved_package_cache_dir(self) -> Path:
+        return self.resolved_cache_dir() / PACKAGES_SUBDIR
 
     def resolved_profiles_dir(self) -> Path:
         return Path(self.profiles_dir) if self.profiles_dir else bundled_profiles_dir()
@@ -78,11 +102,10 @@ class AppSettings:
             if f.name not in data:
                 continue
             value, default = data[f.name], getattr(defaults, f.name)
-            # bool is a subclass of int, so require the exact type
-            if type(value) is type(default):
+            if _same_type(value, default):
                 values[f.name] = value
             else:
-                log.warning("Ignoring setting %r: expected %s, got %r", f.name, type(default).__name__, value)
+                log.warning("Ignoring setting %r: expected %s, got %r", f.name, _type_name(default), value)
         return cls(**values)
 
     def save(self, path: Path | None = None) -> None:

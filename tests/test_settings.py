@@ -86,3 +86,59 @@ def test_set_token_keyring_error_raises_gitlab_error(monkeypatch):
     with pytest.raises(GitLabError) as info:
         st.set_token("https://gl", "t")
     assert "keyring" in info.value.hint
+
+
+def test_new_fields_default_values():
+    s = AppSettings()
+    assert s.verify_tls is True and s.dark_mode is False
+    assert s.ci_project_overrides == {}
+    assert (s.ci_job_name, s.package_project, s.package_name) == ("", "", "")
+
+
+def test_new_fields_round_trip(tmp_path):
+    path = tmp_path / "s.json"
+    AppSettings(
+        verify_tls=False,
+        dark_mode=True,
+        ci_project_overrides={"saf.yaml": "group/other"},
+        ci_job_name="build_app",
+        package_project="group/pkgs",
+        package_name="saf85xx-firmware",
+    ).save(path)
+    loaded = AppSettings.load(path)
+    assert loaded.verify_tls is False and loaded.dark_mode is True
+    assert loaded.ci_project_overrides == {"saf.yaml": "group/other"}
+    assert loaded.ci_job_name == "build_app"
+    assert (loaded.package_project, loaded.package_name) == ("group/pkgs", "saf85xx-firmware")
+
+
+def test_overrides_default_is_not_shared_between_instances():
+    a, b = AppSettings(), AppSettings()
+    a.ci_project_overrides["x.yaml"] = "g/p"
+    assert b.ci_project_overrides == {}
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [["saf.yaml", "group/x"], "group/x", {"saf.yaml": 5}, {"saf.yaml": None}],
+)
+def test_wrong_typed_overrides_fall_back_to_default(tmp_path, caplog, bad):
+    path = tmp_path / "s.json"
+    path.write_text(json.dumps({"ci_project_overrides": bad, "dark_mode": True}), encoding="utf-8")
+    with caplog.at_level("WARNING", logger="wflash.settings"):
+        loaded = AppSettings.load(path)
+    assert loaded.ci_project_overrides == {}
+    assert loaded.dark_mode is True
+    assert "ci_project_overrides" in caplog.text and "dict[str, str]" in caplog.text
+
+
+def test_wrong_typed_bool_flags_fall_back(tmp_path):
+    path = tmp_path / "s.json"
+    path.write_text(json.dumps({"verify_tls": "no", "dark_mode": 1}), encoding="utf-8")
+    loaded = AppSettings.load(path)
+    assert loaded.verify_tls is True and loaded.dark_mode is False
+
+
+def test_package_cache_sits_inside_the_cache_dir(tmp_path):
+    assert AppSettings(cache_dir=str(tmp_path)).resolved_package_cache_dir() == tmp_path / "packages"
+    assert AppSettings().resolved_package_cache_dir() == st.default_cache_dir() / st.PACKAGES_SUBDIR
