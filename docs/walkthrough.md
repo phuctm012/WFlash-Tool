@@ -318,3 +318,18 @@ Theo quy tắc Designer-first trong CLAUDE.md, toàn bộ layout tĩnh nằm tro
 - `pyside6-uic` sinh 2 module; `QT_QPA_PLATFORM=offscreen ~/.venvs/wflash/bin/python -c "import wflash.gui.ui_main_window, wflash.gui.ui_settings_dialog; print('ok')"`: `ok`; `grep -n "setVisible(False)" wflash/gui/ui_main_window.py` có `self.label_rollbackWarning.setVisible(False)` ✓.
 - `~/.venvs/wflash/bin/pytest tests/test_gui_ui_files.py -v` (GREEN): `6 passed in 0.48s` ✓.
 - `~/.venvs/wflash/bin/pytest -q`: `133 passed in 1.66s`; `~/.venvs/wflash/bin/pytest -k thread -q`: `13 passed, 120 deselected` ✓.
+
+## Phase 1.14: Test double dùng chung cho GUI
+
+GUI test và stress test cần một GitLab giả đủ thật để kiểm tra đúng code xử lý lỗi. Thay vì mock cả `GitLabClient`, `FakeGitLabSession` chỉ thay phần mạng (`requests.Session`), nên phân trang, phân loại lỗi 401/403/404/mất kết nối và tải zip theo chunk vẫn chạy bằng code thật. `HostWindow` cho phép test từng mixin riêng mà không cần cả `MainWindow`.
+
+### Thay đổi
+
+- **`tests/gui_stubs.py`** (mới): `FakeGitLabSession`, `SessionClientFactory`, `HostWindow`, `make_artifact_tree`, `write_profiles`, token giả có dạng PAT thật.
+- **`tests/test_gui_stubs.py`** (mới): 5 test chứng minh session giả đi qua `GitLabClient` thật.
+
+### Đã kiểm tra
+
+- `~/.venvs/wflash/bin/pytest tests/test_gui_stubs.py -q` (RED, chưa có `gui_stubs.py`): `ModuleNotFoundError: No module named 'tests.gui_stubs'`, `1 error in 0.07s` ✓ (expected).
+- `~/.venvs/wflash/bin/pytest tests/test_gui_stubs.py -v` (GREEN): `5 passed in 0.35s` ✓.
+- `~/.venvs/wflash/bin/pytest -q`: `138 passed in 1.57s`; `~/.venvs/wflash/bin/pytest -k thread -q`: `13 passed, 125 deselected` ✓.
