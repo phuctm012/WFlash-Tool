@@ -26,6 +26,10 @@ from wflash.gui.workers import WorkerRegistry
 
 log = get_logger("ui")
 
+# Bounded wait in closeEvent: long enough for a cancelled flash to roll back, short
+# enough that a hung worker cannot freeze the app forever (threading rule 3).
+CLOSE_TIMEOUT_S = 15.0
+
 
 class MainWindow(GitlabBrowserMixin, MappingTableMixin, FlashMixin, LogPanelMixin, QMainWindow):
     def __init__(
@@ -150,6 +154,35 @@ class MainWindow(GitlabBrowserMixin, MappingTableMixin, FlashMixin, LogPanelMixi
 
     # -- shutdown -------------------------------------------------------------------
     def closeEvent(self, event) -> None:
-        # Minimal for now; Task 21 adds cancel + bounded wait + rollback reporting.
+        if self.flash_active() and not self._closing:
+            answer = QMessageBox.question(
+                self,
+                "WFlash",
+                "A flash is in progress. Cancel it (the previous workspace paths will be restored) and quit?",
+            )
+            if answer != QMessageBox.StandardButton.Yes:
+                event.ignore()
+                return
+        # Threading rule 4: the guard goes up before anything is cancelled, so completion
+        # signals still queued are settled by the slots instead of starting more work.
+        self._closing = True
+        self._workers.cancel_all()
+        if not self._workers.wait_idle(CLOSE_TIMEOUT_S):
+            keys = self._workers.abandon_running()
+            log.critical(
+                "Workers still running after %.0f s: %s. If a flash was running, check the "
+                "winIDEA download/symbol paths before flashing again.",
+                CLOSE_TIMEOUT_S,
+                keys,
+            )
+        exc, self._flash_error_during_close = self._flash_error_during_close, None
+        if exc is not None:
+            # _on_flash_failed only stored it (no dialogs while closing); record it now.
+            self.ctx.add_error(exc)
+            if getattr(exc, "rollback_failed", False):
+                log.critical("Rollback failed: the winIDEA workspace may still point to the new files")
+                self.show_error(exc)
+            else:
+                log.error("Flash error while closing: %s", exc)
         self._detach_log_panel()
         super().closeEvent(event)

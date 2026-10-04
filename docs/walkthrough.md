@@ -449,3 +449,18 @@ Mixin Flash chỉ khởi chạy `FlashWorkflow` trong một worker và hiển th
 - Chạy `tests/test_gui_main_window.py tests/test_gui_flash.py` 3 lần: `23 passed` mỗi lần (2.41s, 2.40s, 2.39s) ✓.
 - `~/.venvs/wflash/bin/pytest -q`: `194 passed in 5.49s`; `~/.venvs/wflash/bin/pytest -k thread -q`: `19 passed, 175 deselected` ✓.
 - `QT_QPA_PLATFORM=offscreen ~/.venvs/wflash/bin/python -c "from wflash.gui.main_window import MainWindow; print('import ok')"`: `import ok` ✓.
+
+## Phase 1.21: Đóng cửa sổ khi đang flash
+
+`closeEvent` là nơi deadlock hay xảy ra nhất (SFlash từng treo vì chờ thread trong `closeEvent`). Thứ tự bây giờ: hỏi xác nhận nếu đang flash, dựng cờ `_closing` trước, hủy mọi worker, rồi chờ có giới hạn (15 s) trong khi vẫn bơm event — để rollback và disconnect của workflow chạy xong *trước* khi cửa sổ biến mất. Quá giờ thì worker được giữ lại trong `_ABANDONED` (không bao giờ xóa object signal khi worker còn chạy) và log CRITICAL. Lỗi flash bắt được trong lúc đóng luôn được ghi vào `ctx` + log sau khi chờ; riêng rollback thất bại còn log CRITICAL và hiện hộp thoại "WFlash — rollback failed".
+
+### Thay đổi
+
+- **`wflash/gui/main_window.py`**: `CLOSE_TIMEOUT_S`, `closeEvent` đầy đủ (kể cả ghi `ctx.add_error` + log cho lỗi flash lưu trong `_flash_error_during_close`).
+- **`tests/test_gui_close_window.py`** (mới): 7 test `test_gui_thread_*` (đóng giữa download, từ chối đóng, đóng giữa lúc fetch GitLab, báo rollback thất bại, chờ có giới hạn khi worker bỏ qua cancel, log CRITICAL + ctx cho rollback thất bại, lỗi thường lúc đóng được ghi không hiện dialog), kiểm tra không có cảnh báo threading của Qt.
+
+### Đã kiểm tra
+
+- RED: `~/.venvs/wflash/bin/pytest tests/test_gui_close_window.py -q`: `7 failed in 22.56s`.
+- GREEN: cùng lệnh, chạy 5 lần: `7 passed` mỗi lần (3.37s, 3.30s, 3.28s, 3.26s, 3.31s).
+- `~/.venvs/wflash/bin/pytest -k thread -q`: `26 passed, 175 deselected in 4.48s`; `~/.venvs/wflash/bin/pytest -q`: `201 passed in 8.77s`.
