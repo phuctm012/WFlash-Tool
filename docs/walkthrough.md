@@ -471,3 +471,19 @@ Chờ trong `closeEvent` bơm event nên cửa sổ vẫn tương tác được;
 
 - RED: 3 test fail trước khi sửa (`pytest tests/test_gui_close_window.py -k "wait_is_bounded or warning_not_error or disables_ui"`: `3 failed`); tắt riêng guard `_close_in_progress` thì test đóng lồng `1 failed`.
 - GREEN: `tests/test_gui_close_window.py` 5 lần: `9 passed` mỗi lần (~3.8s); `pytest -k thread -q`: `28 passed, 175 deselected`; `pytest -q`: `203 passed in 9.02s`.
+
+## Phase 1.22: Entry point và excepthook
+
+`python -m wflash` giờ chạy được app thật: đọc settings, mở log file DEBUG, cài `sys.excepthook`/`threading.excepthook` để không lỗi nào im lặng (spec §8), tạo adapter (`--adapter fake` trên macOS), mở cửa sổ. `--smoke` đóng *cửa sổ* sau 1,5 s chứ không `app.quit()`, để đường tắt máy thật (`closeEvent`) cũng được chạy.
+
+### Thay đổi
+
+- **`wflash/main.py`** (mới): `parse_args`, `install_excepthooks` (hộp thoại chỉ trên GUI thread), `main`.
+- **`wflash/__main__.py`** (mới).
+- **`tests/test_gui_main.py`** (mới): 3 test.
+
+### Đã kiểm tra
+
+- RED: `~/.venvs/wflash/bin/pytest tests/test_gui_main.py -q`: collection error `ModuleNotFoundError: No module named 'wflash.main'`; GREEN: `3 passed in 0.13s`.
+- Smoke: `QT_QPA_PLATFORM=offscreen ~/.venvs/wflash/bin/python -m wflash --adapter fake --smoke; echo "exit=$?"`: `exit=0`. Log mới nhất có `WFlash 0.1.0 starting (adapter=fake, ...)`, `Found 1 winIDEA instance(s)`, `WFlash exiting (code 0)`.
+- `pytest -q`: `206 passed in 9.02s`; `pytest -k thread -q`: `29 passed, 177 deselected`; `pytest -k "not gui" -q`: `116 passed, 90 deselected`.
