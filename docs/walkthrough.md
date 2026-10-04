@@ -300,3 +300,21 @@ Quyết định: giữ việc pool giữ runnable làm bảo đảm vòng đời
 - RED (tạm đảo khẳng định thành `alive == 0`): `AssertionError ... assert 20 == 0`, `1 failed` ✓ (chứng minh pool giữ đủ 20; đã hoàn nguyên).
 - `~/.venvs/wflash/bin/pytest -k thread -v`: `13 passed, 114 deselected in 0.82s` ✓.
 - `~/.venvs/wflash/bin/pytest -q`: `127 passed in 1.09s` ✓.
+
+## Phase 1.13: Layout Designer cho cửa sổ chính và Settings
+
+Theo quy tắc Designer-first trong CLAUDE.md, toàn bộ layout tĩnh nằm trong file `.ui` và code Python sinh bằng `pyside6-uic`, không dựng widget bằng tay. Mọi widget/layout đặt tên `<loại>_<ý nghĩa>` để code mixin đọc được; một test tự động kiểm tra tên, kiểm tra file sinh ra khớp với XML và mọi `self.ui.<tên>` đều tồn tại.
+
+### Thay đổi
+
+- **`wflash/gui/main_window.ui`** (mới): thanh profile, nhóm GitLab (ref → pipeline → job → tải artifact), bảng mapping 4 cột, nhóm Flash (instance, reset/run, Cancel/Flash, bước + tiến trình, dòng đỏ ROLLBACK FAILED ẩn sẵn), log panel, status bar.
+- **`wflash/gui/settings_dialog.ui`** (mới): GitLab URL, token (ẩn ký tự), CA bundle, thư mục cache + Clear cache, số job giữ lại, thư mục profile, verbose.
+- **`wflash/gui/ui_main_window.py`, `wflash/gui/ui_settings_dialog.py`** (sinh bằng `pyside6-uic`, không sửa tay).
+- **`tests/test_gui_ui_files.py`** (mới): 6 test.
+
+### Đã kiểm tra
+
+- `~/.venvs/wflash/bin/pytest tests/test_gui_ui_files.py -v` (RED, chưa có `.ui`/`ui_*.py`): `6 failed in 0.40s` (`ModuleNotFoundError: No module named 'wflash.gui.ui_main_window'`) ✓ (expected).
+- `pyside6-uic` sinh 2 module; `QT_QPA_PLATFORM=offscreen ~/.venvs/wflash/bin/python -c "import wflash.gui.ui_main_window, wflash.gui.ui_settings_dialog; print('ok')"`: `ok`; `grep -n "setVisible(False)" wflash/gui/ui_main_window.py` có `self.label_rollbackWarning.setVisible(False)` ✓.
+- `~/.venvs/wflash/bin/pytest tests/test_gui_ui_files.py -v` (GREEN): `6 passed in 0.48s` ✓.
+- `~/.venvs/wflash/bin/pytest -q`: `133 passed in 1.66s`; `~/.venvs/wflash/bin/pytest -k thread -q`: `13 passed, 120 deselected` ✓.
