@@ -14,8 +14,9 @@ GUI = Path(__file__).resolve().parents[1] / "wflash" / "gui"
 UI_FILES = {
     "main_window.ui": "ui_main_window.py",
     "settings_dialog.ui": "ui_settings_dialog.py",
+    "preferences_dialog.ui": "ui_preferences_dialog.py",
 }
-TOP_LEVEL = {"MainWindow", "SettingsDialog"}
+TOP_LEVEL = {"MainWindow", "SettingsDialog", "PreferencesDialog"}
 # <kind>_<what>, e.g. verticalLayout_gitlabBrowser, tableWidget_mapping.
 MEANINGFUL = re.compile(r"^[a-z][A-Za-z]*_[a-z][A-Za-z0-9]*$")
 
@@ -78,6 +79,7 @@ def test_gui_generated_modules_import(qapp):
     from PySide6.QtWidgets import QDialog, QMainWindow
 
     from wflash.gui.ui_main_window import Ui_MainWindow
+    from wflash.gui.ui_preferences_dialog import Ui_PreferencesDialog
     from wflash.gui.ui_settings_dialog import Ui_SettingsDialog
 
     window = QMainWindow()
@@ -88,5 +90,8 @@ def test_gui_generated_modules_import(qapp):
     assert ui.label_rollbackWarning.isHidden()
     dialog = QDialog()
     Ui_SettingsDialog().setupUi(dialog)
+    preferences = QDialog()
+    Ui_PreferencesDialog().setupUi(preferences)
     window.deleteLater()
     dialog.deleteLater()
+    preferences.deleteLater()

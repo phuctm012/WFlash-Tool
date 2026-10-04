@@ -675,3 +675,17 @@ WFlash dùng bố cục quen thuộc của SFlash nhưng phải khác màu để
 ### Đã kiểm tra
 
 - RED / GREEN, `pytest -q`: RED: `ImportError: cannot import name 'style' from 'wflash.gui'`; GREEN: `12 passed in 6.61s` (theme + root main, gồm smoke dark mode); `pytest -q`: `281 passed in 16.17s`.
+
+## Phase 1.35: Hộp thoại Preferences
+
+Settings cũ bị tách làm hai: phần kết nối GitLab (URL, token, TLS, CA) chuyển sang popup Load from GitLab, phần còn lại thành Preferences: thư mục cache + số bản giữ lại + Clear cache (giờ xóa cả cache package), thư mục profile, verbose và Dark mode. Layout trong `preferences_dialog.ui`; Python chỉ nạp giá trị, kiểm tra thư mục profile có tồn tại và trả về bản sao `AppSettings`. `SettingsDialog` cũ còn đến Task 12.
+
+### Thay đổi
+
+- **`wflash/gui/preferences_dialog.ui`** (mới) + **`ui_preferences_dialog.py`** (sinh bằng `pyside6-uic`).
+- **`wflash/gui/preferences_dialog.py`** (mới): `PreferencesDialog`.
+- **`tests/test_gui_preferences_dialog.py`** (mới, 6 test), **`tests/test_gui_ui_files.py`** (thêm file `.ui` mới).
+
+### Đã kiểm tra
+
+- RED / GREEN, `pytest -q`: RED: `ModuleNotFoundError: No module named 'wflash.gui.preferences_dialog'`; GREEN: `14 passed in 0.78s`; `pytest -q`: `289 passed in 16.43s`.
