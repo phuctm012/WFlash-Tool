@@ -25,6 +25,11 @@ Windows (Python cùng bitness với winIDEA, thường là 64-bit):
 
 `isystem.connect` **không** cài từ PyPI: cài từ thư mục cài đặt winIDEA 9.21 (xem `spike/README.md`) để version khớp với winIDEA.
 
+Cũng có thể chạy bằng file `main.py` ở thư mục gốc repo (cùng app, cùng tham số; chạy được cả khi đứng ở thư mục khác):
+
+    ~/.venvs/wflash/bin/python main.py --adapter fake                          (macOS)
+    %USERPROFILE%\.venvs\wflash\Scripts\python main.py --adapter fake          (Windows)
+
 Tham số: `--adapter real|fake`, `--verbose` (log mọi lời gọi winIDEA), `--smoke` (mở rồi tự đóng sau 1,5 s, để kiểm tra khởi động).
 
 Fake adapter giả lập lỗi qua biến môi trường `WFLASH_FAKE_FAIL` (nối bằng dấu phẩy):

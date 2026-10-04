@@ -549,3 +549,20 @@ Review tổng của branch đã duyệt merge, nhưng còn một số lỗi đ�
 - GREEN: `~/.venvs/wflash/bin/pytest -q` -> `218 passed`; `pytest -k thread -q` -> `29 passed, 189 deselected`.
 - `python tools/stress_test.py` -> `STRESS_RESULT=PASS`.
 - `QT_QPA_PLATFORM=offscreen python -m wflash --adapter fake --smoke` -> exit 0.
+
+## Phase 1.26: File `main.py` ở thư mục gốc
+
+User muốn chạy giao diện bằng cách gọi trực tiếp một file `main.py`, thay vì nhớ cú pháp `python -m wflash`. File mới chỉ là lớp mỏng gọi `wflash.main.main()` — không có logic riêng, nên tham số (`--adapter`, `--verbose`, `--smoke`), logging, excepthook và đường đóng app giống hệt `python -m wflash`. File tự thêm thư mục gốc repo vào `sys.path`, để chạy được cả khi package chưa `pip install -e` hoặc khi đứng ở thư mục khác. Không ảnh hưởng tới build `.exe` (spec PyInstaller vẫn dùng `wflash/__main__.py`).
+
+### Thay đổi
+
+- **`main.py`** (mới): entry point ở gốc repo, gọi `wflash.main.main()`.
+- **`tests/test_gui_root_main.py`** (mới): chạy `python main.py --adapter fake --smoke` bằng subprocess từ gốc repo và từ một thư mục khác, yêu cầu exit 0.
+- **`README.md`**: thêm cách chạy bằng `main.py` (macOS và Windows).
+
+### Đã kiểm tra
+
+- RED: `~/.venvs/wflash/bin/pytest tests/test_gui_root_main.py -q` -> 2 failed, `can't open file '.../WFlash-Tool/main.py': [Errno 2] No such file or directory`.
+- GREEN: cùng lệnh -> `2 passed in 4.47s`.
+- `~/.venvs/wflash/bin/pytest -q` -> `220 passed in 13.09s`; `pytest -k thread -q` -> `29 passed, 191 deselected in 4.94s`.
+- `QT_QPA_PLATFORM=offscreen ~/.venvs/wflash/bin/python main.py --adapter fake --smoke` -> exit 0.
