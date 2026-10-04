@@ -5,7 +5,7 @@ from responses import matchers
 
 from wflash.core.cancel import CancelToken
 from wflash.core.errors import ArtifactError, CancelledError, GitLabError
-from wflash.core.gitlab_client import GitLabClient, Job, Pipeline, Ref
+from wflash.core.gitlab_client import GitLabClient, Job, PackageVersion, Pipeline, Ref
 from wflash.core.logging_setup import clear_secrets, redact
 
 BASE = "https://gitlab.example.com"
@@ -193,3 +193,158 @@ def test_download_malformed_content_length_is_treated_as_unknown(client, tmp_pat
     path = client.download_artifacts(42, 8, tmp_path, progress_cb=lambda d, t: seen.append((d, t)))
     assert path.read_bytes() == body
     assert seen and seen[-1][1] == 0
+
+
+# -- TLS verification ------------------------------------------------------------------
+
+
+def test_verify_defaults_to_true_or_ca_bundle():
+    assert GitLabClient(BASE, TOKEN).verify is True
+    assert GitLabClient(BASE, TOKEN, ca_bundle="/ca.pem").verify == "/ca.pem"
+    clear_secrets()
+
+
+@responses.activate
+def test_verify_false_is_passed_to_requests():
+    client = GitLabClient(BASE, TOKEN, ca_bundle="/ca.pem", verify=False)
+    assert client.verify is False
+    responses.get(f"{API}/projects/42/repository/branches", json=[])
+    responses.get(f"{API}/projects/42/repository/tags", json=[])
+    assert client.list_refs(42) == []
+    assert all(call.request.req_kwargs["verify"] is False for call in responses.calls)
+    clear_secrets()
+
+
+# -- Package Registry ------------------------------------------------------------------
+
+PKG_LIST = f"{API}/projects/43/packages"
+
+
+def pkg(id_, name, version, created="2026-10-04T09:20:00Z"):
+    return {"id": id_, "name": name, "version": version, "package_type": "generic", "created_at": created}
+
+
+@responses.activate
+def test_list_package_versions_keeps_exact_name_newest_first(client):
+    responses.get(
+        PKG_LIST,
+        match=[matchers.query_param_matcher({
+            "package_type": "generic", "package_name": "fw", "order_by": "created_at", "sort": "desc",
+            "per_page": "100", "page": "1",
+        })],
+        json=[pkg(502, "fw", "1.4.0"), pkg(503, "fw-debug", "9.9.9"), pkg(501, "fw", "1.3.0", "2026-10-01T08:00:00Z")],
+    )
+    assert client.list_package_versions(43, "fw") == [
+        PackageVersion(502, "fw", "1.4.0", "2026-10-04T09:20:00Z"),
+        PackageVersion(501, "fw", "1.3.0", "2026-10-01T08:00:00Z"),
+    ]
+
+
+@responses.activate
+def test_list_package_versions_follows_pages_until_limit(client):
+    def page(p, nxt):
+        return dict(
+            match=[matchers.query_param_matcher({
+                "package_type": "generic", "package_name": "fw", "order_by": "created_at", "sort": "desc",
+                "per_page": "100", "page": p,
+            })],
+            headers={"X-Next-Page": nxt},
+        )
+
+    responses.get(PKG_LIST, json=[pkg(3, "fw-x", "0")], **page("1", "2"))
+    responses.get(PKG_LIST, json=[pkg(2, "fw", "2.0"), pkg(1, "fw", "1.0")], **page("2", "3"))
+    versions = client.list_package_versions(43, "fw", limit=1)
+    assert [v.version for v in versions] == ["2.0"]
+    assert len(responses.calls) == 2  # page 3 is never requested once the limit is reached
+
+
+@responses.activate
+def test_no_package_versions_is_a_gitlab_error_with_hint(client):
+    responses.get(PKG_LIST, json=[pkg(9, "fw-debug", "1.0")])
+    with pytest.raises(GitLabError, match="No versions of package 'fw' found") as info:
+        client.list_package_versions(43, "fw")
+    assert "package project and name" in info.value.hint
+
+
+@responses.activate
+def test_download_package_fetches_the_first_file(client, tmp_path):
+    version = PackageVersion(502, "fw", "1.4.0", "")
+    responses.get(
+        f"{API}/projects/43/packages/502/package_files",
+        json=[{"id": 1, "file_name": "fw-1.4.0.zip"}, {"id": 2, "file_name": "notes.txt"}],
+    )
+    body = b"PK" + b"z" * 3000
+    responses.get(f"{API}/projects/43/packages/generic/fw/1.4.0/fw-1.4.0.zip", body=body,
+                  auto_calculate_content_length=True)
+    seen = []
+    path = client.download_package(43, version, tmp_path, progress_cb=lambda d, t: seen.append((d, t)))
+    assert path == tmp_path / "fw-1.4.0.zip"
+    assert path.read_bytes() == body
+    assert seen[-1] == (len(body), len(body))
+    assert responses.calls[1].request.headers["PRIVATE-TOKEN"] == TOKEN
+
+
+@responses.activate
+def test_download_package_quotes_name_version_and_file(client, tmp_path):
+    version = PackageVersion(7, "fw pkg", "1.0+b1", "")
+    responses.get(f"{API}/projects/43/packages/7/package_files", json=[{"file_name": "a b.s3"}])
+    responses.get(f"{API}/projects/43/packages/generic/fw%20pkg/1.0%2Bb1/a%20b.s3", body=b"S0")
+    assert client.download_package(43, version, tmp_path).read_bytes() == b"S0"
+
+
+@responses.activate
+def test_download_package_never_writes_outside_dest(client, tmp_path):
+    version = PackageVersion(7, "fw", "1.0", "")
+    responses.get(f"{API}/projects/43/packages/7/package_files", json=[{"file_name": "../../evil.bin"}])
+    responses.get(f"{API}/projects/43/packages/generic/fw/1.0/..%2F..%2Fevil.bin", body=b"x")
+    path = client.download_package(43, version, tmp_path / "dl")
+    assert path == tmp_path / "dl" / "evil.bin"
+
+
+@responses.activate
+def test_download_package_without_files_is_a_gitlab_error(client, tmp_path):
+    version = PackageVersion(7, "fw", "1.0", "")
+    responses.get(f"{API}/projects/43/packages/7/package_files", json=[])
+    with pytest.raises(GitLabError, match="Version '1.0' of package 'fw' has no files") as info:
+        client.download_package(43, version, tmp_path)
+    assert "another version" in info.value.hint
+
+
+@responses.activate
+def test_download_package_cancel_removes_partial_file(client, tmp_path):
+    version = PackageVersion(7, "fw", "1.0", "")
+    responses.get(f"{API}/projects/43/packages/7/package_files", json=[{"file_name": "fw.zip"}])
+    responses.get(f"{API}/projects/43/packages/generic/fw/1.0/fw.zip", body=b"x" * 10)
+    token = CancelToken()
+    token.cancel()
+    with pytest.raises(CancelledError):
+        client.download_package(43, version, tmp_path, cancel=token)
+    assert list(tmp_path.iterdir()) == []
+
+
+@responses.activate
+def test_download_package_disk_error_is_an_artifact_error(client, tmp_path, monkeypatch):
+    version = PackageVersion(7, "fw", "1.0", "")
+    responses.get(f"{API}/projects/43/packages/7/package_files", json=[{"file_name": "fw.zip"}])
+    responses.get(f"{API}/projects/43/packages/generic/fw/1.0/fw.zip", body=b"x" * 10)
+
+    def boom(self, *a, **k):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(type(tmp_path), "open", boom)
+    with pytest.raises(ArtifactError, match="Cannot write package") as info:
+        client.download_package(43, version, tmp_path)
+    assert "disk space" in info.value.hint
+    assert list(tmp_path.iterdir()) == []
+
+
+@responses.activate
+def test_download_package_interrupted_is_a_gitlab_error(client, tmp_path):
+    version = PackageVersion(7, "fw", "1.0", "")
+    responses.get(f"{API}/projects/43/packages/7/package_files", json=[{"file_name": "fw.zip"}])
+    responses.get(
+        f"{API}/projects/43/packages/generic/fw/1.0/fw.zip",
+        body=requests.exceptions.ConnectionError("reset by peer"),
+    )
+    with pytest.raises(GitLabError, match="Cannot reach GitLab"):
+        client.download_package(43, version, tmp_path)

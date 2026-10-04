@@ -1,4 +1,4 @@
-"""Minimal GitLab REST v4 client: browse refs → pipelines → jobs and download job artifacts."""
+"""Minimal GitLab REST v4 client: refs → pipelines → jobs → artifacts, and generic packages."""
 from __future__ import annotations
 
 import fnmatch
@@ -9,6 +9,7 @@ from typing import Callable, Iterator, Literal
 from urllib.parse import quote
 
 import requests
+import urllib3
 
 from wflash.core.cancel import CancelToken
 from wflash.core.errors import ArtifactError, GitLabError
@@ -19,15 +20,15 @@ CHUNK = 1024 * 1024
 DownloadProgress = Callable[[int, int], None]  # (bytes_done, bytes_total or 0 if unknown)
 
 _HINTS = {
-    401: "Token is invalid or expired. Create a Personal Access Token with scope read_api and update it in Settings.",
+    401: "Token is invalid or expired. Create a Personal Access Token with scope read_api and enter it in Load from GitLab…",
     403: "Your token has no access to this project. Ask for project access or check the token scope.",
-    404: "Not found. Check the project path in the profile; the artifact may also have expired.",
+    404: "Not found. Check the project path (profile or Load from GitLab…); the artifact may also have expired.",
 }
 
 
 _BAD_RESPONSE_HINT = (
     "GitLab returned something that is not its API (a proxy or login page?). "
-    "Check the GitLab URL in Settings and that you can open it in a browser."
+    "Check the GitLab URL in Load from GitLab… and that you can open it in a browser."
 )
 
 
@@ -63,6 +64,20 @@ class Job:
     finished_at: str
 
 
+@dataclass(frozen=True)
+class PackageVersion:
+    id: int  # package id (one id per version of a generic package)
+    name: str
+    version: str
+    created_at: str
+
+
+def _safe_file_name(name: str) -> str:
+    """A server-supplied file name must never escape the download folder."""
+    base = Path(str(name).replace("\\", "/")).name
+    return base if base not in ("", ".", "..") else "package.bin"
+
+
 def _has_archive(job: dict) -> bool:
     if any(a.get("file_type") == "archive" for a in job.get("artifacts") or []):
         return True
@@ -77,11 +92,16 @@ class GitLabClient:
         ca_bundle: str | None = None,
         session: requests.Session | None = None,
         timeout: float = 30.0,
+        verify: bool = True,
     ) -> None:
         self.base = base_url.rstrip("/") + "/api/v4"
         self.session = session or requests.Session()
         self.session.headers["PRIVATE-TOKEN"] = token
-        self.verify: bool | str = ca_bundle or True
+        # verify=False is the user's explicit choice ("Verify TLS certificate" unticked); the
+        # GUI logs a WARNING for it once per session, so urllib3's per-request warning is muted.
+        self.verify: bool | str = (ca_bundle or True) if verify else False
+        if not verify:
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
         self.timeout = timeout
         register_secret(token)
 
@@ -93,7 +113,7 @@ class GitLabClient:
         except requests.exceptions.SSLError as exc:
             raise GitLabError(
                 f"SSL error connecting to GitLab: {exc}",
-                hint="If GitLab uses an internal certificate, set the CA bundle file in Settings.",
+                hint="If GitLab uses an internal certificate, set the CA bundle file in Load from GitLab…",
             ) from exc
         except requests.exceptions.RequestException as exc:
             raise GitLabError(f"Cannot reach GitLab: {exc}") from exc
@@ -163,18 +183,87 @@ class GitLabClient:
         progress_cb: DownloadProgress | None = None,
         cancel: CancelToken | None = None,
     ) -> Path:
-        resp = self._get(f"/projects/{project_id}/jobs/{job_id}/artifacts", stream=True)
-        final = dest / f"artifacts_{job_id}.zip"
-        part = final.with_suffix(".zip.part")
+        path = f"/projects/{project_id}/jobs/{job_id}/artifacts"
+        log.info("Downloading artifacts of job #%s", job_id)
+        return self._stream(path, dest / f"artifacts_{job_id}.zip", "Artifact", progress_cb, cancel)
+
+    def list_package_versions(self, project_id: int, package_name: str, limit: int = 20) -> list[PackageVersion]:
+        """Versions of one generic package, newest first. Raises GitLabError when there is none."""
+        path = f"/projects/{project_id}/packages"
+        params = {
+            "package_type": "generic",
+            "package_name": package_name,
+            "order_by": "created_at",
+            "sort": "desc",
+            "per_page": 100,
+        }
+        versions: list[PackageVersion] = []
+        page = "1"
+        while page and len(versions) < limit:
+            resp = self._get(path, {**params, "page": page})
+            with _parsing(path):
+                data = resp.json()
+                if not isinstance(data, list):
+                    raise TypeError("expected a JSON list")
+                # GitLab matches package_name as a prefix/substring: keep the exact name only.
+                versions += [
+                    PackageVersion(int(p["id"]), p["name"], p["version"], p.get("created_at") or "")
+                    for p in data
+                    if p.get("name") == package_name
+                ]
+            page = resp.headers.get("X-Next-Page", "")
+        if not versions:
+            raise GitLabError(
+                f"No versions of package '{package_name}' found",
+                hint="Check the package project and name in Load from GitLab…",
+            )
+        return versions[:limit]
+
+    def download_package(
+        self,
+        project_id: int,
+        package: PackageVersion,
+        dest: Path,
+        progress_cb: DownloadProgress | None = None,
+        cancel: CancelToken | None = None,
+    ) -> Path:
+        """Download the first file attached to `package` into `dest`; return its path."""
+        files_path = f"/projects/{project_id}/packages/{package.id}/package_files"
+        files = self._get_all(files_path)
+        with _parsing(files_path):
+            names = [f["file_name"] for f in files]
+        if not names:
+            raise GitLabError(
+                f"Version '{package.version}' of package '{package.name}' has no files",
+                hint="Pick another version, or check the package in GitLab (Deploy > Package Registry).",
+            )
+        file_name = names[0]
+        path = (
+            f"/projects/{project_id}/packages/generic/{quote(package.name, safe='')}/"
+            f"{quote(package.version, safe='')}/{quote(file_name, safe='')}"
+        )
+        log.info("Downloading package %s %s (%s)", package.name, package.version, file_name)
+        return self._stream(path, dest / _safe_file_name(file_name), "Package", progress_cb, cancel)
+
+    def _stream(
+        self,
+        path: str,
+        final: Path,
+        what: str,
+        progress_cb: DownloadProgress | None,
+        cancel: CancelToken | None,
+    ) -> Path:
+        resp = self._get(path, stream=True)
+        part = final.with_name(final.name + ".part")
         try:
             total = int(resp.headers.get("Content-Length") or 0)
         except ValueError:
             total = 0  # malformed header: size unknown
         done = 0
-        log.info("Downloading artifacts of job #%s (%s bytes)", job_id, total or "unknown")
+        log.debug("%s download: %s bytes", what, total or "unknown")
         try:
             with resp:
-                dest.mkdir(parents=True, exist_ok=True)
+                final.parent.mkdir(parents=True, exist_ok=True)
                 with part.open("wb") as fh:
                     for chunk in resp.iter_content(CHUNK):
                         if cancel is not None:
@@ -190,11 +279,11 @@ class GitLabClient:
             except OSError:
                 pass
             if isinstance(exc, requests.exceptions.RequestException):
-                raise GitLabError(f"Artifact download interrupted: {exc}") from exc
+                raise GitLabError(f"{what} download interrupted: {exc}") from exc
             if isinstance(exc, OSError):
                 raise ArtifactError(
-                    f"Cannot write artifact to {dest}: {exc}",
-                    hint="Cannot write the downloaded artifact. Check free disk space and folder permissions, then retry.",
+                    f"Cannot write {what.lower()} to {final.parent}: {exc}",
+                    hint=f"Cannot write the downloaded {what.lower()}. Check free disk space and folder permissions, then retry.",
                 ) from exc
             raise
         log.info("Downloaded %.1f MB to %s", done / 1e6, final)

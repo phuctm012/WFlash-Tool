@@ -619,3 +619,17 @@ Package Registry có thể trả về một file không phải zip; `store_file`
 ### Đã kiểm tra
 
 - RED / GREEN, `pytest -q`: RED: `4 failed, 11 passed` (thiếu `store_file`/`has`); GREEN: `15 passed in 0.06s`; `pytest -q`: `246 passed in 13.30s`.
+
+## Phase 1.31: GitLabClient — Package Registry và tùy chọn tắt kiểm tra TLS
+
+Tab Package Registry làm giống SFlash: package generic, mỗi version có file đính kèm, tải file đầu tiên. Client vẫn dùng `requests` với phân loại lỗi và phân trang `X-Next-Page` sẵn có; API lọc tên package theo tiền tố nên client chỉ giữ đúng tên. Phần stream xuống đĩa (`.part`, hủy, lỗi ổ đĩa) được dùng chung cho artifact và package. Tên file server trả về được làm sạch để không ghi ra ngoài thư mục tải. `verify=False` là lựa chọn rõ ràng của người dùng (popup ghi WARNING), nên cảnh báo urllib3 mỗi request được tắt. Các hint nhắc "Settings" giờ trỏ tới "Load from GitLab…".
+
+### Thay đổi
+
+- **`wflash/core/gitlab_client.py`**: `verify`, `PackageVersion`, `list_package_versions`, `download_package`, `_stream`, `_safe_file_name`, hint mới.
+- **`wflash/core/errors.py`**: hint mặc định của `GitLabError`.
+- **`tests/test_gitlab_client.py`**: thêm 12 test (TLS, lọc đúng tên, phân trang tới limit, không có version, file đầu tiên, quote URL, không ghi ra ngoài, không có file, hủy, lỗi ổ đĩa, mất kết nối).
+
+### Đã kiểm tra
+
+- RED / GREEN, `pytest -q`: RED: `ImportError: cannot import name 'PackageVersion'`; GREEN: `31 passed in 0.20s`; `pytest -q`: `258 passed in 13.05s`.

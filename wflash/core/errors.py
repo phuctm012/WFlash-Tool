@@ -16,7 +16,7 @@ class ProfileError(WFlashError):
 
 
 class GitLabError(WFlashError):
-    default_hint = "Check the GitLab URL, token and network connection in Settings."
+    default_hint = "Check the GitLab URL, token and network connection in Load from GitLab…"
 
 
 class ArtifactError(WFlashError):
