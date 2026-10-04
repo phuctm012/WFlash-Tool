@@ -412,3 +412,19 @@ GUI không bao giờ gọi GitLab trực tiếp: mỗi bước ref → pipeline 
 - RED (test viết trước): `~/.venvs/wflash/bin/pytest tests/test_gui_gitlab_browser.py -q`: `3 failed, 10 passed`.
 - GREEN: 3 lần chạy cùng file: `13 passed` mỗi lần (2.54s, 2.30s, 2.29s).
 - `~/.venvs/wflash/bin/pytest -q`: `171 passed in 3.70s`; `~/.venvs/wflash/bin/pytest -k thread -q`: `14 passed, 157 deselected`.
+
+## Phase 1.19: Flash từ GUI
+
+Mixin Flash chỉ khởi chạy `FlashWorkflow` trong một worker và hiển thị kết quả; rollback vẫn là trách nhiệm của core (Approach A). Danh sách instance winIDEA luôn lấy từ `list_instances()` (lỗi → danh sách rỗng), combo lưu dict và đọc bằng `currentData()`. Khi rollback thất bại (R15), GUI hiện dòng đỏ ROLLBACK FAILED và hộp thoại riêng — kể cả khi lỗi đến từ Cancel — vì người dùng tuyệt đối không được bỏ lỡ việc workspace có thể vẫn trỏ tới file mới.
+
+### Thay đổi
+
+- **`wflash/gui/flash_mixin.py`** (mới): `safe_list_instances`, `instance_data`, `FlashMixin` (Flash/Cancel, bước + tiến trình, khóa các điều khiển khi đang flash, hiển thị rollback thất bại).
+- **`tests/test_gui_flash.py`** (mới): 11 test (combo là dict, không có instance, happy path, run sau reset, lỗi download + rollback, thiếu entry, rollback thất bại, cancel giữa download, double Flash, mapping chưa đủ).
+
+### Đã kiểm tra
+
+- RED (chưa có `flash_mixin.py`): `~/.venvs/wflash/bin/pytest tests/test_gui_flash.py -q`: `ERROR tests/test_gui_flash.py`, `1 error in 0.25s` (collection, ModuleNotFoundError) ✓ (expected).
+- GREEN: `~/.venvs/wflash/bin/pytest tests/test_gui_flash.py tests/test_gui_ui_files.py -q`: `17 passed in 1.77s` ✓.
+- Chạy `tests/test_gui_flash.py` 3 lần: `11 passed` mỗi lần (1.55s, 1.60s, 1.50s) ✓.
+- `~/.venvs/wflash/bin/pytest -q`: `182 passed in 4.70s`; `~/.venvs/wflash/bin/pytest -k thread -q`: `16 passed, 166 deselected` ✓.
