@@ -111,7 +111,7 @@ Dialog modal riêng: `wflash/gui/gitlab_dialog.ui` + `ui_gitlab_dialog.py` (sinh
 
 ### 3.2 Tab CI Artifact (`tab_ciArtifact`)
 
-- `lineEdit_ciProject` (mặc định = `profile.gitlab.project`; người dùng sửa thì lưu `AppSettings.ci_project_override` theo tên profile; để trống = dùng profile) + nhãn "from profile" khi đang dùng giá trị profile.
+- `lineEdit_ciProject` (mặc định = `profile.gitlab.project`; người dùng sửa thì lưu vào `AppSettings.ci_project_overrides[<tên file profile>]`; để trống = dùng profile) + nhãn "from profile" khi đang dùng giá trị profile.
 - `comboBox_ref` + `pushButton_loadRefs` ("Load branches/tags").
 - `comboBox_jobName` (editable; gợi ý tên job lấy từ danh sách job có artifact; lọc theo `profile.gitlab.job_filter`).
 - `pushButton_downloadSelected` ("Download Selected Artifact", nút primary): tải artifact của job đang chọn trong bảng; nếu bảng chưa có dòng chọn → tải job mới nhất thành công khớp ref + job name.
