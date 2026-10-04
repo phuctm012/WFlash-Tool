@@ -606,3 +606,16 @@ Popup Load from GitLab và Preferences cần nhớ thêm: có kiểm tra chứng
 ### Đã kiểm tra
 
 - RED / GREEN, `pytest -q`: RED: `9 failed, 10 passed` (`AttributeError` cho field mới); GREEN: `19 passed in 0.09s`; `pytest -q`: `242 passed in 13.91s`.
+
+## Phase 1.30: Cache cho file package (store_file) và cache chỉ đụng thư mục của nó
+
+Package Registry có thể trả về một file không phải zip; `store_file` đặt nguyên file vào cache với cùng cơ chế `.tmp` → rename → marker như artifact. Cache package nằm ở `<cache_dir>/packages`, nên `prune()` cũ (xóa mọi thư mục `*/*` không có marker) sẽ xóa luôn cache package mỗi lần lưu một artifact. Giờ `entries/prune/clear` chỉ nhìn thư mục tên toàn chữ số. `has()` cho nhãn "Cached" mà không làm thay đổi thứ tự LRU.
+
+### Thay đổi
+
+- **`wflash/core/artifact_cache.py`**: `store_file`, `has`, `_store` dùng chung, `_project_dirs` chỉ thư mục số.
+- **`tests/test_artifact_cache.py`**: thêm 4 test (file đơn, lỗi copy, `has` không chạm marker, prune không đụng `packages/`).
+
+### Đã kiểm tra
+
+- RED / GREEN, `pytest -q`: RED: `4 failed, 11 passed` (thiếu `store_file`/`has`); GREEN: `15 passed in 0.06s`; `pytest -q`: `246 passed in 13.30s`.

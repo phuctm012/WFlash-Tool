@@ -147,3 +147,51 @@ def test_clear_failure_raises_after_removing_the_rest(tmp_path, monkeypatch):
     assert isinstance(info.value.__cause__, PermissionError)
     assert not (root / "42" / "1").exists() and not (root / "42" / "3").exists()
     assert (root / "42" / "2").exists()
+
+
+def test_store_file_caches_a_single_file(tmp_path):
+    cache = ArtifactCache(tmp_path / "cache")
+    src = tmp_path / "dl" / "App.s3"
+    src.parent.mkdir()
+    src.write_bytes(b"S0 data")
+    files = cache.store_file(43, 501, src)
+    assert files == tmp_path / "cache" / "43" / "501" / "files"
+    assert (files / "App.s3").read_bytes() == b"S0 data"
+    assert cache.get(43, 501) == files
+    assert src.exists()  # the download itself is left to its temporary folder
+
+
+def test_store_file_missing_source_raises_and_leaves_no_entry(tmp_path):
+    cache = ArtifactCache(tmp_path / "cache")
+    with pytest.raises(ArtifactError, match="Failed to cache file") as info:
+        cache.store_file(43, 501, tmp_path / "missing.bin")
+    assert "disk space" in info.value.hint
+    assert cache.get(43, 501) is None
+    assert not list((tmp_path / "cache").glob("**/*.tmp"))
+
+
+def test_has_does_not_touch_the_marker(tmp_path):
+    cache = ArtifactCache(tmp_path / "cache")
+    assert not cache.has(1, 10)
+    cache.store_zip(1, 10, make_zip(tmp_path / "a.zip", {"f.s3": "x"}))
+    marker = cache.job_dir(1, 10) / ".complete"
+    os.utime(marker, (1000, 1000))
+    assert cache.has(1, 10)
+    assert marker.stat().st_mtime == 1000
+
+
+def test_artifact_prune_never_touches_the_packages_cache(tmp_path):
+    root = tmp_path / "cache"
+    packages = ArtifactCache(root / "packages")
+    src = tmp_path / "fw.bin"
+    src.write_bytes(b"fw")
+    pkg_files = packages.store_file(43, 501, src)
+    (root / "packages" / "43" / "502").mkdir()  # an incomplete package entry belongs to the package cache
+    artifacts = ArtifactCache(root, max_jobs=1)
+    artifacts.store_zip(1, 10, make_zip(tmp_path / "a.zip", {"f.s3": "x"}))
+    artifacts.store_zip(1, 11, make_zip(tmp_path / "b.zip", {"f.s3": "y"}))
+    assert (pkg_files / "fw.bin").read_bytes() == b"fw"
+    assert (root / "packages" / "43" / "502").is_dir()
+    assert artifacts.entries() == [root / "1" / "11"]
+    artifacts.clear()
+    assert (pkg_files / "fw.bin").exists()
