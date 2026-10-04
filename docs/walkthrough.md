@@ -503,3 +503,11 @@ Unit test cô lập không bắt được lớp lỗi nguy hiểm nhất (worker
 - `--section flash --section races`: `STRESS_RESULT=PASS`.
 - Làm hỏng `wait_idle(CLOSE_TIMEOUT_S)` thành `wait_idle(0.0)` rồi chạy `--section races`: `FAIL: no worker was abandoned: ['flash-2', 'gitlab-refs-2']`, `CHECKPOINTS=48 FAILED=1`, `STRESS_RESULT=FAIL`, exit=1. Sau `git checkout -- wflash/gui/main_window.py` thì `git diff --stat` rỗng.
 - `pytest -q`: `206 passed in 9.07s`; `pytest -k thread -q`: `29 passed, 177 deselected in 4.93s`.
+
+### Vòng sửa 1 (R25): stress test không được pass rỗng
+
+- Double-click giờ thử trên job *chưa cache* với session chậm: chờ download chạy thật (worker chạy, progress > 0), gọi `download_selected_artifact()` hai lần, kiểm tra đúng 1 worker và đúng 1 request artifact.
+- Mọi `pump_until`/`wait_flash_idle` mà checkpoint sau phụ thuộc đều được bọc `check`, lặp lại bị bỏ qua nếu chờ thất bại; hủy/đóng giữa download đều có checkpoint riêng chứng minh download đang chạy trước đó.
+- Thêm pattern Qt threading ("different thread", "another thread", "outside the GUI thread"); in mọi cảnh báo Qt khác; message handler giữ đến sau khi teardown.
+- Cancel kiểm tra khôi phục đúng chính xác program *và* symbol path của lần flash đầu (cả section races).
+- Kết quả: chạy đủ `CHECKPOINTS=255 FAILED=0 QT_THREADING_WARNINGS=0`, `STRESS_RESULT=PASS`; `--section flash --section races`: `CHECKPOINTS=93`, PASS; phá `wait_idle(0.0)` → `FAIL: no worker was abandoned: ['flash-2', 'gitlab-refs-2']`, `STRESS_RESULT=FAIL`, rồi `git checkout` khôi phục (diff sạch); `pytest -q`: `206 passed`; `-k thread`: `29 passed, 177 deselected`.

@@ -73,6 +73,9 @@ THREADING_PATTERNS = (
     "QSocketNotifier: Socket notifiers cannot be enabled or disabled from another thread",
     "QObject::setParent: Cannot set parent",
     "moveToThread",
+    "different thread",
+    "another thread",
+    "outside the GUI thread",
 )
 CANCEL_DELAYS_S = (0.0, 0.005, 0.02, 0.06, 0.15, 0.4)
 NEW_APP_SUFFIX = "App.s3"
@@ -202,6 +205,30 @@ class Stress:
             ok = self.pump_until(lambda: not window.gitlab_busy(), 5.0)
         return self.check(ok, f"{label}: GitLab browse -> download -> mapping complete")
 
+    def browse_to_job(self, window, label: str) -> bool:
+        """refresh -> select the one pipeline -> select the one job (no download)."""
+        window.refresh_gitlab()
+        ok = self.pump_until(
+            lambda: not window.gitlab_busy() and window.ui.listWidget_pipelines.count() == 1, 5.0
+        )
+        if ok:
+            window.ui.listWidget_pipelines.setCurrentRow(0)
+            ok = self.pump_until(lambda: window.ui.listWidget_jobs.count() == 1, 5.0)
+        if ok:
+            window.ui.listWidget_jobs.setCurrentRow(0)
+            ok = self.pump_until(lambda: not window.gitlab_busy(), 5.0)
+        return self.check(ok, f"{label}: browsed to the job")
+
+    def start_slow_download(self, window, label: str) -> bool:
+        """Browse to the job, start the download and prove it is in flight (progress moved)."""
+        if not self.browse_to_job(window, label):
+            return False
+        window.download_selected_artifact()
+        started = self.pump_until(
+            lambda: window.artifact_downloading() and window.ui.progressBar_artifact.value() > 0, 5.0
+        )
+        return self.check(started, f"{label}: artifact download in flight (worker running, progress > 0)")
+
     # -- sections ---------------------------------------------------------------------
     def section_flash(self) -> None:
         for i in range(self.iterations):
@@ -220,14 +247,18 @@ class Stress:
                        f"{label}: App path points to the artifact")
             self.check(adapter.target_state == "halted", f"{label}: target halted after reset")
 
+            programs_after_first = dict(adapter.programs)
+            applications_after_first = dict(adapter.applications)
             adapter.download_seconds = 3.0
             window.start_flash()
             self.check(self.wait_step(window, Step.DOWNLOAD.value, 5.0), f"{label}: second flash downloading")
             window.cancel_flash()
             self.check(self.wait_step(window, "Cancelled", 5.0), f"{label}: cancelled flash settled")
             self.check(self.wait_flash_idle(window), f"{label}: cancelled worker released")
-            self.check(adapter.programs["App"] != OLD_APP,
-                       f"{label}: cancel restored the paths of before this flash (the first flash's)")
+            self.check(adapter.programs == programs_after_first,
+                       f"{label}: cancel restored exactly the program paths of the first flash")
+            self.check(adapter.applications == applications_after_first,
+                       f"{label}: cancel restored exactly the symbol paths of the first flash")
             self.check(adapter.connected_to is None, f"{label}: disconnected after cancel")
 
             adapter.download_seconds = 1.0
@@ -288,8 +319,7 @@ class Stress:
         self.check(window.ui.comboBox_ref.count() == 2, "gitlab: refs listed once (stale results dropped)")
         self.check(self.load_artifact_via_gitlab(window, "gitlab"), "gitlab: browse to artifact")
 
-        window.download_selected_artifact()
-        window.download_selected_artifact()  # double-click: second refused
+        window.download_selected_artifact()  # same job again: served from the cache
         self.check(self.pump_until(lambda: not window.gitlab_busy(), 5.0), "gitlab: cached download settled")
         self.check(session.count(f"/jobs/{JOB_ID}/artifacts") == 1, "gitlab: one network download, then cache")
 
@@ -312,20 +342,30 @@ class Stress:
         self.dialogs.clear()
         self.close_window(window, "gitlab")
 
+        # Double-click on an UNCACHED job while the first download is in flight: second refused.
+        slow_dc = FakeGitLabSession(chunk_delay_s=0.02)
+        window = self.new_window(FakeWinIDEAAdapter(), slow_dc)
+        if self.start_slow_download(window, "gitlab-double-click"):
+            window.download_selected_artifact()
+            window.download_selected_artifact()
+            running = [k for k in window._workers.running_keys() if "download" in k]
+            self.check(len(running) == 1, f"gitlab: double-click runs one download worker, got {running}")
+            self.check(self.pump_until(window.mapping_complete, 10.0), "gitlab: double-click download finished")
+            self.check(self.pump_until(lambda: not window.gitlab_busy(), 5.0), "gitlab: double-click settled")
+            self.check(slow_dc.count(f"/jobs/{JOB_ID}/artifacts") == 1,
+                       f"gitlab: double-click made exactly one artifact request, got "
+                       f"{slow_dc.count(f'/jobs/{JOB_ID}/artifacts')}")
+        self.close_window(window, "gitlab-double-click")
+
         # Cancel an artifact download: nothing loaded afterwards.
+        self.dialogs.clear()
         slow = FakeGitLabSession(chunk_delay_s=0.02)
         window = self.new_window(FakeWinIDEAAdapter(), slow)
-        window.refresh_gitlab()
-        self.pump_until(lambda: window.ui.listWidget_pipelines.count() == 1, 5.0)
-        window.ui.listWidget_pipelines.setCurrentRow(0)
-        self.pump_until(lambda: window.ui.listWidget_jobs.count() == 1, 5.0)
-        window.ui.listWidget_jobs.setCurrentRow(0)
-        window.download_selected_artifact()
-        self.pump_until(lambda: window.ui.progressBar_artifact.value() > 0, 5.0)
-        window.cancel_artifact_download()
-        self.check(self.pump_until(lambda: not window.gitlab_busy(), 5.0), "gitlab: cancelled download settled")
-        self.check(not window.mapping_rows(), "gitlab: no artifact loaded after cancel")
-        self.check(self.dialogs == [], "gitlab: cancel shows no error dialog")
+        if self.start_slow_download(window, "gitlab-cancel"):
+            window.cancel_artifact_download()
+            self.check(self.pump_until(lambda: not window.gitlab_busy(), 5.0), "gitlab: cancelled download settled")
+            self.check(not window.mapping_rows(), "gitlab: no artifact loaded after cancel")
+            self.check(self.dialogs == [], "gitlab: cancel shows no error dialog")
         self.close_window(window, "gitlab-cancel")
 
         # Window closed mid-fetch / mid-download at several delays.
@@ -339,13 +379,10 @@ class Stress:
         for delay in (0.0, 0.05, 0.2):
             dl = FakeGitLabSession(chunk_delay_s=0.02)
             window = self.new_window(FakeWinIDEAAdapter(), dl)
-            window.refresh_gitlab()
-            self.pump_until(lambda: window.ui.listWidget_pipelines.count() == 1, 5.0)
-            window.ui.listWidget_pipelines.setCurrentRow(0)
-            self.pump_until(lambda: window.ui.listWidget_jobs.count() == 1, 5.0)
-            window.ui.listWidget_jobs.setCurrentRow(0)
-            window.download_selected_artifact()
-            self.pump(delay)
+            if self.browse_to_job(window, f"gitlab: close-in-download {delay}s"):
+                window.download_selected_artifact()
+                self.check(window.artifact_downloading(), f"gitlab: download in flight before close at {delay}s")
+                self.pump(delay)
             self.close_window(window, f"gitlab: closed {delay * 1000:.0f} ms into a download", max_s=3.0)
             self.check(not window.mapping_rows(), f"gitlab: no artifact loaded after close at {delay}s")
         self.check(self.dialogs == [], f"gitlab: no dialogs from closing windows: {self.dialogs}")
@@ -358,6 +395,7 @@ class Stress:
         for delay in CANCEL_DELAYS_S:
             label = f"races: cancel {delay * 1000:.0f} ms after Flash"
             before = dict(adapter.programs)
+            before_apps = dict(adapter.applications)
             window.start_flash()
             self.pump(delay)
             window.cancel_flash()
@@ -366,7 +404,8 @@ class Stress:
             final = window.ui.label_step.text()
             self.check(final in ("Cancelled", Step.DONE.value), f"{label}: final state {final!r}")
             if final == "Cancelled":
-                self.check(adapter.programs == before, f"{label}: paths restored")
+                self.check(adapter.programs == before, f"{label}: program paths restored")
+                self.check(adapter.applications == before_apps, f"{label}: symbol paths restored")
             self.check(adapter.connected_to is None, f"{label}: disconnected")
         self.check(self.dialogs == [], f"races: cancels show no error dialog: {self.dialogs}")
 
@@ -382,7 +421,7 @@ class Stress:
             refused = True
         self.check(refused, "races: debug bundle export refused while flashing")
         self.check(self.wait_step(window, Step.DONE.value, 10.0), "races: double-Flash run completed")
-        self.wait_flash_idle(window)
+        self.check(self.wait_flash_idle(window), "races: double-Flash worker released")
         self.check(adapter.calls.count("download") == downloads + 1, "races: exactly one download for double Flash")
         self.close_window(window, "races")
 
@@ -391,17 +430,21 @@ class Stress:
         window = self.new_window(adapter)
         window.on_artifact_ready(self.artifact("close"), f"job #{JOB_ID}")
         window.start_flash()
-        self.check(self.wait_step(window, Step.DOWNLOAD.value, 5.0), "races: long flash downloading")
+        in_flight = self.wait_step(window, Step.DOWNLOAD.value, 5.0) and window.flash_active()
+        self.check(in_flight, "races: long flash downloading (worker running) before close")
         self.questions.clear()
         self.close_window(window, "races: closed mid-download", max_s=3.0)
-        self.check(len(self.questions) == 1, "races: close asked for confirmation once")
-        self.check(adapter.programs["App"] == OLD_APP, "races: close rolled back App")
-        self.check(adapter.connected_to is None, "races: close disconnected")
+        if in_flight:
+            self.check(len(self.questions) == 1, "races: close asked for confirmation once")
+            self.check(adapter.programs["App"] == OLD_APP, "races: close rolled back App")
+            self.check(adapter.applications == {"CM7_0": OLD_CM7_0, "CM7_1": OLD_CM7_1},
+                       "races: close rolled back symbol paths")
+            self.check(adapter.connected_to is None, "races: close disconnected")
 
         # Closed during the GitLab fetch, before any flash worker exists.
         window = self.new_window(FakeWinIDEAAdapter(), FakeGitLabSession(delay_s=0.4))
         window.refresh_gitlab()
-        self.pump(0.05)
+        self.check(self.pump_until(window.gitlab_busy, 2.0), "races: GitLab fetch in flight before close")
         self.check(not window.flash_active(), "races: no flash worker before close")
         self.close_window(window, "races: closed during GitLab fetch", max_s=3.0)
 
@@ -412,7 +455,8 @@ class Stress:
         log.error("request headers {'PRIVATE-TOKEN': '%s'}", TOKEN)
         log.debug("url https://gitlab.example.com/api/v4/projects?private_token=%s", TOKEN)
         window.ctx.add_error(RuntimeError(f"authentication failed for {TOKEN}"))
-        self.pump(0.2)
+        self.check(self.pump_until(lambda: "token in a message" in window.log_visible_text(), 3.0),
+                   "secrets: log lines reached the panel")
         panel = window.log_visible_text()
         self.check(TOKEN not in panel, "secrets: token absent from the log panel")
         self.check("***" in panel, "secrets: panel shows the masked token")
@@ -510,9 +554,10 @@ def main(argv: list[str] | None = None) -> int:
     stray = [t.name for t in threading.enumerate()
              if t is not threading.main_thread() and not isinstance(t, threading._DummyThread)]
     stress.check(stray == [], f"no Python worker threads left: {stray}")
-    qInstallMessageHandler(previous_handler)
     close_file_handler()
     del app
+    stress.pump(0.0)
+    qInstallMessageHandler(previous_handler)  # after teardown, so teardown warnings are seen
 
     passed = not stress.failures and not stress.qt_problems
     print(f"CHECKPOINTS={stress.checkpoints} FAILED={len(stress.failures)} "
@@ -520,7 +565,7 @@ def main(argv: list[str] | None = None) -> int:
           f"TIME={time.monotonic() - started:.1f}s")
     for failure in stress.failures:
         print(f"  - {failure.splitlines()[0]}")
-    for message in sorted(set(stress.qt_other))[:5]:
+    for message in sorted(set(stress.qt_other)):
         print(f"  other Qt warning (not a failure): {message}")
     print(f"STRESS_RESULT={'PASS' if passed else 'FAIL'}")
     if passed and not args.keep:
