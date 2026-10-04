@@ -106,6 +106,29 @@ def test_gui_completion_queued_before_cancel_is_dropped(host, qtbot):
     host.cancel_artifact_download()  # guard set although the worker already completed
     qtbot.waitUntil(lambda: not host.gitlab_busy(), timeout=3000)
     assert host.artifacts_loaded == []
+    bar = host.ui.progressBar_artifact
+    assert bar.format() == "Cancelled" and bar.maximum() == 100 and bar.value() == 0
+
+
+def test_gui_listing_worker_start_and_finish_update_controls(host, session, qtbot):
+    session.delay_s = 0.1
+    before = host.flash_control_updates
+    host.refresh_gitlab()
+    assert host.gitlab_busy()
+    assert host.flash_control_updates > before  # Flash is re-evaluated while the worker runs
+    after_start = host.flash_control_updates
+    qtbot.waitUntil(lambda: not host.gitlab_busy(), timeout=3000)
+    assert host.flash_control_updates > after_start  # and again when it finished
+
+
+def test_gui_stale_listing_failure_is_dropped(qtbot, tmp_path):
+    w = GitlabHost(tmp_path, FakeGitLabSession(fail_status=401, delay_s=0.2))
+    qtbot.addWidget(w)
+    w.refresh_gitlab()
+    w.set_gitlab_profile(None)  # the refresh is now outdated
+    qtbot.waitUntil(lambda: not w.gitlab_busy(), timeout=3000)
+    assert w.errors_shown == []
+    assert w.ctx.errors == []
 
 
 @pytest.mark.parametrize("status, hint_word", [(401, "expired"), (403, "access"), (404, "expired")])

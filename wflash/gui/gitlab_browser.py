@@ -51,6 +51,7 @@ class GitlabBrowserMixin:
         self._gl_profile_generation = 0  # bumped by a profile change: drops a stale download
         self._gl_download_key: str | None = None
         self._gl_download_cancel_requested = False
+        self._gl_key_generation: dict[str, int] = {}  # listing worker key -> generation at start
         self.ui.progressBar_artifact.setRange(0, 100)
         self.ui.progressBar_artifact.setValue(0)
         self.ui.pushButton_refreshRefs.clicked.connect(self.refresh_gitlab)
@@ -77,7 +78,7 @@ class GitlabBrowserMixin:
         self.ui.pushButton_cancelArtifact.setEnabled(downloading)
 
     def _start_gitlab(self, name: str, fn: Callable[[WorkerContext], object], on_succeeded, on_progress=None) -> str:
-        return self._workers.start(
+        key = self._workers.start(
             f"gitlab-{name}",
             fn,
             on_succeeded=on_succeeded,
@@ -85,6 +86,11 @@ class GitlabBrowserMixin:
             on_finished=self._on_gitlab_finished,
             on_progress=on_progress,
         )
+        self._gl_key_generation[key] = self._gl_generation
+        # A running GitLab worker disables Flash and the browser controls.
+        self._update_gitlab_controls()
+        self._update_flash_controls()
+        return key
 
     def _settings_snapshot(self) -> AppSettings:
         # Workers get their own copy; the GUI thread may keep editing self.settings.
@@ -276,10 +282,12 @@ class GitlabBrowserMixin:
     def _on_artifact_downloaded(self, _key: str, result) -> None:
         if self._closing or self._gl_download_cancel_requested:
             log.info("Artifact download completed after cancel; not loading it")
+            self._reset_progress_cancelled()
             return
         generation, label, path = result
         if generation != self._gl_profile_generation:
             log.info("Profile changed during download; not loading %s", label)
+            self._reset_progress_cancelled()
             return
         bar = self.ui.progressBar_artifact
         bar.setRange(0, 100)
@@ -287,8 +295,20 @@ class GitlabBrowserMixin:
         bar.setFormat("Ready")
         self.on_artifact_ready(path, label)
 
+    def _reset_progress_cancelled(self) -> None:
+        if self._closing:
+            return
+        bar = self.ui.progressBar_artifact
+        bar.setRange(0, 100)
+        bar.setValue(0)
+        bar.setFormat("Cancelled")
+
     def _on_gitlab_failed(self, key: str, exc: BaseException) -> None:
         if self._closing:
+            return
+        started_gen = self._gl_key_generation.get(key)
+        if key != self._gl_download_key and started_gen is not None and started_gen != self._gl_generation:
+            log.warning("Dropping failure of outdated GitLab request %s: %s", key, exc)
             return
         if key == self._gl_download_key:
             self.ui.progressBar_artifact.setRange(0, 100)
@@ -300,6 +320,7 @@ class GitlabBrowserMixin:
         self.show_error(exc)
 
     def _on_gitlab_finished(self, key: str) -> None:
+        self._gl_key_generation.pop(key, None)
         if key == self._gl_download_key:
             self._gl_download_key = None
         if self._closing:

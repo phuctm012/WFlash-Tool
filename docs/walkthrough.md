@@ -396,7 +396,7 @@ GUI không bao giờ gọi GitLab trực tiếp: mỗi bước ref → pipeline 
 ### Thay đổi
 
 - **`wflash/gui/gitlab_browser.py`** (mới): `default_client_factory`, `GitlabBrowserMixin` (refresh, chọn ref/pipeline/job, tải có cache, cancel, xử lý lỗi).
-- **`tests/test_gui_gitlab_browser.py`** (mới): 11 test (duyệt + tải, cache, double-click, cancel, completion đã queue trước cancel, 401/403/404, mất kết nối, đổi profile giữa chừng, factory).
+- **`tests/test_gui_gitlab_browser.py`** (mới): 11 test (duyệt + tải, cache, double-click, cancel, completion đã queue trước cancel, 401/403/404, mất kết nối, đổi profile giữa chừng, factory) và sau vòng sửa 1 là 13 test (thêm: cập nhật nút Flash khi worker liệt kê bắt đầu/kết thúc, bỏ lỗi của worker cũ).
 
 ### Đã kiểm tra
 
@@ -404,3 +404,11 @@ GUI không bao giờ gọi GitLab trực tiếp: mỗi bước ref → pipeline 
 - `~/.venvs/wflash/bin/pytest tests/test_gui_gitlab_browser.py tests/test_gui_ui_files.py -q` (GREEN): `17 passed in 1.91s` ✓.
 - Chạy `tests/test_gui_gitlab_browser.py` 3 lần: `11 passed` mỗi lần (1.60s, 1.63s, 1.59s) ✓.
 - `~/.venvs/wflash/bin/pytest -q`: `169 passed in 2.99s`; `~/.venvs/wflash/bin/pytest -k thread -q`: `14 passed, 155 deselected` ✓.
+
+### Sửa vòng 1 (R22)
+
+`_start_gitlab` giờ gọi `_update_gitlab_controls()` và `_update_flash_controls()` ngay sau khi worker bắt đầu, nên Flash tắt trong lúc worker liệt kê chạy (trước đây chỉ download làm vậy). Khi kết quả tải bị bỏ (cờ cancel hoặc đổi profile), thanh tiến trình được đặt lại về 0..100, "Cancelled" thay vì kẹt ở "Extracting". Lỗi của worker liệt kê thuộc generation cũ chỉ ghi log WARNING, không hiện dialog và không vào `ctx`.
+
+- RED (test viết trước): `~/.venvs/wflash/bin/pytest tests/test_gui_gitlab_browser.py -q`: `3 failed, 10 passed`.
+- GREEN: 3 lần chạy cùng file: `13 passed` mỗi lần (2.54s, 2.30s, 2.29s).
+- `~/.venvs/wflash/bin/pytest -q`: `171 passed in 3.70s`; `~/.venvs/wflash/bin/pytest -k thread -q`: `14 passed, 157 deselected`.
