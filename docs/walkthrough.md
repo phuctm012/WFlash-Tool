@@ -659,3 +659,19 @@ Popup GitLab dùng chung `WorkerRegistry` của cửa sổ chính. Khi đóng po
 ### Đã kiểm tra
 
 - RED / GREEN, `pytest -k thread -v`, `pytest -q`: RED: `2 failed, 13 passed` (`wait_idle`/`abandon_running` chưa nhận `prefix`); GREEN: `15 passed in 0.69s`; `pytest -k thread -q`: `31 passed, 240 deselected`; `pytest -q`: `271 passed in 13.33s`.
+
+## Phase 1.34: Theme Teal sáng/tối
+
+WFlash dùng bố cục quen thuộc của SFlash nhưng phải khác màu để không nhầm hai tool: Teal. Màu tĩnh nằm trong hai file `.qss` (chọn widget theo objectName và dynamic property như `state="flashing"`); màu do code tô lúc chạy (dòng log, dòng mapping đỏ, cột `#`) lấy từ cùng bảng token `theme.py`. Thiếu file theme thì app chạy với style mặc định của Qt và ghi WARNING, không crash. `main.py` áp theme đã lưu trước khi tạo cửa sổ để lần vẽ đầu đã đúng màu. Chữ trắng trên màu primary và cancel đạt ≥ 4.5:1 ở cả hai chế độ (có test).
+
+### Thay đổi
+
+- **`wflash/gui/theme.py`**, **`wflash/gui/style.py`**, **`wflash/resources/style.qss`**, **`wflash/resources/style_dark.qss`** (mới).
+- **`wflash/gui/log_panel.py`**: màu log theo theme, `refresh_log_theme()`.
+- **`wflash/main.py`**: áp theme lúc khởi động, log `Theme: …`.
+- **`pyproject.toml`**: package-data cho `.qss`.
+- **`tests/test_gui_theme.py`** (mới, 9 test), **`tests/test_gui_root_main.py`** (smoke ở dark mode với HOME tạm).
+
+### Đã kiểm tra
+
+- RED / GREEN, `pytest -q`: RED: `ImportError: cannot import name 'style' from 'wflash.gui'`; GREEN: `12 passed in 6.61s` (theme + root main, gồm smoke dark mode); `pytest -q`: `281 passed in 16.17s`.

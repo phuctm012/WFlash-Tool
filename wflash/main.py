@@ -80,6 +80,11 @@ def main(argv: list[str] | None = None) -> int:
     install_excepthooks()
     app = QApplication.instance() or QApplication(sys.argv[:1])
     app.setApplicationName("WFlash")
+    from wflash.gui.style import apply_theme
+
+    # Before the window exists, so the first paint already uses the saved theme.
+    apply_theme(app, settings.dark_mode)
+    log.info("Theme: %s", "dark" if settings.dark_mode else "light")
     if fallback_dir is not None:
         where = f"Logs are written to {fallback_dir}." if log_file else "File logging is disabled."
         log.warning("Default log directory is not writable. %s", where)

@@ -15,17 +15,24 @@ from PySide6.QtWidgets import QFileDialog, QMessageBox
 
 from wflash.core.debug_bundle import create_debug_bundle
 from wflash.core.logging_setup import LOGGER_NAME, RedactingFormatter, get_logger, redact
+from wflash.gui.theme import current_theme
 
 log = get_logger("ui.log")
 
 PANEL_FORMAT = "%(asctime)s %(levelname)-7s %(name)s: %(message)s"
 MAX_RECORDS = 20000
-LEVEL_COLORS = {
-    logging.DEBUG: "#8a8a8a",
-    logging.WARNING: "#c77700",
-    logging.ERROR: "#d32f2f",
-    logging.CRITICAL: "#d32f2f",
+# Theme token per level; INFO uses the widget's normal text colour.
+LEVEL_TOKENS = {
+    logging.DEBUG: "log_debug",
+    logging.WARNING: "log_warn",
+    logging.ERROR: "log_error",
+    logging.CRITICAL: "log_error",
 }
+
+
+def level_color(level: int) -> str | None:
+    token = LEVEL_TOKENS.get(level)
+    return current_theme()[token] if token else None
 
 
 class LogEmitter(QObject):
@@ -89,12 +96,16 @@ class LogPanelMixin:
         if not view.document().isEmpty():
             cursor.insertBlock()
         fmt = QTextCharFormat()
-        color = LEVEL_COLORS.get(level)
+        color = level_color(level)
         if color:
             fmt.setForeground(QColor(color))
         cursor.insertText(text, fmt)
         view.setTextCursor(cursor)
         view.ensureCursorVisible()  # keeps the newest line, and so the newest error, in view
+
+    def refresh_log_theme(self) -> None:
+        """Repaint every visible line with the current theme's level colours."""
+        self._refilter_log()
 
     def _refilter_log(self, *_args) -> None:
         self.ui.plainTextEdit_log.clear()

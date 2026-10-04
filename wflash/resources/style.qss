@@ -1,0 +1,251 @@
+/* WFlash "Teal Light" theme. Colours are the tokens of wflash/gui/theme.py THEMES["light"];
+   keep both in sync. Widgets are addressed by objectName and dynamic property, never by
+   per-widget stylesheets in code. */
+
+QWidget {
+    font-family: "Segoe UI", Arial, sans-serif;
+    font-size: 13px;
+    color: #1a1a1a;
+}
+
+QMainWindow, QDialog {
+    background-color: #f2f6f6;
+}
+
+QPushButton {
+    background-color: #ffffff;
+    border: 1px solid #d7dde5;
+    border-radius: 6px;
+    padding: 6px 14px;
+}
+QPushButton:hover {
+    background-color: #e7f3f1;
+    border-color: #1f9488;
+}
+QPushButton:pressed {
+    background-color: #e3eceb;
+}
+QPushButton:disabled {
+    color: #9aa4b2;
+    background-color: #ffffff;
+    border-color: #e9edf2;
+}
+
+/* Primary actions: the big Flash button and the main button of each dialog tab. */
+QPushButton#pushButton_flash,
+QPushButton#pushButton_downloadSelected,
+QPushButton#pushButton_fetchLatest {
+    background-color: #0f6b63;
+    color: #ffffff;
+    font-weight: 600;
+    border: none;
+}
+QPushButton#pushButton_flash {
+    font-size: 15px;
+    border-radius: 8px;
+    padding: 0px;
+}
+QPushButton#pushButton_flash:hover,
+QPushButton#pushButton_downloadSelected:hover,
+QPushButton#pushButton_fetchLatest:hover {
+    background-color: #1f9488;
+}
+QPushButton#pushButton_flash:disabled,
+QPushButton#pushButton_downloadSelected:disabled,
+QPushButton#pushButton_fetchLatest:disabled {
+    background-color: #e3eceb;
+    color: #9aa4b2;
+}
+/* While a flash runs the same button is "Cancel" (FlashMixin sets state="flashing"). */
+QPushButton#pushButton_flash[state="flashing"] {
+    background-color: #b23b3b;
+    color: #ffffff;
+}
+QPushButton#pushButton_flash[state="flashing"]:hover {
+    background-color: #d1574f;
+}
+
+QPushButton#pushButton_loadFromGitlab {
+    border: 1px solid #1f9488;
+    color: #0f6b63;
+    font-weight: 600;
+}
+QPushButton#pushButton_loadFromGitlab:disabled {
+    border-color: #e9edf2;
+    color: #9aa4b2;
+}
+
+QTabWidget::pane {
+    border: 1px solid #d7dde5;
+    border-radius: 6px;
+    top: -1px;
+    background: #ffffff;
+}
+QTabBar::tab {
+    background: #e3eceb;
+    padding: 8px 20px;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    margin-right: 2px;
+    color: #5a6472;
+}
+QTabBar::tab:selected {
+    background: #ffffff;
+    color: #0f6b63;
+    font-weight: 600;
+    border: 1px solid #d7dde5;
+    border-bottom: none;
+}
+
+QProgressBar {
+    border: none;
+    border-radius: 6px;
+    background-color: #e9edf2;
+    text-align: center;
+}
+QProgressBar::chunk {
+    border-radius: 6px;
+    background-color: #1f9488;
+}
+QProgressBar#progressBar_flash[state="done"]::chunk {
+    background-color: #3f8f5f;
+}
+QProgressBar#progressBar_flash[state="failed"]::chunk,
+QProgressBar#progressBar_flash[state="cancelled"]::chunk {
+    background-color: #b23b3b;
+}
+
+QTableWidget {
+    background-color: #ffffff;
+    alternate-background-color: #f2f6f6;
+    gridline-color: #e9edf2;
+    border: 1px solid #d7dde5;
+    border-radius: 6px;
+    selection-background-color: #e7f3f1;
+    selection-color: #1a1a1a;
+}
+QTableWidget::item {
+    padding: 3px;
+}
+QHeaderView {
+    background-color: #e7f3f1;
+}
+QTableCornerButton::section {
+    background-color: #e7f3f1;
+    border: none;
+}
+QHeaderView::section {
+    background-color: #e7f3f1;
+    color: #0f6b63;
+    padding: 5px;
+    border: none;
+    border-bottom: 2px solid #1f9488;
+    font-weight: 600;
+}
+
+QLineEdit, QComboBox, QSpinBox {
+    border: 1px solid #d7dde5;
+    border-radius: 5px;
+    padding: 4px 8px;
+    background: #ffffff;
+    color: #1a1a1a;
+}
+QLineEdit:focus, QComboBox:focus, QSpinBox:focus {
+    border-color: #1f9488;
+}
+QLineEdit:disabled, QComboBox:disabled, QSpinBox:disabled {
+    color: #9aa4b2;
+}
+/* The popup list of every combo box: it does not inherit the box colours. */
+QComboBox QAbstractItemView {
+    background: #ffffff;
+    color: #1a1a1a;
+    border: 1px solid #d7dde5;
+    selection-background-color: #0f6b63;
+    selection-color: #ffffff;
+}
+
+QTextEdit, QPlainTextEdit {
+    background-color: #ffffff;
+    color: #1a1a1a;
+    border: 1px solid #d7dde5;
+    border-radius: 6px;
+}
+
+QGroupBox {
+    border: 1px solid #d7dde5;
+    border-radius: 6px;
+    margin-top: 12px;
+    padding-top: 6px;
+}
+QGroupBox::title {
+    subcontrol-origin: margin;
+    left: 10px;
+    padding: 0 4px;
+    color: #0f6b63;
+    font-weight: 600;
+}
+QGroupBox#groupBox_connection {
+    background-color: #e3eceb;
+}
+
+QCheckBox {
+    spacing: 6px;
+}
+
+/* Main window: Setting panel, source card, hints, rollback banner. */
+QFrame#frame_settingPanel {
+    background-color: #ffffff;
+    border: 1px solid #d7dde5;
+    border-radius: 6px;
+}
+QLabel#label_settingHeader {
+    background-color: #e7f3f1;
+    color: #0f6b63;
+    font-weight: 600;
+    padding: 6px 8px;
+    border: none;
+    border-bottom: 2px solid #1f9488;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+}
+QFrame#frame_sourceCard {
+    background-color: #e7f3f1;
+    border: 1px solid #d7dde5;
+    border-left: 3px solid #1f9488;
+    border-radius: 6px;
+}
+QLabel#label_sourceTitle {
+    font-weight: 600;
+    color: #0f6b63;
+}
+QLabel#label_sourceDetail, QLabel#label_sourceCache,
+QLabel#label_mappingHint, QLabel#label_connectionHint, QLabel#label_ciProjectSource,
+QLabel#label_flashStats {
+    color: #5a6472;
+}
+QLabel#label_step {
+    font-weight: 600;
+}
+QLabel#label_rollbackWarning {
+    background-color: #fdecea;
+    border: 1px solid #e6a5a0;
+    border-radius: 6px;
+    color: #8f1d17;
+    font-weight: 600;
+    padding: 6px 8px;
+}
+QLabel#label_error,
+QLabel#label_downloadStatus[state="error"] {
+    color: #d32f2f;
+}
+
+QStatusBar {
+    background: #ffffff;
+    border-top: 1px solid #d7dde5;
+    color: #5a6472;
+}
+QStatusBar QLabel {
+    color: #5a6472;
+    padding: 0 8px;
+}

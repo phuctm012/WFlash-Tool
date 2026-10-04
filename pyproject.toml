@@ -24,6 +24,9 @@ wflash = "wflash.main:main"
 [tool.setuptools.packages.find]
 include = ["wflash*"]
 
+[tool.setuptools.package-data]
+wflash = ["resources/*.qss"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 qt_api = "pyside6"
