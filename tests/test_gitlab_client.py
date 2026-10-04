@@ -183,3 +183,13 @@ def test_list_pipelines_clamps_limit(client):
         json=[],
     )
     assert client.list_pipelines(42, "main", limit=500) == []
+
+
+@responses.activate
+def test_download_malformed_content_length_is_treated_as_unknown(client, tmp_path):
+    body = b"PK" + b"x" * 100
+    responses.get(f"{API}/projects/42/jobs/8/artifacts", body=body, headers={"Content-Length": "abc"})
+    seen = []
+    path = client.download_artifacts(42, 8, tmp_path, progress_cb=lambda d, t: seen.append((d, t)))
+    assert path.read_bytes() == body
+    assert seen and seen[-1][1] == 0

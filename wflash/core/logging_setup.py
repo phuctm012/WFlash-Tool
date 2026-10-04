@@ -39,7 +39,7 @@ def redact(text: str) -> str:
     text = _GLPAT_RE.sub("***", text)
     text = _BEARER_RE.sub(r"\1***", text)
     text = _PRIVATE_TOKEN_RE.sub(r"\1***", text)
-    for secret in _SECRETS:
+    for secret in sorted(tuple(_SECRETS), key=len, reverse=True):
         text = text.replace(secret, "***")
     return text
 

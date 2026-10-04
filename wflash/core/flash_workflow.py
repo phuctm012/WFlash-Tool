@@ -60,6 +60,12 @@ class FlashWorkflow:
                 f"No file selected for: {', '.join(missing)}",
                 hint="Choose a file for every red row in the mapping table.",
             )
+        gone = [row.selected.name for row in req.mapping if row.selected is None or not row.selected.is_file()]
+        if gone:
+            raise MappingError(
+                f"Selected file no longer exists: {', '.join(gone)}",
+                hint="The artifact cache may have been cleared or pruned. Download the artifact again.",
+            )
         self.ctx.mapping = [row.to_dict() for row in req.mapping]
         self._rollback_failed = False
         try:

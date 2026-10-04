@@ -12,7 +12,7 @@ from PySide6.QtWidgets import QDialog, QMainWindow, QMessageBox
 
 from wflash.core.debug_bundle import DebugContext
 from wflash.core.errors import CancelledError, GitLabError, ProfileError
-from wflash.core.logging_setup import get_logger, register_secret, set_verbose
+from wflash.core.logging_setup import get_logger, redact, register_secret, set_verbose
 from wflash.core.profile import Profile, list_profiles, load_profile
 from wflash.core.settings import AppSettings, get_token, set_token
 from wflash.core.winidea_adapter import WinIDEAAdapter
@@ -70,10 +70,10 @@ class MainWindow(GitlabBrowserMixin, MappingTableMixin, FlashMixin, LogPanelMixi
 
     # -- shared helpers -------------------------------------------------------------
     def show_error(self, exc: BaseException) -> None:
-        text = str(exc)
+        text = redact(str(exc))
         hint = getattr(exc, "hint", "")
         if hint:
-            text += f"\n\nHint: {hint}"
+            text += f"\n\nHint: {redact(hint)}"
         text += "\n\nUse 'Export debug bundle…' in the log panel to collect logs for support."
         title = "WFlash — rollback failed" if getattr(exc, "rollback_failed", False) else "WFlash error"
         QMessageBox.critical(self, title, text)
@@ -110,6 +110,7 @@ class MainWindow(GitlabBrowserMixin, MappingTableMixin, FlashMixin, LogPanelMixi
             self._update_flash_controls()
             return
         path = Path(data)
+        self.ctx.profile_path = path  # before loading: a bundle after a ProfileError needs the broken file
         try:
             profile = load_profile(path)
         except ProfileError as exc:

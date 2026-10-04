@@ -123,3 +123,45 @@ def test_setup_logging_masks_unregistered_glpat_in_file(tmp_path):
     content = path.read_text(encoding="utf-8")
     assert token not in content
     assert "***" in content
+
+
+def test_redact_masks_longer_secret_fully_when_it_contains_a_shorter_one():
+    ls.clear_secrets()
+    ls.register_secret("abcd")
+    ls.register_secret("abcdEFGHijkl")
+    try:
+        out = ls.redact("x abcdEFGHijkl y")
+        assert out == "x *** y"
+    finally:
+        ls.clear_secrets()
+
+
+def test_redact_survives_concurrent_register_secret():
+    import threading
+
+    ls.clear_secrets()
+    errors = []
+    stop = threading.Event()
+
+    def writer():
+        i = 0
+        while not stop.is_set():
+            ls.register_secret(f"secret-{i:08d}")
+            i += 1
+            if i % 200 == 0:
+                ls.clear_secrets()  # keep the set small; add/remove both resize it
+
+    t = threading.Thread(target=writer)
+    t.start()
+    try:
+        for _ in range(2000):
+            try:
+                ls.redact("hello secret-00000001 world")
+            except RuntimeError as exc:
+                errors.append(exc)
+                break
+    finally:
+        stop.set()
+        t.join()
+        ls.clear_secrets()
+    assert not errors

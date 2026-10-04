@@ -14,7 +14,7 @@ from PySide6.QtGui import QColor, QFontDatabase, QGuiApplication, QTextCharForma
 from PySide6.QtWidgets import QFileDialog, QMessageBox
 
 from wflash.core.debug_bundle import create_debug_bundle
-from wflash.core.logging_setup import LOGGER_NAME, RedactingFormatter, get_logger
+from wflash.core.logging_setup import LOGGER_NAME, RedactingFormatter, get_logger, redact
 
 log = get_logger("ui.log")
 
@@ -134,6 +134,6 @@ class LogPanelMixin:
             path = self.export_bundle(Path(directory))
         except OSError as exc:
             log.error("Cannot write debug bundle: %s", exc)
-            QMessageBox.critical(self, "WFlash", f"Cannot write the debug bundle:\n{exc}")
+            QMessageBox.critical(self, "WFlash", f"Cannot write the debug bundle:\n{redact(str(exc))}")
             return
         QMessageBox.information(self, "Debug bundle", f"Saved:\n{path}\n\nSend this file for debugging.")

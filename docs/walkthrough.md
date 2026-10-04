@@ -530,3 +530,22 @@ Người dùng cuối dùng bản `.exe` onedir (spec §11). Spec PyInstaller ch
 
 - Thêm lưu ý: adapter winIDEA thật chưa có (Plan 2), chạy không tham số sẽ báo lỗi; dùng `--adapter fake`, và shortcut `--adapter fake` cho `WFlash.exe`.
 - Bỏ đường dẫn miniforge riêng của máy: dùng `python3 -m venv ~/.venvs/wflash` (Python 3.11+), venv vẫn nằm ngoài OneDrive.
+
+## Phase 1.25: Đợt sửa sau review tổng
+
+Review tổng của branch đã duyệt merge, nhưng còn một số lỗi độ bền và an toàn rẻ để sửa: race khi che secret, token lọt lên hộp thoại lỗi, file đã chọn bị xoá khỏi cache trước khi flash, và vài đường lỗi nhỏ (log dir không ghi được, Content-Length hỏng, profile hỏng không vào debug bundle). Mỗi mục làm theo TDD: test đỏ trước, rồi sửa.
+
+### Thay đổi
+- **wflash/core/logging_setup.py**: `redact()` duyệt snapshot `sorted(tuple(_SECRETS), key=len, reverse=True)`; hết `RuntimeError: Set changed size during iteration` khi worker gọi `register_secret`, và secret dài chứa secret ngắn được che trọn.
+- **wflash/gui/main_window.py**: `show_error` đưa message và hint qua `redact()`; `_on_profile_selected` gán `ctx.profile_path` trước `load_profile`.
+- **wflash/main.py**: hộp thoại excepthook qua `redact()`; thêm `init_logging()` rơi về `%TEMP%/WFlash/logs` khi `OSError`, hiện cảnh báo nêu thư mục dự phòng, nếu cả hai lỗi thì chạy không có file log.
+- **wflash/gui/log_panel.py**: hộp thoại lỗi export bundle qua `redact()`.
+- **wflash/core/flash_workflow.py**: trước khi connect, nếu file `selected` không còn tồn tại thì ném `MappingError` kèm hint tải lại artifact, không gọi adapter.
+- **wflash/core/debug_bundle.py**: phiên bản PySide6 lấy từ metadata, nếu không có thì import cục bộ `PySide6.__version__` trong try (chỉ để đọc chuỗi version, core không import Qt ở mức module).
+- **wflash/core/gitlab_client.py**: `Content-Length` sai định dạng coi là không rõ (total 0).
+
+### Đã kiểm tra
+- RED (trước khi sửa): 9 test fail, gồm `RuntimeError('Set changed size during iteration')`, `ValueError: invalid literal for int() with base 10: 'abc'`, `AttributeError: module 'wflash.main' has no attribute 'init_logging'`, `assert None == PosixPath(.../bad.yaml)`, `'not installed' == '6.11.2'`.
+- GREEN: `~/.venvs/wflash/bin/pytest -q` -> `218 passed`; `pytest -k thread -q` -> `29 passed, 189 deselected`.
+- `python tools/stress_test.py` -> `STRESS_RESULT=PASS`.
+- `QT_QPA_PLATFORM=offscreen python -m wflash --adapter fake --smoke` -> exit 0.

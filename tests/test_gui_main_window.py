@@ -194,3 +194,23 @@ def test_gui_keyring_failure_is_reported(env, monkeypatch):
     monkeypatch.setattr(main_window_module, "SettingsDialog", AcceptingDialog)
     env.window.open_settings()
     assert any("Cannot store the GitLab token" in text for _, text in env.shown)
+
+
+def test_gui_show_error_redacts_unregistered_token(env):
+    token = "glpat-" + "Ab3dEf6hIj9kLm2nOp5q"
+    env.shown.clear()
+    env.window.show_error(GitLabError(f"401 for {token}", hint=f"retry with {token}"))
+    title, text = env.shown[0]
+    assert "***" in text and token not in text
+
+
+def test_gui_profile_path_recorded_even_when_profile_is_broken(qtbot, tmp_path, monkeypatch):
+    monkeypatch.setattr(QMessageBox, "critical", lambda *a, **k: None)
+    profiles = tmp_path / "profiles"
+    profiles.mkdir()
+    bad = profiles / "bad.yaml"
+    bad.write_text("name: [unclosed", encoding="utf-8")
+    w = MainWindow(AppSettings(profiles_dir=str(profiles)), FakeWinIDEAAdapter(), settings_path=tmp_path / "s.json")
+    qtbot.addWidget(w)
+    assert w.profile is None
+    assert w.ctx.profile_path == bad

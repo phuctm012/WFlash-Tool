@@ -166,7 +166,10 @@ class GitLabClient:
         resp = self._get(f"/projects/{project_id}/jobs/{job_id}/artifacts", stream=True)
         final = dest / f"artifacts_{job_id}.zip"
         part = final.with_suffix(".zip.part")
-        total = int(resp.headers.get("Content-Length") or 0)
+        try:
+            total = int(resp.headers.get("Content-Length") or 0)
+        except ValueError:
+            total = 0  # malformed header: size unknown
         done = 0
         log.info("Downloading artifacts of job #%s (%s bytes)", job_id, total or "unknown")
         try:

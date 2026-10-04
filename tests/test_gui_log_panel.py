@@ -100,3 +100,20 @@ def test_gui_close_detaches_handler(qtbot, tmp_path):
     assert w.log_handler in logging.getLogger("wflash").handlers
     w.close()
     assert w.log_handler not in logging.getLogger("wflash").handlers
+
+
+def test_gui_export_bundle_error_dialog_is_redacted(host, tmp_path, monkeypatch):
+    from PySide6.QtWidgets import QFileDialog, QMessageBox
+
+    w, _ = host
+    token = "glpat-" + "Ab3dEf6hIj9kLm2nOp5q"
+    shown = []
+    monkeypatch.setattr(QFileDialog, "getExistingDirectory", lambda *a, **k: str(tmp_path))
+    monkeypatch.setattr(QMessageBox, "critical", lambda parent, title, text: shown.append(text))
+
+    def boom(directory):
+        raise OSError(f"cannot write {token}")
+
+    monkeypatch.setattr(w, "export_bundle", boom)
+    w._on_export_bundle_clicked()
+    assert shown and "***" in shown[0] and token not in shown[0]

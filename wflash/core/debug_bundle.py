@@ -41,6 +41,18 @@ def _dist_version(name: str) -> str:
         return "not installed"
 
 
+def _pyside6_version() -> str:
+    version = _dist_version("PySide6")
+    if version != "not installed":
+        return version
+    try:  # frozen builds may lack dist metadata; a local import only to read the version string
+        import PySide6
+
+        return str(PySide6.__version__)
+    except Exception:
+        return "not installed"
+
+
 def collect_env_info() -> dict[str, str]:
     return {
         "wflash": __version__,
@@ -48,7 +60,7 @@ def collect_env_info() -> dict[str, str]:
         "platform": platform.platform(),
         "executable": sys.executable,
         "frozen": str(bool(getattr(sys, "frozen", False))),
-        "PySide6": _dist_version("PySide6"),
+        "PySide6": _pyside6_version(),
         "isystem.connect": _dist_version("isystem.connect"),
     }
 

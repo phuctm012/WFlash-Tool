@@ -54,3 +54,19 @@ def test_bundle_without_log_or_profile(tmp_path):
     with zipfile.ZipFile(path) as zf:
         assert "log.txt" not in zf.namelist()
         assert "profile.yaml" not in zf.namelist()
+
+
+def test_env_info_pyside6_version_falls_back_to_module_when_metadata_missing(monkeypatch):
+    import importlib.metadata
+
+    import PySide6
+
+    def missing(name):
+        raise importlib.metadata.PackageNotFoundError(name)
+
+    monkeypatch.setattr(importlib.metadata, "version", missing)
+    assert collect_env_info()["PySide6"] == PySide6.__version__
+
+
+def test_env_info_pyside6_version_reported():
+    assert collect_env_info()["PySide6"] != "not installed"

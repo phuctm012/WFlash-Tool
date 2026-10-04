@@ -282,3 +282,15 @@ def test_set_that_raises_after_applying_is_restored(rows):
     assert adapter.applications["CM7_0"] == r"C:\fake\old\cm7_0.elf"
     assert adapter.programs["App"] == OLD_APP
     assert error.rollback_failed is False
+
+
+def test_selected_file_deleted_before_flash_raises_with_no_adapter_calls(rows):
+    for row in rows:
+        row.selected.unlink()
+    adapter = FakeWinIDEAAdapter(download_seconds=0.02)
+    ctx, steps, progress, error = run(adapter, rows)
+    assert isinstance(error, MappingError)
+    assert "no longer exists" in str(error) and "App.s3" in str(error)
+    assert "Download the artifact again" in error.hint
+    assert adapter.calls == []
+    assert steps == []
