@@ -268,3 +268,21 @@ Re-review phát hiện một lỗ hổng còn lại: entry chỉ được ghi v�
 - `~/.venvs/wflash/bin/pytest tests/test_flash_workflow.py -q` (RED, code cũ): `3 failed, 16 passed` ✓ (expected).
 - `~/.venvs/wflash/bin/pytest tests/test_flash_workflow.py -v -W error` (GREEN): `19 passed in 0.42s` ✓.
 - `~/.venvs/wflash/bin/pytest -q`: `114 passed in 0.77s` ✓.
+
+## Phase 1.12: Lớp worker cho GUI (QThreadPool)
+
+Bắt đầu phần GUI bằng lớp chạy việc nặng ngoài GUI thread, vì mọi lỗi crash/deadlock của dự án SFlash đều nằm ở đây. `core/` vẫn chỉ thấy callback thường + `CancelToken`; `WorkerSignals` biến chúng thành Qt signal. `WorkerRegistry` giữ worker (và object signal của nó) tới khi signal `finished` đã được xử lý, từ chối slot là lambda/hàm thường (quy tắc 8), chỉ cho `start()` trên GUI thread (quy tắc 6) và chờ có giới hạn thời gian trong khi vẫn bơm event (quy tắc 3).
+
+### Thay đổi
+
+- **`pyproject.toml`**: đăng ký marker `gui` để `pytest -k "not gui"` chỉ chạy core.
+- **`wflash/gui/workers.py`** (mới): `WorkerSignals`, `WorkerContext` (progress ném `CancelledError` sau khi hủy — quy tắc 7), `Worker` (`autoDelete=False`, có ghi lý do), `WorkerRegistry` (`start`, `cancel`, `cancel_all`, `wait_idle`, `abandon_running`).
+- **`tests/test_gui_workers.py`** (mới): 12 test vòng đời worker, tên đều chứa `thread`.
+
+### Đã kiểm tra
+
+- `~/.venvs/wflash/bin/pytest tests/test_gui_workers.py -v` (RED, chưa có `workers.py`): `ImportError: cannot import name 'workers' from 'wflash.gui'` khi collect, `1 error in 0.10s` ✓ (expected).
+- `~/.venvs/wflash/bin/pytest tests/test_gui_workers.py -v` (GREEN): `12 passed in 0.50s` ✓.
+- `~/.venvs/wflash/bin/pytest -k thread -v`: `12 passed, 114 deselected in 0.78s` ✓.
+- `~/.venvs/wflash/bin/pytest -k "not gui" -q`: `114 passed, 12 deselected in 0.68s`, không có `PytestUnknownMarkWarning` ✓.
+- `~/.venvs/wflash/bin/pytest -q` (chạy 5 lần liên tiếp): `126 passed` mỗi lần (~1.1s) ✓.

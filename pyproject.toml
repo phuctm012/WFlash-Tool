@@ -27,3 +27,6 @@ include = ["wflash*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 qt_api = "pyside6"
+markers = [
+    "gui: needs PySide6 widgets or Qt threads (deselect with -k \"not gui\")",
+]
