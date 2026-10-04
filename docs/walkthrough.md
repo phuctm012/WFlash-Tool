@@ -487,3 +487,19 @@ Chờ trong `closeEvent` bơm event nên cửa sổ vẫn tương tác được;
 - RED: `~/.venvs/wflash/bin/pytest tests/test_gui_main.py -q`: collection error `ModuleNotFoundError: No module named 'wflash.main'`; GREEN: `3 passed in 0.13s`.
 - Smoke: `QT_QPA_PLATFORM=offscreen ~/.venvs/wflash/bin/python -m wflash --adapter fake --smoke; echo "exit=$?"`: `exit=0`. Log mới nhất có `WFlash 0.1.0 starting (adapter=fake, ...)`, `Found 1 winIDEA instance(s)`, `WFlash exiting (code 0)`.
 - `pytest -q`: `206 passed in 9.02s`; `pytest -k thread -q`: `29 passed, 177 deselected`; `pytest -k "not gui" -q`: `116 passed, 90 deselected`.
+
+## Phase 1.23: Stress test headless
+
+Unit test cô lập không bắt được lớp lỗi nguy hiểm nhất (worker còn chạy khi cửa sổ đóng, signal tới object đã xóa, deadlock khi đóng), vì nó chỉ xuất hiện khi nhiều thao tác nối tiếp trong một process. `tools/stress_test.py` chạy `MainWindow` thật với fake adapter và GitLab giả qua năm nhóm (flash, rollback, gitlab, races, secrets), fail khi checkpoint sai *và* khi Qt in cảnh báo threading hoặc có exception không bắt — những thứ không ném lỗi Python nên thường trôi qua stderr.
+
+### Thay đổi
+
+- **`tools/stress_test.py`** (mới): 5 section, `--list`, `--section`, `--iterations`, `--keep`; in `STRESS_RESULT=PASS/FAIL`.
+
+### Đã kiểm tra
+
+- `~/.venvs/wflash/bin/python tools/stress_test.py --list`: 5 dòng `flash`, `rollback`, `gitlab`, `races`, `secrets`.
+- Chạy đủ: `CHECKPOINTS=225 FAILED=0 QT_THREADING_WARNINGS=0 OTHER_QT_WARNINGS=56 TIME=15.2s`, `STRESS_RESULT=PASS`, exit=0 (cảnh báo khác chỉ là font và `propagateSizeHints()` của nền offscreen).
+- `--section flash --section races`: `STRESS_RESULT=PASS`.
+- Làm hỏng `wait_idle(CLOSE_TIMEOUT_S)` thành `wait_idle(0.0)` rồi chạy `--section races`: `FAIL: no worker was abandoned: ['flash-2', 'gitlab-refs-2']`, `CHECKPOINTS=48 FAILED=1`, `STRESS_RESULT=FAIL`, exit=1. Sau `git checkout -- wflash/gui/main_window.py` thì `git diff --stat` rỗng.
+- `pytest -q`: `206 passed in 9.07s`; `pytest -k thread -q`: `29 passed, 177 deselected in 4.93s`.
