@@ -464,3 +464,10 @@ Mixin Flash chỉ khởi chạy `FlashWorkflow` trong một worker và hiển th
 - RED: `~/.venvs/wflash/bin/pytest tests/test_gui_close_window.py -q`: `7 failed in 22.56s`.
 - GREEN: cùng lệnh, chạy 5 lần: `7 passed` mỗi lần (3.37s, 3.30s, 3.28s, 3.26s, 3.31s).
 - `~/.venvs/wflash/bin/pytest -k thread -q`: `26 passed, 175 deselected in 4.48s`; `~/.venvs/wflash/bin/pytest -q`: `201 passed in 8.77s`.
+
+### Hardening (R24)
+
+Chờ trong `closeEvent` bơm event nên cửa sổ vẫn tương tác được; bốn lỗ hổng được vá: (1) khóa `centralWidget()` + thông báo status bar trước khi chờ, để Settings/file dialog không mở lồng trong vòng chờ và phá giới hạn 15 s; (2) cờ `_close_in_progress` — `closeEvent` gọi lại lúc đang chờ thì `ignore()` ngay; (3) `CancelledError` không rollback-thất-bại (người dùng đóng, rollback ổn) log WARNING "Flash cancelled by closing; previous paths restored" thay vì ERROR; (4) quá giờ mà worker flash bị bỏ lại thì ngoài log CRITICAL còn hiện `QMessageBox.warning` "WFlash — flash still running" nhắc kiểm tra danh sách file download/symbol trong winIDEA. Thêm 2 test mới (khóa UI + đóng lồng, WARNING không ERROR) và mở rộng test worker bỏ qua cancel; test đóng lồng gọi thẳng `closeEvent` vì `QWidget.close()` của Qt tự chặn re-entry nên không quan sát được cờ.
+
+- RED: 3 test fail trước khi sửa (`pytest tests/test_gui_close_window.py -k "wait_is_bounded or warning_not_error or disables_ui"`: `3 failed`); tắt riêng guard `_close_in_progress` thì test đóng lồng `1 failed`.
+- GREEN: `tests/test_gui_close_window.py` 5 lần: `9 passed` mỗi lần (~3.8s); `pytest -k thread -q`: `28 passed, 175 deselected`; `pytest -q`: `203 passed in 9.02s`.

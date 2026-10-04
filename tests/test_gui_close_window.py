@@ -5,6 +5,8 @@ import time
 from types import SimpleNamespace
 
 import pytest
+from PySide6.QtCore import QTimer
+from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import QMessageBox
 
 from tests.gui_stubs import OLD_APP, OLD_CM7_0, FakeGitLabSession, SessionClientFactory, make_artifact_tree, write_profiles
@@ -119,7 +121,9 @@ def test_gui_thread_close_reports_rollback_failure_after_the_wait(make, qtbot):
     assert make.shown[0][0] == "WFlash — rollback failed"
 
 
-def test_gui_thread_close_wait_is_bounded_when_a_worker_ignores_cancel(make, qtbot, monkeypatch):
+def test_gui_thread_close_wait_is_bounded_when_a_worker_ignores_cancel(make, qtbot, monkeypatch, caplog):
+    warnings = []
+    monkeypatch.setattr(QMessageBox, "warning", lambda parent, title, text: warnings.append((title, text)))
     release = threading.Event()
 
     class Stuck(FakeWinIDEAAdapter):
@@ -131,10 +135,15 @@ def test_gui_thread_close_wait_is_bounded_when_a_worker_ignores_cancel(make, qtb
     w.start_flash()
     qtbot.waitUntil(lambda: w.ui.label_step.text() == Step.DOWNLOAD.value, timeout=3000)
     worker = w._workers.worker(w._flash_key)
+    w._flash_key_for_test = w._flash_key
     t0 = time.monotonic()
-    w.close()
+    with caplog.at_level(logging.CRITICAL, logger="wflash"):
+        w.close()
     assert time.monotonic() - t0 < 2.0
     assert w._workers.running_keys() == []  # parked in workers._ABANDONED, not dropped
+    assert any(r.levelno == logging.CRITICAL and w._flash_key_for_test in r.message for r in caplog.records)
+    assert len(warnings) == 1 and warnings[0][0] == "WFlash — flash still running"
+    assert "winIDEA" in warnings[0][1]
     release.set()
     assert worker.done.wait(5)
 
@@ -163,3 +172,41 @@ def test_gui_thread_close_records_non_rollback_error_without_dialog(make, qtbot)
     assert make.shown == []
     assert w._flash_error_during_close is None
     assert any("boom" in e for e in w.ctx.errors)
+
+
+def test_gui_thread_close_disables_ui_and_ignores_reentrant_close_during_wait(make, qtbot):
+    class SlowToStop(FakeWinIDEAAdapter):
+        def download(self, progress, cancel, timeout_s):
+            time.sleep(0.5)  # keeps the close wait open long enough for the probe
+            super().download(progress, cancel, timeout_s)
+
+    w = make.factory(SlowToStop(download_seconds=10))
+    w.start_flash()
+    qtbot.waitUntil(lambda: w.ui.label_step.text() == Step.DOWNLOAD.value, timeout=3000)
+    seen = {}
+
+    def probe():
+        seen["enabled"] = w.centralWidget().isEnabled()
+        seen["status"] = w.statusBar().currentMessage()
+        nested = QCloseEvent()  # Qt's own close() guard hides re-entry, so call closeEvent directly
+        w.closeEvent(nested)
+        seen["nested_accepted"] = nested.isAccepted()
+
+    QTimer.singleShot(50, probe)
+    w.close()
+    assert seen["enabled"] is False
+    assert "Closing" in seen["status"]
+    assert seen["nested_accepted"] is False
+    assert make.questions.count(make.questions[0]) == 1  # the nested close did not ask again
+
+
+def test_gui_thread_close_after_confirmed_cancel_logs_warning_not_error(make, qtbot, caplog):
+    w = make.factory(FakeWinIDEAAdapter(download_seconds=10))
+    w.start_flash()
+    qtbot.waitUntil(lambda: w.ui.label_step.text() == Step.DOWNLOAD.value, timeout=3000)
+    with caplog.at_level(logging.INFO, logger="wflash"):
+        w.close()
+    assert any(r.levelno == logging.WARNING and "cancelled by closing" in r.message for r in caplog.records)
+    assert [r for r in caplog.records if r.levelno >= logging.ERROR] == []
+    assert any("Cancelled" in e for e in w.ctx.errors)
+    assert make.shown == []

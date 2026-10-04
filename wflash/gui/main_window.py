@@ -11,7 +11,7 @@ from PySide6.QtCore import QThreadPool
 from PySide6.QtWidgets import QDialog, QMainWindow, QMessageBox
 
 from wflash.core.debug_bundle import DebugContext
-from wflash.core.errors import GitLabError, ProfileError
+from wflash.core.errors import CancelledError, GitLabError, ProfileError
 from wflash.core.logging_setup import get_logger, register_secret, set_verbose
 from wflash.core.profile import Profile, list_profiles, load_profile
 from wflash.core.settings import AppSettings, get_token, set_token
@@ -52,6 +52,7 @@ class MainWindow(GitlabBrowserMixin, MappingTableMixin, FlashMixin, LogPanelMixi
         self.ctx = DebugContext()
         self.profile: Profile | None = None
         self._closing = False
+        self._close_in_progress = False  # re-entrancy guard for closeEvent
         self._pool = pool or QThreadPool(self)
         self._workers = WorkerRegistry(self._pool, self)  # main thread, in __init__ (rule 6)
 
@@ -154,6 +155,9 @@ class MainWindow(GitlabBrowserMixin, MappingTableMixin, FlashMixin, LogPanelMixi
 
     # -- shutdown -------------------------------------------------------------------
     def closeEvent(self, event) -> None:
+        if self._close_in_progress:
+            event.ignore()  # a nested close() from inside the wait's event pumping
+            return
         if self.flash_active() and not self._closing:
             answer = QMessageBox.question(
                 self,
@@ -166,6 +170,12 @@ class MainWindow(GitlabBrowserMixin, MappingTableMixin, FlashMixin, LogPanelMixi
         # Threading rule 4: the guard goes up before anything is cancelled, so completion
         # signals still queued are settled by the slots instead of starting more work.
         self._closing = True
+        self._close_in_progress = True
+        flash_key = self._flash_key
+        # The wait pumps events: lock the UI so no modal dialog (Settings, file dialogs)
+        # can open nested inside it and break the bound.
+        self.centralWidget().setEnabled(False)
+        self.statusBar().showMessage("Closing — waiting for the flash to cancel and restore paths…")
         self._workers.cancel_all()
         if not self._workers.wait_idle(CLOSE_TIMEOUT_S):
             keys = self._workers.abandon_running()
@@ -175,6 +185,14 @@ class MainWindow(GitlabBrowserMixin, MappingTableMixin, FlashMixin, LogPanelMixi
                 CLOSE_TIMEOUT_S,
                 keys,
             )
+            if flash_key is not None and flash_key in keys:
+                QMessageBox.warning(
+                    self,
+                    "WFlash — flash still running",
+                    "The flash did not stop in time. The winIDEA workspace may still point to "
+                    "the new files — check the download/symbol file list in winIDEA before "
+                    "flashing again.",
+                )
         exc, self._flash_error_during_close = self._flash_error_during_close, None
         if exc is not None:
             # _on_flash_failed only stored it (no dialogs while closing); record it now.
@@ -182,6 +200,8 @@ class MainWindow(GitlabBrowserMixin, MappingTableMixin, FlashMixin, LogPanelMixi
             if getattr(exc, "rollback_failed", False):
                 log.critical("Rollback failed: the winIDEA workspace may still point to the new files")
                 self.show_error(exc)
+            elif isinstance(exc, CancelledError):
+                log.warning("Flash cancelled by closing; previous paths restored")
             else:
                 log.error("Flash error while closing: %s", exc)
         self._detach_log_panel()
