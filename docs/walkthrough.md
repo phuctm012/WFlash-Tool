@@ -363,3 +363,18 @@ Settings là nơi duy nhất nhập GitLab URL, token, CA bundle (cho chứng ch
 - `~/.venvs/wflash/bin/pytest tests/test_gui_settings_dialog.py -q` (RED, chưa có `settings_dialog.py`): `ERROR tests/test_gui_settings_dialog.py`, `1 error in 0.18s` (`ModuleNotFoundError: No module named 'wflash.gui.settings_dialog'`) ✓ (expected).
 - `~/.venvs/wflash/bin/pytest tests/test_gui_settings_dialog.py tests/test_gui_ui_files.py -v` (GREEN): `11 passed in 0.51s` ✓.
 - `~/.venvs/wflash/bin/pytest -q`: `150 passed in 1.73s`; `~/.venvs/wflash/bin/pytest -k thread -q`: `14 passed, 136 deselected` ✓.
+
+## Phase 1.17: Bảng mapping
+
+Chọn nhầm file là lỗi tệ nhất tool này có thể gây ra (flash sai binary), nên bảng mapping không bao giờ tự chọn khi pattern khớp 0 hoặc nhiều file: dòng đó tô đỏ, người dùng phải chọn, và nút Flash tắt cho tới khi mọi dòng có file (spec §5). Các dòng là nội dung động nên được dựng trong Python; bảng, cột và header nằm trong `.ui`.
+
+### Thay đổi
+
+- **`wflash/gui/mapping_table.py`** (mới): `MappingTableMixin` (dựng dòng + combo chọn file, tô đỏ dòng chưa chọn, `mapping_complete()`).
+- **`tests/test_gui_mapping_table.py`** (mới): 4 test.
+
+### Đã kiểm tra
+
+- `~/.venvs/wflash/bin/pytest tests/test_gui_mapping_table.py -q` (RED, chưa có `mapping_table.py`): `ERROR tests/test_gui_mapping_table.py`, `1 error in 0.28s` (`ModuleNotFoundError: No module named 'wflash.gui.mapping_table'`) ✓ (expected).
+- `~/.venvs/wflash/bin/pytest tests/test_gui_mapping_table.py tests/test_gui_ui_files.py -q` (GREEN): `10 passed in 0.59s` ✓.
+- `~/.venvs/wflash/bin/pytest -q`: `154 passed in 1.72s`; `~/.venvs/wflash/bin/pytest -k thread -q`: `14 passed, 140 deselected` ✓.
