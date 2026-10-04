@@ -525,3 +525,8 @@ Người dùng cuối dùng bản `.exe` onedir (spec §11). Spec PyInstaller ch
 
 - Build thử trên macOS: `~/.venvs/wflash/bin/pyinstaller --noconfirm wflash.spec` dừng ở `SystemError: lipo command (['lipo', '-thin', 'arm64', '.../build/wflash/WFlash', ...]) failed with error code 69! output: You have not agreed to the Xcode license agreements. Please run 'sudo xcodebuild -license' ...`. Đây là do máy (Xcode licence chưa chấp nhận), không phải spec; không chạy sudo; build Windows (Task 25) là căn cứ. Đã `rm -rf build dist`.
 - `pytest -q`: `206 passed in 9.05s`; `pytest -k thread -q`: `29 passed, 177 deselected in 5.07s`; `tools/stress_test.py`: `STRESS_RESULT=PASS`; `QT_QPA_PLATFORM=offscreen ~/.venvs/wflash/bin/python -m wflash --adapter fake --smoke`: `exit=0`.
+
+### Vòng sửa 1 (R26): README
+
+- Thêm lưu ý: adapter winIDEA thật chưa có (Plan 2), chạy không tham số sẽ báo lỗi; dùng `--adapter fake`, và shortcut `--adapter fake` cho `WFlash.exe`.
+- Bỏ đường dẫn miniforge riêng của máy: dùng `python3 -m venv ~/.venvs/wflash` (Python 3.11+), venv vẫn nằm ngoài OneDrive.

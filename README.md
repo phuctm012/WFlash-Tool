@@ -10,7 +10,7 @@ chọn artifact từ GitLab CI, tự map file `.s3`/`.elf` vào workspace winIDE
 
 macOS (dev, fake adapter) — venv nằm **ngoài** OneDrive:
 
-    /Users/tranminhphuc/miniforge3/bin/python3.13 -m venv ~/.venvs/wflash
+    python3 -m venv ~/.venvs/wflash          # Python 3.11 trở lên
     ~/.venvs/wflash/bin/pip install -e ".[dev]"
     ~/.venvs/wflash/bin/python -m wflash --adapter fake
 
@@ -18,8 +18,10 @@ Windows (Python cùng bitness với winIDEA, thường là 64-bit):
 
     py -3 -m venv %USERPROFILE%\.venvs\wflash
     %USERPROFILE%\.venvs\wflash\Scripts\python -m pip install -e ".[dev]"
-    %USERPROFILE%\.venvs\wflash\Scripts\python -m wflash            (mặc định --adapter real)
+    %USERPROFILE%\.venvs\wflash\Scripts\python -m wflash            (mặc định --adapter real: chưa dùng được, xem lưu ý dưới)
     %USERPROFILE%\.venvs\wflash\Scripts\python -m wflash --adapter fake
+
+> **Lưu ý:** adapter winIDEA thật **chưa có** (Plan 2, viết sau spike), nên chạy `python -m wflash` không tham số (mặc định `--adapter real`) hiện sẽ báo lỗi. Tạm thời dùng `python -m wflash --adapter fake`. Với bản `WFlash.exe` đã build, tạo shortcut với tham số `--adapter fake` (Target: `...\WFlash.exe --adapter fake`).
 
 `isystem.connect` **không** cài từ PyPI: cài từ thư mục cài đặt winIDEA 9.21 (xem `spike/README.md`) để version khớp với winIDEA.
 
