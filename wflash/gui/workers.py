@@ -61,10 +61,15 @@ class WorkerContext:
 class Worker(QRunnable):
     def __init__(self, key: str, fn: Callable[[WorkerContext], Any]) -> None:
         super().__init__()
-        # autoDelete=False: Python owns this runnable and the main thread disposes of it
-        # (WorkerRegistry). With the default (True) the pool would destroy the C++ object
-        # as soon as run() returns while Python still holds the wrapper and the signals,
-        # which turns into a use-after-free (CLAUDE.md threading rule 2).
+        # autoDelete=False stops Qt from deleting the C++ object under the Python wrapper
+        # (with the default True the pool destroys it as soon as run() returns: a
+        # use-after-free, CLAUDE.md threading rule 2).
+        # Lifetime: PySide6 (verified on 6.11) keeps every started runnable referenced by
+        # the QThreadPool for the pool's lifetime. That retention is what keeps
+        # WorkerSignals alive (rule 1) and guarantees the last reference is never dropped
+        # on a pool thread (rule 6). WorkerRegistry's references are belt-and-braces plus
+        # idle tracking. Per-operation memory growth (one small Worker) is accepted; do NOT
+        # add a release path. See the WorkerRegistry docstring and walkthrough Phase 1.12.
         self.setAutoDelete(False)
         self.key = key
         self._fn = fn
