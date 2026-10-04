@@ -428,3 +428,24 @@ Mixin Flash chỉ khởi chạy `FlashWorkflow` trong một worker và hiển th
 - GREEN: `~/.venvs/wflash/bin/pytest tests/test_gui_flash.py tests/test_gui_ui_files.py -q`: `17 passed in 1.77s` ✓.
 - Chạy `tests/test_gui_flash.py` 3 lần: `11 passed` mỗi lần (1.55s, 1.60s, 1.50s) ✓.
 - `~/.venvs/wflash/bin/pytest -q`: `182 passed in 4.70s`; `~/.venvs/wflash/bin/pytest -k thread -q`: `16 passed, 166 deselected` ✓.
+
+## Phase 1.20: Ghép cửa sổ chính
+
+`MainWindow` được ghép bằng đa kế thừa từ bốn mixin, cùng một `self.ui`, đúng kiến trúc SFlash mà CLAUDE.md chốt. Bản thân `main_window.py` chỉ giữ trạng thái dùng chung (settings, adapter, `DebugContext`, `WorkerRegistry`, cờ `_closing`), thanh profile, Settings và đường tắt máy. Token nhập ở Settings được đăng ký để che trong log trước khi lưu vào keyring; lỗi keyring hiện ra cho người dùng thay vì bị nuốt.
+
+### Thay đổi
+
+- **`wflash/gui/main_window.py`** (mới): `MainWindow`, `show_error`, profile (nạp/lưu `last_profile`, lỗi YAML hiện hộp thoại), `open_settings`, `closeEvent` tối thiểu (gỡ log handler).
+- **`tests/test_gui_main_window.py`** (mới): 9 test (ghép đủ 4 mixin, profile khi khởi động, chuỗi GitLab → mapping → flash, mapping mơ hồ chặn Flash, lỗi + bundle có rollback, tiêu đề rollback thất bại, profile hỏng, Settings lưu + che token, lỗi keyring).
+- **`wflash/gui/flash_mixin.py`** (R23): `start_flash` từ chối và Flash bị tắt khi worker liệt kê instance đang chạy (adapter winIDEA thật có thể không thread-safe; `refresh_instances` cập nhật điều khiển ngay khi bắt đầu và khi worker kết thúc); `cancel_flash` bỏ qua nếu đã yêu cầu hủy (không ghi đè `label_step`).
+- **`tests/test_gui_flash.py`** (R23): thêm 3 test (hủy khi đang download mà restore thất bại -> cảnh báo rollback + log CRITICAL + `rollback_failed`; Flash bị từ chối khi worker instance chạy; hủy lần hai không ghi đè `label_step`).
+
+### Đã kiểm tra
+
+- RED R23: `~/.venvs/wflash/bin/pytest tests/test_gui_flash.py -q`: `2 failed, 12 passed` (test instance-worker và second-cancel; test rollback-khi-hủy đã xanh sẵn nhờ core).
+- GREEN R23: cùng lệnh: `14 passed in 1.68s`.
+- RED main window (chưa có `main_window.py`): `pytest tests/test_gui_main_window.py -q`: `ERROR tests/test_gui_main_window.py`, `1 error in 0.25s` (collection) ✓.
+- GREEN: `pytest tests/test_gui_main_window.py tests/test_gui_ui_files.py -q`: `15 passed in 1.35s` ✓.
+- Chạy `tests/test_gui_main_window.py tests/test_gui_flash.py` 3 lần: `23 passed` mỗi lần (2.41s, 2.40s, 2.39s) ✓.
+- `~/.venvs/wflash/bin/pytest -q`: `194 passed in 5.49s`; `~/.venvs/wflash/bin/pytest -k thread -q`: `19 passed, 175 deselected` ✓.
+- `QT_QPA_PLATFORM=offscreen ~/.venvs/wflash/bin/python -c "from wflash.gui.main_window import MainWindow; print('import ok')"`: `import ok` ✓.
