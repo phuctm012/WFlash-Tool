@@ -333,3 +333,18 @@ GUI test và stress test cần một GitLab giả đủ thật để kiểm tra 
 - `~/.venvs/wflash/bin/pytest tests/test_gui_stubs.py -q` (RED, chưa có `gui_stubs.py`): `ModuleNotFoundError: No module named 'tests.gui_stubs'`, `1 error in 0.07s` ✓ (expected).
 - `~/.venvs/wflash/bin/pytest tests/test_gui_stubs.py -v` (GREEN): `5 passed in 0.35s` ✓.
 - `~/.venvs/wflash/bin/pytest -q`: `138 passed in 1.57s`; `~/.venvs/wflash/bin/pytest -k thread -q`: `13 passed, 125 deselected` ✓.
+
+## Phase 1.15: Log panel
+
+Log panel là nơi người dùng thấy chuyện gì đang xảy ra và là nguồn của debug bundle, nên nó phải nhận log từ mọi thread mà không đụng widget ngoài GUI thread: handler chỉ phát một signal queued, slot là method của cửa sổ (không phải lambda). Token đi qua `RedactingFormatter` trước khi tới panel; export bundle bị chặn khi đang flash vì `DebugContext` lúc đó do worker ghi.
+
+### Thay đổi
+
+- **`wflash/gui/log_panel.py`** (mới): `LogEmitter`, `QtLogHandler`, `LogPanelMixin` (màu theo level, lọc level, Copy, Clear, export debug bundle).
+- **`tests/test_gui_log_panel.py`** (mới): 7 test (lọc, traceback, che token, copy/clear, log từ thread khác, export + chặn khi flash, gỡ handler khi đóng).
+
+### Đã kiểm tra
+
+- `~/.venvs/wflash/bin/pytest tests/test_gui_log_panel.py -v` (RED, chưa có `log_panel.py`): `ModuleNotFoundError: No module named 'wflash.gui.log_panel'`, `1 error in 0.30s` ✓ (expected).
+- `~/.venvs/wflash/bin/pytest tests/test_gui_log_panel.py -v` (GREEN): `7 passed in 0.45s` ✓.
+- `~/.venvs/wflash/bin/pytest -q`: `145 passed in 1.64s`; `~/.venvs/wflash/bin/pytest -k thread -q`: `14 passed, 131 deselected` ✓.
