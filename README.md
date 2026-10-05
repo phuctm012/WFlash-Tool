@@ -5,6 +5,7 @@ chọn artifact từ GitLab CI, tự map file `.s3`/`.elf` vào workspace winIDE
 
 > Trạng thái: GUI, GitLab, cache, mapping, workflow (kèm rollback) và log đã chạy với **fake adapter**.
 > Adapter winIDEA thật (Plan 2) sẽ được viết sau khi có kết quả spike (`spike/README.md`).
+> Toàn bộ các bước cần thử trên Windows và cách gửi kết quả: `docs/windows_test_guide.md`.
 
 ## Chạy từ source
 

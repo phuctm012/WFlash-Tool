@@ -776,3 +776,17 @@ User chạy app trên macOS và thấy trong tab CI Artifact các ô Project, Br
 - Tái hiện với style native macOS: trước khi sửa `lineEdit_ciProject`/`comboBox_ref`/`comboBox_jobName` cao 13 px, popup 880×720 trong khi layout cần 820; sau khi sửa các dòng cao 27–29 px, popup tự mở 880×820 (đã xem ảnh chụp).
 - RED: `tests/test_gui_window_min_size.py` → `1 failed, 2 passed` (`assert 600 >= 680` ở gitlab_dialog); GREEN: `3 passed`.
 - `pytest -q`: 309 passed; `pytest -k thread -q`: 38 passed; `tools/stress_test.py`: `STRESS_RESULT=PASS`.
+
+## Phase 1.42: Hướng dẫn thử nghiệm trên Windows
+
+Adapter winIDEA thật chỉ viết được sau khi có kết quả chạy trên máy Windows có winIDEA 9.21 và ECU SAF85xx. Gom mọi việc user cần làm ở đó vào một file duy nhất, theo thứ tự: chuẩn bị venv, cài `isystem.connect` từ thư mục winIDEA và kiểm tra version/bitness, ghi tay tên entry download/Application và thiết bị Winbond, chạy spike 01–05 (kèm thử dừng download giữa chừng để quyết định cách xử lý Cancel), test tự động + stress test, GitLab thật (CI Artifact và Package Registry), build `.exe`, rồi đóng gói kết quả theo checklist.
+
+### Thay đổi
+
+- **`docs/windows_test_guide.md`** (mới): hướng dẫn từng bước, ghi rõ bước nào flash/reset ECU, checklist file cần gửi.
+- **`README.md`**: trỏ tới hướng dẫn.
+- **`.gitignore`**: bỏ qua `test_results/` (thư mục kết quả user tạo trên Windows).
+
+### Đã kiểm tra
+
+- Đối chiếu tham số trong hướng dẫn với `spike/0*.py` (`--instance`, `--workspace`, `--url`, `--new-path`, `--facade`, `--run`), `scripts/build_windows.bat`, `tools/stress_test.py` và nhãn `Export debug bundle…` trong `main_window.ui`. Chỉ thay tài liệu, không đổi code nên không chạy lại test.

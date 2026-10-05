@@ -7,3 +7,4 @@ dist/
 .pytest_cache/
 spike/results/
 .superpowers/
+test_results/
