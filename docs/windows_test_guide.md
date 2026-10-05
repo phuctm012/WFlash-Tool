@@ -6,7 +6,7 @@ Mỗi bước có ghi rõ **có đụng tới ECU/workspace hay không**. Bướ
 
 | Phần | Nội dung | Cần winIDEA/ECU? | Đụng ECU/workspace? | Thời gian ước tính |
 |---|---|---|---|---|
-| 0 | Chuẩn bị máy, Python, venv | Không | Không | 15 phút |
+| 0 | Chuẩn bị máy, Miniforge, env conda `wflash` | Không | Không | 15 phút |
 | 1 | Cài `isystem.connect` và kiểm tra version/bitness | Cài winIDEA | Không | 10 phút |
 | 2 | Ghi thông tin workspace bằng tay | Có | Không | 10 phút |
 | 3 | Spike 01–05 (quan trọng nhất) | Có | **03 đổi tạm path, 04 flash, 05 reset** | 30–45 phút |
@@ -26,23 +26,46 @@ Mỗi bước có ghi rõ **có đụng tới ECU/workspace hay không**. Bướ
 - Máy Windows có **winIDEA 9.21.x**, probe iSYSTEM/TASKING, ECU **SAF85xx** cấp nguồn và nối probe.
 - Workspace SAF85xx **đã flash tay vào Winbond thành công** (bằng nút Download trong winIDEA). Spike dựa vào cấu hình này.
 - **Một bản firmware "biết chắc là tốt"** đang được trỏ tới trong workspace. Bước 04 sẽ flash đúng các file mà workspace đang trỏ tới.
-- Python **3.11 trở lên, 64-bit** (cài từ python.org, tick "Add python.exe to PATH" và "py launcher").
+- **Miniforge3** cho Windows x86_64 (bản 64-bit), tải từ <https://github.com/conda-forge/miniforge/releases> (file `Miniforge3-Windows-x86_64.exe`). Không cần cài Python riêng: conda sẽ tạo Python trong env.
 - Mạng nội bộ vào được GitLab, và một Personal Access Token (scope `read_api`) cho Phần 5.
 - Repo WFlash chép sang Windows (git clone branch `feat/wflash-plan1`, hoặc copy cả thư mục). **Nên để ngoài OneDrive**, ví dụ `C:\work\WFlash-Tool`.
 
-**Tạo venv** (mở `cmd`, đứng ở thư mục repo):
+### 0.1. Cài Miniforge
+
+1. Chạy `Miniforge3-Windows-x86_64.exe`, chọn **Just Me**, giữ thư mục mặc định `%USERPROFILE%\miniforge3`. **Không** tick "Add Miniforge3 to my PATH" (bộ cài cũng khuyên không tick).
+2. Mở Start menu → **Miniforge Prompt**. Mọi lệnh trong hướng dẫn này chạy trong cửa sổ đó (là `cmd` đã nạp sẵn conda). Dòng lệnh bắt đầu bằng `(base)`.
+3. (Tùy chọn) để dùng conda trong `cmd` thường hoặc terminal của VS Code: `conda init cmd.exe`, đóng và mở lại cửa sổ.
+
+### 0.2. Chọn version Python khớp với `isystem.connect`
+
+File package `isystem.connect` trong thư mục winIDEA có thể chỉ build cho vài version Python. Xem tên file trước (cách tìm file ở Phần 1, bước 1):
+
+- Tên có dạng `isystem.connect-9.21.x-cp312-cp312-win_amd64.whl` → cần **Python 3.12** (`cp312`), 64-bit (`win_amd64`).
+- `cp311` → 3.11, `cp313` → 3.13. Nếu tên có `py3-none-any`, hoặc là file `.tar.gz`, dùng **3.12**.
+- WFlash cần Python **3.11 trở lên**. Nếu wheel chỉ có cho version thấp hơn 3.11, dừng lại và báo mình.
+
+Ghi version đã chọn vào `00_manual.txt` (Phần 2).
+
+### 0.3. Tạo env `wflash`
+
+Trong Miniforge Prompt (thay `3.12` bằng version đã chọn ở 0.2):
 
 ```bat
+conda create -n wflash python=3.12 -y
+conda activate wflash
 cd /d C:\work\WFlash-Tool
-py -3 -m venv %USERPROFILE%\.venvs\wflash
-%USERPROFILE%\.venvs\wflash\Scripts\activate
 python -m pip install --upgrade pip
 python -m pip install -e ".[dev]"
 ```
 
-Từ đây trở đi, mọi lệnh `python` đều chạy **trong venv này** (dòng lệnh có tiền tố `(wflash)`). Mở cửa sổ `cmd` mới thì chạy lại lệnh `activate`.
+Từ đây trở đi, mọi lệnh `python` đều chạy **trong env này**: dòng lệnh phải bắt đầu bằng `(wflash)`, không phải `(base)`. Mở cửa sổ mới thì chạy lại `conda activate wflash`.
 
-> `spike/README.md` dùng venv riêng `wflash-spike`. Dùng chung venv `wflash` như ở đây cũng được và gọn hơn, vì script build `.exe` cũng tìm `isystem.connect` trong venv `wflash`.
+Lưu ý:
+
+- **Cài các thư viện của WFlash bằng `pip`** (lệnh trên), không cài thêm `pyside6`/`qt` bằng `conda install`. Hai bản Qt trong cùng một env (một từ conda, một từ pip) là nguyên nhân hay gặp của lỗi `Could not find the Qt platform plugin "windows"`.
+- **Không cài vào env `base`.** Script build `.exe` sẽ từ chối chạy khi đang ở `base`.
+- Kiểm tra nhanh đúng env: `where python` phải in dòng đầu tiên là `%USERPROFILE%\miniforge3\envs\wflash\python.exe`.
+- `spike/README.md` dùng venv riêng `wflash-spike`. Bỏ qua phần đó: dùng chung env `wflash` cho cả spike, app và build.
 
 ---
 
@@ -51,7 +74,7 @@ Từ đây trở đi, mọi lệnh `python` đều chạy **trong venv này** (d
 `isystem.connect` **không cài từ PyPI** (`pip install isystem.connect` sẽ lấy bản không khớp winIDEA). Phải cài từ chính thư mục cài đặt winIDEA 9.21.
 
 1. Tìm thư mục SDK Python trong thư mục cài winIDEA, thường dạng `C:\iSYSTEM\winIDEA9\...\sdk\python` (máy mỗi người một khác). Trong đó có file package (`.whl` hoặc `.tar.gz`, tên chứa `isystem.connect` / `isystem_connect`).
-2. Cài:
+2. Cài (trong env `wflash`, **dùng `pip`**, không dùng `conda install`):
 
    ```bat
    python -m pip install "<đường dẫn đầy đủ tới file package>"
@@ -76,6 +99,7 @@ Từ đây trở đi, mọi lệnh `python` đều chạy **trong venv này** (d
 
 - `platform.architecture()` phải là `64bit` (trừ khi winIDEA của bạn là 32-bit: bitness Python phải **khớp** winIDEA).
 - Version `isystem.connect` phải là **9.21.x**, khớp winIDEA (xem Help → About trong winIDEA).
+- Nếu `pip install` báo `is not a supported wheel on this platform`, version Python của env không khớp tag `cpXY` của wheel. Tạo lại env đúng version: `conda deactivate`, `conda env remove -n wflash -y`, rồi làm lại Phần 0.3.
 - Nếu `import isystem.connect` lỗi kiểu `DLL load failed`, gần như chắc chắn là lệch bitness hoặc lệch version. Ghi nguyên văn lỗi, đừng tự sửa bằng cách cài bản khác từ PyPI.
 
 ---
@@ -101,7 +125,7 @@ Tên entry và Application ở đây sẽ được dùng để viết profile th
 
 ## Phần 3: Chạy spike 01 → 05
 
-Mở winIDEA với workspace SAF85xx, ECU đã nối. Trong `cmd` đã activate venv:
+Mở winIDEA với workspace SAF85xx, ECU đã nối. Trong Miniforge Prompt đã `conda activate wflash`:
 
 ```bat
 cd /d C:\work\WFlash-Tool\spike
@@ -254,7 +278,7 @@ Ghi lại vào `test_results\notes.txt`: thời gian tải, kích thước artif
 scripts\build_windows.bat > test_results\build.txt 2>&1
 ```
 
-Script chạy lại test + stress test rồi PyInstaller. Nếu thành công, có `dist\WFlash\WFlash.exe`. Chạy thử:
+Chạy trong env `wflash` đã activate: script dùng Python của env conda đang active (biến `CONDA_PREFIX`), chạy lại test + stress test rồi PyInstaller. Nếu thành công, có `dist\WFlash\WFlash.exe`. Chạy thử:
 
 ```bat
 dist\WFlash\WFlash.exe --adapter fake

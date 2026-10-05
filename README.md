@@ -15,7 +15,9 @@ macOS (dev, fake adapter) — venv nằm **ngoài** OneDrive:
     ~/.venvs/wflash/bin/pip install -e ".[dev]"
     ~/.venvs/wflash/bin/python -m wflash --adapter fake
 
-Windows (Python cùng bitness với winIDEA, thường là 64-bit):
+Windows với conda (Miniforge), cách khuyến nghị: xem `docs/windows_test_guide.md` Phần 0 (`conda create -n wflash python=3.12`, `conda activate wflash`, `python -m pip install -e ".[dev]"`; chọn version Python khớp wheel `isystem.connect`). `scripts\build_windows.bat` dùng env conda đang active.
+
+Windows với venv (Python cùng bitness với winIDEA, thường là 64-bit):
 
     py -3 -m venv %USERPROFILE%\.venvs\wflash
     %USERPROFILE%\.venvs\wflash\Scripts\python -m pip install -e ".[dev]"

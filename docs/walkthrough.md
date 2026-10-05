@@ -790,3 +790,18 @@ Adapter winIDEA thật chỉ viết được sau khi có kết quả chạy trê
 ### Đã kiểm tra
 
 - Đối chiếu tham số trong hướng dẫn với `spike/0*.py` (`--instance`, `--workspace`, `--url`, `--new-path`, `--facade`, `--run`), `scripts/build_windows.bat`, `tools/stress_test.py` và nhãn `Export debug bundle…` trong `main_window.ui`. Chỉ thay tài liệu, không đổi code nên không chạy lại test.
+
+## Phase 1.43: Môi trường Windows bằng conda (Miniforge)
+
+User muốn dùng conda Miniforge thay cho venv trên Windows. Hướng dẫn thử nghiệm chuyển Phần 0 sang Miniforge: cài Miniforge, chọn version Python theo tag `cpXY` của wheel `isystem.connect` trong thư mục winIDEA (wheel có thể chỉ build cho vài version Python, conda cho chọn đúng version dễ hơn venv), tạo env `wflash`, cài thư viện bằng `pip` (không trộn Qt từ conda với PySide6 từ pip). Script build trước đây luôn tự tạo venv riêng nên sẽ bỏ qua env conda và không thấy `isystem.connect` đã cài; giờ nó dùng Python của env conda đang active (`CONDA_PREFIX`), từ chối chạy trong `base`, và vẫn dùng venv cũ khi không có conda.
+
+### Thay đổi
+
+- **`docs/windows_test_guide.md`**: Phần 0 viết lại cho Miniforge (0.1 cài, 0.2 chọn version Python, 0.3 tạo env); thêm cách xử lý lỗi `not a supported wheel`.
+- **`scripts/build_windows.bat`**: ưu tiên env conda đang active, chặn `base`, fallback venv; chuyển sang CRLF vì script giờ dùng nhãn `goto`.
+- **`.gitattributes`** (mới): `*.bat` luôn CRLF.
+- **`README.md`**: thêm cách cài bằng conda.
+
+### Đã kiểm tra
+
+- Đọc lại luồng `goto` của script (không dùng biến được gán trong cùng khối ngoặc, tránh lỗi mở rộng biến lúc parse của `cmd`); file đã là CRLF. Chưa chạy được trên Windows từ máy macOS: sẽ được kiểm tra ở Phần 6 của hướng dẫn.
