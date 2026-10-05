@@ -747,3 +747,17 @@ Stress test phải chạy đúng đường người dùng: GitLab giờ nằm tr
 ### Đã kiểm tra
 
 - Trước khi sửa: `STRESS_RESULT=FAIL` (`refresh_gitlab` không còn). Sau khi sửa, `--list`, chạy đủ, `pytest -k thread -v`, `pytest -q`: RED: stress test cũ `CHECKPOINTS=17 FAILED=4 … STRESS_RESULT=FAIL` (thiếu `refresh_gitlab` / `on_artifact_ready`); GREEN: `--list` in 6 section; `CHECKPOINTS=348 FAILED=0 QT_THREADING_WARNINGS=0 OTHER_QT_WARNINGS=48 TIME=24.6s`, `STRESS_RESULT=PASS`; `pytest -k thread -q`: `38 passed, 266 deselected`; `pytest -q`: `304 passed in 18.68s`.
+
+## Phase 1.40: Đóng gói theme và cập nhật README
+
+Bản `.exe` phải mang theo hai file theme; `style.py` tìm chúng theo vị trí package nên spec PyInstaller chép `wflash/resources` vào đúng chỗ tương ứng. README mô tả giao diện mới (một cửa sổ, popup Load from GitLab với CI Artifact và Package Registry, Preferences, theme), cách cấu hình TLS/CA, và các file Designer cần sinh lại.
+
+### Thay đổi
+
+- **`wflash.spec`**: thêm `("wflash/resources", "wflash/resources")` vào `datas`.
+- **`README.md`**: cấu hình, giao diện, quy trình mới, log/bundle (`source.json`), phát triển (3 file `.ui`, theme).
+- **`tests/test_packaging.py`** (mới): 2 test.
+
+### Đã kiểm tra
+
+- RED / GREEN, `pytest -q`, `pytest -k thread -v`, `pytest -k "not gui" -q`, `tools/stress_test.py`, smoke sáng và tối: RED: `1 failed, 1 passed` (spec chưa chép `wflash/resources`); GREEN: `2 passed`; `pytest -q`: `306 passed in 18.69s`; `-k thread`: `38 passed`; `-k "not gui"`: `173 passed`; stress: `CHECKPOINTS=348 FAILED=0 QT_THREADING_WARNINGS=0`, `STRESS_RESULT=PASS`; smoke light exit 0; smoke dark (HOME tạm) exit 0 và log `wflash.main: Theme: dark`.

@@ -39,30 +39,43 @@ Fake adapter giả lập lỗi qua biến môi trường `WFLASH_FAKE_FAIL` (n�
 
 ## Cấu hình
 
-1. **Settings…**: GitLab URL, Personal Access Token (scope `read_api`, lưu trong Windows Credential Manager / keychain, không bao giờ ghi ra file), CA bundle nếu GitLab dùng chứng chỉ nội bộ, thư mục cache + số job giữ lại + nút **Clear cache**, thư mục profile, verbose.
-2. **Profile** (`profiles/*.yaml`): project GitLab, filter tên job, tên entry download và tên Application trong winIDEA, pattern file. Xem `profiles/saf85xx_example.yaml`.
+1. **Load from GitLab…** (popup, mở từ vùng *Setting*): GitLab URL, Personal Access Token (scope `read_api`, lưu trong Windows Credential Manager / keychain, không bao giờ ghi ra file), ô **Verify TLS certificate** (mặc định bật; chỉ tắt khi ở mạng tin cậy — app ghi một dòng WARNING mỗi phiên), CA bundle nếu GitLab dùng chứng chỉ nội bộ.
+2. **Preferences…**: thư mục cache + số bản tải giữ lại + nút **Clear cache** (xóa cả artifact CI lẫn package), thư mục profile, verbose, **Dark mode** (áp dụng ngay và được lưu lại).
+3. **Profile** (`profiles/*.yaml`): project GitLab, filter tên job, tên entry download và tên Application trong winIDEA, pattern file. Xem `profiles/saf85xx_example.yaml`.
+
+## Giao diện
+
+- Một cửa sổ duy nhất. Phần đầu: nút **Flash** lớn (khi đang flash, chính nút đó thành **Cancel** màu đỏ), thanh tiến trình, nhãn `phần trăm | ETA | Speed` và `Step: …`.
+- Vùng **Setting** (trái): profile, nguồn firmware (**Load from GitLab…** và thẻ cho biết đang dùng artifact/package nào), instance winIDEA, Reset/Run sau khi flash, **Preferences…**.
+- Bảng mapping (phải) có cột `#`; dòng đỏ là dòng chưa có file. Dưới cùng là tab **Information** (log). Thanh trạng thái hiện version và tác giả.
+- Theme **Teal** sáng (mặc định) hoặc tối. Speed/ETA chỉ là **ước lượng**: winIDEA chỉ báo phần trăm, còn số byte lấy từ kích thước file `.s3` trên đĩa.
 
 ## Quy trình
 
-1. Chọn profile → **Refresh** → chọn branch/tag → pipeline → job → **Download artifact** (có cache theo job, **Cancel** để hủy).
+1. Chọn profile → **Load from GitLab…**:
+   - Tab **CI Artifact**: project (mặc định lấy từ profile; sửa thì app nhớ theo từng profile) → **Load branches/tags** → chọn branch/tag → **Browse jobs…** rồi bấm **Download** ở dòng muốn tải (hoặc nhấp đúp), hoặc bấm **Download Selected Artifact**: tải job đang chọn, nếu chưa chọn dòng nào thì tải job thành công mới nhất khớp branch/tag + job name.
+   - Tab **Package Registry**: project + tên package → **Fetch Latest Version**, hoặc **Browse versions…** rồi tải một version (file đầu tiên của version; zip được giải nén, file thường được giữ nguyên).
+   - **Stop** hủy lần tải đang chạy (popup vẫn mở); **Cancel** hủy rồi đóng popup. Tải xong popup tự đóng, cửa sổ chính dựng bảng mapping. Có cache theo job/version (nút ghi **Cached**).
 2. Kiểm tra bảng mapping; dòng đỏ (0 hoặc nhiều file khớp) phải chọn file thủ công — nút Flash chỉ bật khi mọi dòng đã có file.
-3. Chọn instance winIDEA đang mở → **Flash**. Lỗi hoặc **Cancel** trong lúc đổi path/download sẽ khôi phục đường dẫn cũ trong workspace. Nếu chính việc khôi phục thất bại, cửa sổ hiện dòng đỏ **ROLLBACK FAILED**: kiểm tra lại danh sách download/symbol file trong winIDEA trước khi flash tiếp.
+3. Chọn instance winIDEA đang mở → **Flash**. Lỗi hoặc **Cancel** trong lúc đổi path/download sẽ khôi phục đường dẫn cũ trong workspace. Nếu chính việc khôi phục thất bại, cửa sổ hiện dải đỏ **ROLLBACK FAILED**: kiểm tra lại danh sách download/symbol file trong winIDEA trước khi flash tiếp.
 4. Đóng cửa sổ khi đang flash: tool hỏi xác nhận, hủy flash, chờ rollback xong rồi mới đóng.
 
 ## Log và gửi lỗi
 
-- Log panel ở dưới cửa sổ (màu theo level, lọc level, Copy, Clear).
+- Tab **Information** ở dưới cửa sổ (màu theo level và theo theme, lọc level, Copy, Clear). Popup GitLab có ô **GitLab log** riêng; các dòng đó cũng nằm trong log file.
 - Log file: `%LOCALAPPDATA%\WFlash\logs\` (Windows), `~/Library/Logs/WFlash/` (macOS), giữ 20 file gần nhất.
-- **Export debug bundle…**: tạo `wflash_debug_<thời gian>.zip` gồm log, môi trường, profile, mapping, trạng thái workspace trước/sau và traceback. Token đã được che (`***`). Không xuất được trong lúc đang flash.
+- **Export debug bundle…**: tạo `wflash_debug_<thời gian>.zip` gồm log, môi trường, profile, mapping, nguồn firmware (`source.json`), trạng thái workspace trước/sau và traceback. Token đã được che (`***`). Không xuất được trong lúc đang flash.
 
 ## Phát triển
 
-- Layout GUI nằm trong `wflash/gui/main_window.ui` và `wflash/gui/settings_dialog.ui` (Qt Designer). Sau khi sửa `.ui`:
+- Layout GUI nằm trong các file Qt Designer `wflash/gui/main_window.ui`, `wflash/gui/gitlab_dialog.ui`, `wflash/gui/preferences_dialog.ui`. Sau khi sửa `.ui`:
 
       ~/.venvs/wflash/bin/pyside6-uic wflash/gui/main_window.ui -o wflash/gui/ui_main_window.py
-      ~/.venvs/wflash/bin/pyside6-uic wflash/gui/settings_dialog.ui -o wflash/gui/ui_settings_dialog.py
+      ~/.venvs/wflash/bin/pyside6-uic wflash/gui/gitlab_dialog.ui -o wflash/gui/ui_gitlab_dialog.py
+      ~/.venvs/wflash/bin/pyside6-uic wflash/gui/preferences_dialog.ui -o wflash/gui/ui_preferences_dialog.py
 
   Không sửa tay `ui_*.py`.
+- Theme: `wflash/resources/style.qss` (sáng) và `style_dark.qss` (tối) dùng đúng các màu trong `wflash/gui/theme.py` (`THEMES`); sửa màu thì sửa cả ba.
 - Test:
 
       ~/.venvs/wflash/bin/pytest -q
@@ -74,4 +87,4 @@ Fake adapter giả lập lỗi qua biến môi trường `WFLASH_FAKE_FAIL` (n�
 
     scripts\build_windows.bat
 
-Script chạy toàn bộ test, `-k thread`, stress test rồi PyInstaller. Kết quả: `dist\WFlash\WFlash.exe` (copy cả thư mục `dist\WFlash`).
+Script chạy toàn bộ test, `-k thread`, stress test rồi PyInstaller. Kết quả: `dist\WFlash\WFlash.exe` (copy cả thư mục `dist\WFlash`; thư mục `wflash\resources` chứa theme đã được gói kèm).

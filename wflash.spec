@@ -3,7 +3,9 @@ import importlib.util
 
 from PyInstaller.utils.hooks import collect_all
 
-datas = [("profiles", "profiles")]
+# wflash/resources holds the Teal stylesheets; wflash/gui/style.py finds them next to the
+# package (__file__-relative), so they keep the same relative place inside the bundle.
+datas = [("profiles", "profiles"), ("wflash/resources", "wflash/resources")]
 binaries = []
 hiddenimports = ["keyring.backends.Windows", "keyring.backends.macOS"]
 
