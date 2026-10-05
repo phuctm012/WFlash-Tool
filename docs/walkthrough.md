@@ -735,3 +735,15 @@ Cửa sổ chính chuyển sang bố cục SFlash (spec redesign §2): phần đ
 
 - RED / GREEN, `pytest -k thread -v`, `pytest -q`, smoke `--adapter fake --smoke`: RED: 3 lỗi collection (`HINT_COMPLETE`, `program_bytes`, `APP_AUTHOR` chưa có); GREEN: 5 file test GUI `56 passed in 7.97s`; `pytest -k thread -q`: `38 passed, 266 deselected`; `pytest -q`: `304 passed in 18.64s`; smoke `--adapter fake --smoke`: exit 0. `tools/stress_test.py` chưa chạy được cho tới Task 13 (vẫn gọi GitLab browser cũ).
 - `tools/stress_test.py` chưa chạy được (còn gọi GitLab browser cũ) — sửa ở Phase 1.39, chưa push.
+
+## Phase 1.39: Stress test đi qua popup GitLab, thêm package và theme
+
+Stress test phải chạy đúng đường người dùng: GitLab giờ nằm trong popup. Section `gitlab` mở popup, nạp ref, liệt kê job, tải (và tải lại từ cache), thử 401/403/404/mất kết nối, double-click, Stop (popup vẫn mở), đóng popup giữa lúc tải và đóng cửa sổ giữa lúc fetch/tải ở nhiều độ trễ; thêm Package Registry (bản mới nhất là zip, bản cũ là file thường để lại dòng đỏ). Section mới `theme` đổi sáng/tối ba lần khi đang flash và một lần khi popup mở. `secrets` kiểm thêm token gõ trong popup chỉ vào keyring giả, không vào `settings.json`, và log của popup đã che token. Keyring thật không bao giờ bị chạm.
+
+### Thay đổi
+
+- **`tools/stress_test.py`**: helper đi qua `GitlabDialog`, section `gitlab` viết lại, section `theme` mới, `secrets` mở rộng, keyring giả.
+
+### Đã kiểm tra
+
+- Trước khi sửa: `STRESS_RESULT=FAIL` (`refresh_gitlab` không còn). Sau khi sửa, `--list`, chạy đủ, `pytest -k thread -v`, `pytest -q`: RED: stress test cũ `CHECKPOINTS=17 FAILED=4 … STRESS_RESULT=FAIL` (thiếu `refresh_gitlab` / `on_artifact_ready`); GREEN: `--list` in 6 section; `CHECKPOINTS=348 FAILED=0 QT_THREADING_WARNINGS=0 OTHER_QT_WARNINGS=48 TIME=24.6s`, `STRESS_RESULT=PASS`; `pytest -k thread -q`: `38 passed, 266 deselected`; `pytest -q`: `304 passed in 18.68s`.

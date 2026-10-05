@@ -40,10 +40,14 @@ from PySide6.QtCore import QtMsgType, qInstallMessageHandler  # noqa: E402
 from PySide6.QtWidgets import QApplication, QMessageBox  # noqa: E402
 
 from tests.gui_stubs import (  # noqa: E402
+    GITLAB_URL,
     JOB_ID,
     OLD_APP,
     OLD_CM7_0,
     OLD_CM7_1,
+    PKG_NAME,
+    PKG_PROJECT,
+    SOURCE,
     TOKEN,
     FakeGitLabSession,
     SessionClientFactory,
@@ -55,8 +59,10 @@ from wflash.core.fake_adapter import FakeWinIDEAAdapter  # noqa: E402
 from wflash.core.flash_workflow import Step  # noqa: E402
 from wflash.core.logging_setup import close_file_handler, get_logger, setup_logging  # noqa: E402
 from wflash.core.settings import AppSettings  # noqa: E402
-from wflash.gui import workers  # noqa: E402
+from wflash.gui import gitlab_dialog, workers  # noqa: E402
 from wflash.gui.main_window import MainWindow  # noqa: E402
+from wflash.gui.style import apply_theme  # noqa: E402
+from wflash.gui.theme import THEMES, current_theme_name  # noqa: E402
 
 log = get_logger("stress")
 
@@ -122,6 +128,7 @@ class Stress:
         self.questions: list[str] = []
         self.answer = QMessageBox.StandardButton.Yes
         self._window_count = 0
+        self.keyring: dict[str, str] = {}
 
     # -- infrastructure ---------------------------------------------------------------
     def check(self, condition: bool, label: str) -> bool:
@@ -153,7 +160,7 @@ class Stress:
         self._window_count += 1
         folder = self.workdir / f"window{self._window_count}"
         profiles = write_profiles(folder / "profiles", download_s)
-        settings = AppSettings(profiles_dir=str(profiles), cache_dir=str(folder / "cache"))
+        settings = AppSettings(gitlab_url=GITLAB_URL, profiles_dir=str(profiles), cache_dir=str(folder / "cache"))
         window = MainWindow(
             settings,
             adapter,
@@ -183,51 +190,49 @@ class Stress:
         self.pump(0.05)
 
     def wait_step(self, window, text: str, timeout_s: float) -> bool:
-        return self.pump_until(lambda: window.ui.label_step.text() == text, timeout_s)
+        return self.pump_until(lambda: window.current_step() == text, timeout_s)
 
     def wait_flash_idle(self, window, timeout_s: float = 10.0) -> bool:
         return self.pump_until(lambda: not window.flash_active(), timeout_s)
 
+    def open_dialog(self, window):
+        window.open_gitlab_dialog()
+        dialog = window._gitlab_dialog
+        self.check(dialog.isVisible(), "dialog: Load from GitLab opened")
+        return dialog
+
+    def browse_to_job(self, window, label: str):
+        """Open Load from GitLab, load the refs, list the jobs (no download). Returns the dialog."""
+        dialog = self.open_dialog(window)
+        dialog.load_refs()
+        ok = self.pump_until(lambda: not dialog.busy() and dialog.ui.comboBox_ref.count() == 2, 5.0)
+        if ok:
+            dialog.browse_jobs()
+            ok = self.pump_until(lambda: not dialog.busy() and dialog.ui.tableWidget_jobs.rowCount() == 1, 5.0)
+        self.check(ok, f"{label}: dialog listed refs and the job")
+        return dialog if ok else None
+
     def load_artifact_via_gitlab(self, window, label: str) -> bool:
-        window.refresh_gitlab()
-        # The refs -> pipelines chain keeps gitlab_busy() true until the list is final.
-        ok = self.pump_until(
-            lambda: not window.gitlab_busy() and window.ui.listWidget_pipelines.count() == 1, 5.0
-        )
+        dialog = self.browse_to_job(window, label)
+        ok = dialog is not None
         if ok:
-            window.ui.listWidget_pipelines.setCurrentRow(0)
-            ok = self.pump_until(lambda: window.ui.listWidget_jobs.count() == 1, 5.0)
-        if ok:
-            window.ui.listWidget_jobs.setCurrentRow(0)
-            window.download_selected_artifact()
+            dialog.job_button(0).click()
             ok = self.pump_until(window.mapping_complete, 10.0)
         if ok:
-            ok = self.pump_until(lambda: not window.gitlab_busy(), 5.0)
-        return self.check(ok, f"{label}: GitLab browse -> download -> mapping complete")
+            ok = self.pump_until(lambda: not window.gitlab_busy() and not dialog.isVisible(), 5.0)
+        return self.check(ok, f"{label}: dialog download -> mapping complete -> dialog closed")
 
-    def browse_to_job(self, window, label: str) -> bool:
-        """refresh -> select the one pipeline -> select the one job (no download)."""
-        window.refresh_gitlab()
-        ok = self.pump_until(
-            lambda: not window.gitlab_busy() and window.ui.listWidget_pipelines.count() == 1, 5.0
-        )
-        if ok:
-            window.ui.listWidget_pipelines.setCurrentRow(0)
-            ok = self.pump_until(lambda: window.ui.listWidget_jobs.count() == 1, 5.0)
-        if ok:
-            window.ui.listWidget_jobs.setCurrentRow(0)
-            ok = self.pump_until(lambda: not window.gitlab_busy(), 5.0)
-        return self.check(ok, f"{label}: browsed to the job")
-
-    def start_slow_download(self, window, label: str) -> bool:
-        """Browse to the job, start the download and prove it is in flight (progress moved)."""
-        if not self.browse_to_job(window, label):
-            return False
-        window.download_selected_artifact()
+    def start_slow_download(self, window, label: str):
+        """Browse to the job, start its download and prove it is in flight (progress moved)."""
+        dialog = self.browse_to_job(window, label)
+        if dialog is None:
+            return None
+        dialog.job_button(0).click()
         started = self.pump_until(
-            lambda: window.artifact_downloading() and window.ui.progressBar_artifact.value() > 0, 5.0
+            lambda: dialog.busy() and dialog.ui.progressBar_download.value() > 0, 5.0
         )
-        return self.check(started, f"{label}: artifact download in flight (worker running, progress > 0)")
+        self.check(started, f"{label}: artifact download in flight (worker running, progress > 0)")
+        return dialog if started else None
 
     # -- sections ---------------------------------------------------------------------
     def section_flash(self) -> None:
@@ -289,7 +294,7 @@ class Stress:
             label = f"rollback[{name}]"
             programs_before = dict(adapter.programs)
             window = self.new_window(adapter, download_s=download_s)
-            window.on_artifact_ready(self.artifact(name.replace(" ", "_")), f"job #{JOB_ID}")
+            window.on_firmware_ready(self.artifact(name.replace(" ", "_")), SOURCE)
             self.dialogs.clear()
             window.start_flash()
             self.check(self.wait_step(window, "Failed", 10.0), f"{label}: flash failed")
@@ -312,42 +317,77 @@ class Stress:
     def section_gitlab(self) -> None:
         session = FakeGitLabSession()
         window = self.new_window(FakeWinIDEAAdapter(), session)
-        for i in range(5):
-            window.refresh_gitlab()
+        dialog = self.open_dialog(window)
+        for _ in range(5):
+            dialog.load_refs()  # every click after the first is refused while busy
             self.pump(0.01)
-        self.check(self.pump_until(lambda: not window.gitlab_busy(), 5.0), "gitlab: repeated refreshes settled")
-        self.check(window.ui.comboBox_ref.count() == 2, "gitlab: refs listed once (stale results dropped)")
+        self.check(self.pump_until(lambda: not dialog.busy(), 5.0), "gitlab: repeated Load branches/tags settled")
+        self.check(dialog.ui.comboBox_ref.count() == 2, "gitlab: refs listed once")
+        self.check(session.count("/repository/branches") <= 5, "gitlab: no request storm")
+        dialog.reject()
         self.check(self.load_artifact_via_gitlab(window, "gitlab"), "gitlab: browse to artifact")
 
-        window.download_selected_artifact()  # same job again: served from the cache
-        self.check(self.pump_until(lambda: not window.gitlab_busy(), 5.0), "gitlab: cached download settled")
+        dialog = self.browse_to_job(window, "gitlab-cached")
+        if dialog is not None:
+            self.check(dialog.job_button(0).text() == "Cached", "gitlab: the downloaded job is shown as Cached")
+            dialog.job_button(0).click()  # same job again: served from the cache
+            self.check(self.pump_until(lambda: not dialog.isVisible() and not window.gitlab_busy(), 5.0),
+                       "gitlab: cached download settled")
         self.check(session.count(f"/jobs/{JOB_ID}/artifacts") == 1, "gitlab: one network download, then cache")
 
         self.dialogs.clear()
+        dialog = self.open_dialog(window)
         for status, needle in ((401, "expired"), (403, "access"), (404, "expired")):
             session.fail_status = status
-            window.refresh_gitlab()
+            dialog.load_refs()
             ok = self.pump_until(lambda: len(self.dialogs) == 1, 5.0)
             self.check(ok and f"HTTP {status}" in self.dialogs[0][1] and needle in self.dialogs[0][1],
                        f"gitlab: HTTP {status} shows its specific hint")
-            self.pump_until(lambda: not window.gitlab_busy(), 5.0)
+            self.pump_until(lambda: not dialog.busy(), 5.0)
+            self.check(dialog.isVisible(), f"gitlab: dialog stays open after HTTP {status}")
             self.dialogs.clear()
         session.fail_status = None
         session.connection_error = True
-        window.refresh_gitlab()
+        dialog.load_refs()
         ok = self.pump_until(lambda: len(self.dialogs) == 1, 5.0)
         self.check(ok and "Cannot reach GitLab" in self.dialogs[0][1], "gitlab: connection error reported")
         session.connection_error = False
-        self.pump_until(lambda: not window.gitlab_busy(), 5.0)
+        self.pump_until(lambda: not dialog.busy(), 5.0)
         self.dialogs.clear()
+        dialog.reject()
         self.close_window(window, "gitlab")
 
-        # Double-click on an UNCACHED job while the first download is in flight: second refused.
+        # Package Registry: newest version (zip), then an older plain-file version.
+        session = FakeGitLabSession()
+        window = self.new_window(FakeWinIDEAAdapter(), session)
+        dialog = self.open_dialog(window)
+        dialog.ui.tabWidget_source.setCurrentWidget(dialog.ui.tab_packageRegistry)
+        dialog.ui.lineEdit_pkgProject.setText(PKG_PROJECT)
+        dialog.ui.lineEdit_packageName.setText(PKG_NAME)
+        dialog.fetch_latest()
+        ok = self.pump_until(lambda: window.mapping_complete() and not dialog.isVisible(), 10.0)
+        self.check(ok, "gitlab-package: latest version downloaded and mapped")
+        self.check(window.ui.label_sourceTitle.text() == f"Package \u00b7 {PKG_NAME} 1.4.0",
+                   f"gitlab-package: source card names the package: {window.ui.label_sourceTitle.text()!r}")
+        dialog = self.open_dialog(window)
+        dialog.browse_versions()
+        ok = self.pump_until(lambda: not dialog.busy() and dialog.ui.tableWidget_versions.rowCount() == 2, 5.0)
+        self.check(ok, "gitlab-package: two versions listed (prefix match dropped)")
+        if ok:
+            dialog.version_button(1).click()
+            ok = self.pump_until(lambda: not dialog.isVisible() and not window.gitlab_busy(), 10.0)
+            self.check(ok and "1.3.0" in window.ui.label_sourceTitle.text(), "gitlab-package: plain-file version loaded")
+            self.check(not window.mapping_complete(), "gitlab-package: missing symbols leave red rows (no guessing)")
+        self.check(self.dialogs == [], f"gitlab-package: no error dialogs: {self.dialogs}")
+        self.close_window(window, "gitlab-package")
+
+        # Double-click on an UNCACHED job while the first download is in flight: refused.
         slow_dc = FakeGitLabSession(chunk_delay_s=0.02)
         window = self.new_window(FakeWinIDEAAdapter(), slow_dc)
-        if self.start_slow_download(window, "gitlab-double-click"):
-            window.download_selected_artifact()
-            window.download_selected_artifact()
+        dialog = self.start_slow_download(window, "gitlab-double-click")
+        if dialog is not None:
+            dialog.job_button(0).click()
+            dialog.download_selected()
             running = [k for k in window._workers.running_keys() if "download" in k]
             self.check(len(running) == 1, f"gitlab: double-click runs one download worker, got {running}")
             self.check(self.pump_until(window.mapping_complete, 10.0), "gitlab: double-click download finished")
@@ -357,31 +397,55 @@ class Stress:
                        f"{slow_dc.count(f'/jobs/{JOB_ID}/artifacts')}")
         self.close_window(window, "gitlab-double-click")
 
-        # Cancel an artifact download: nothing loaded afterwards.
+        # Stop an artifact download: dialog stays open, nothing loaded afterwards.
         self.dialogs.clear()
         slow = FakeGitLabSession(chunk_delay_s=0.02)
         window = self.new_window(FakeWinIDEAAdapter(), slow)
-        if self.start_slow_download(window, "gitlab-cancel"):
-            window.cancel_artifact_download()
-            self.check(self.pump_until(lambda: not window.gitlab_busy(), 5.0), "gitlab: cancelled download settled")
-            self.check(not window.mapping_rows(), "gitlab: no artifact loaded after cancel")
-            self.check(self.dialogs == [], "gitlab: cancel shows no error dialog")
-        self.close_window(window, "gitlab-cancel")
+        dialog = self.start_slow_download(window, "gitlab-stop")
+        if dialog is not None:
+            dialog.stop()
+            self.check(self.pump_until(lambda: not dialog.busy(), 5.0), "gitlab: stopped download settled")
+            self.check(dialog.isVisible(), "gitlab: dialog still open after Stop")
+            self.check(dialog.ui.label_downloadStatus.text() == "Cancelled", "gitlab: status says Cancelled")
+            self.check(not window.mapping_rows(), "gitlab: no artifact loaded after Stop")
+            self.check(self.dialogs == [], "gitlab: Stop shows no error dialog")
+            dialog.reject()
+        self.close_window(window, "gitlab-stop")
+
+        # Dialog closed mid-download at several delays: bounded, nothing loaded.
+        for delay in (0.0, 0.05, 0.2):
+            dl = FakeGitLabSession(chunk_delay_s=0.02)
+            window = self.new_window(FakeWinIDEAAdapter(), dl)
+            dialog = self.browse_to_job(window, f"gitlab: dialog-close {delay}s")
+            if dialog is not None:
+                dialog.job_button(0).click()
+                self.check(dialog.busy(), f"gitlab: download in flight before dialog close at {delay}s")
+                self.pump(delay)
+                t0 = time.monotonic()
+                dialog.reject()
+                self.check(time.monotonic() - t0 < 3.0, f"gitlab: dialog close at {delay}s is bounded")
+                self.check(not dialog.busy() and not window.gitlab_busy(), f"gitlab: no worker after dialog close at {delay}s")
+                self.pump(0.1)
+                self.check(not window.mapping_rows(), f"gitlab: nothing loaded after dialog close at {delay}s")
+            self.close_window(window, f"gitlab: dialog-close {delay}s")
 
         # Window closed mid-fetch / mid-download at several delays.
         for delay in CANCEL_DELAYS_S[:5]:
             fetch = FakeGitLabSession(delay_s=0.3)
             window = self.new_window(FakeWinIDEAAdapter(), fetch)
-            window.refresh_gitlab()
+            dialog = self.open_dialog(window)
+            dialog.load_refs()
             self.pump(delay)
             self.close_window(window, f"gitlab: closed {delay * 1000:.0f} ms into a fetch", max_s=3.0)
-            self.check(window.ui.comboBox_ref.count() == 0, f"gitlab: nothing shown after close at {delay}s")
+            self.check(dialog.ui.comboBox_ref.count() == 0, f"gitlab: nothing shown after close at {delay}s")
+            self.check(not dialog.isVisible(), f"gitlab: dialog closed with the window at {delay}s")
         for delay in (0.0, 0.05, 0.2):
             dl = FakeGitLabSession(chunk_delay_s=0.02)
             window = self.new_window(FakeWinIDEAAdapter(), dl)
-            if self.browse_to_job(window, f"gitlab: close-in-download {delay}s"):
-                window.download_selected_artifact()
-                self.check(window.artifact_downloading(), f"gitlab: download in flight before close at {delay}s")
+            dialog = self.browse_to_job(window, f"gitlab: close-in-download {delay}s")
+            if dialog is not None:
+                dialog.job_button(0).click()
+                self.check(dialog.busy(), f"gitlab: download in flight before close at {delay}s")
                 self.pump(delay)
             self.close_window(window, f"gitlab: closed {delay * 1000:.0f} ms into a download", max_s=3.0)
             self.check(not window.mapping_rows(), f"gitlab: no artifact loaded after close at {delay}s")
@@ -390,7 +454,7 @@ class Stress:
     def section_races(self) -> None:
         adapter = FakeWinIDEAAdapter(download_seconds=0.5)
         window = self.new_window(adapter)
-        window.on_artifact_ready(self.artifact("races"), f"job #{JOB_ID}")
+        window.on_firmware_ready(self.artifact("races"), SOURCE)
         self.dialogs.clear()
         for delay in CANCEL_DELAYS_S:
             label = f"races: cancel {delay * 1000:.0f} ms after Flash"
@@ -401,7 +465,7 @@ class Stress:
             window.cancel_flash()
             window.cancel_flash()  # double Cancel
             self.check(self.wait_flash_idle(window), f"{label}: settled")
-            final = window.ui.label_step.text()
+            final = window.current_step()
             self.check(final in ("Cancelled", Step.DONE.value), f"{label}: final state {final!r}")
             if final == "Cancelled":
                 self.check(adapter.programs == before, f"{label}: program paths restored")
@@ -428,7 +492,7 @@ class Stress:
         # Window closed mid-download: rollback finished before close() returns.
         adapter = FakeWinIDEAAdapter(download_seconds=10.0)
         window = self.new_window(adapter)
-        window.on_artifact_ready(self.artifact("close"), f"job #{JOB_ID}")
+        window.on_firmware_ready(self.artifact("close"), SOURCE)
         window.start_flash()
         in_flight = self.wait_step(window, Step.DOWNLOAD.value, 5.0) and window.flash_active()
         self.check(in_flight, "races: long flash downloading (worker running) before close")
@@ -443,10 +507,38 @@ class Stress:
 
         # Closed during the GitLab fetch, before any flash worker exists.
         window = self.new_window(FakeWinIDEAAdapter(), FakeGitLabSession(delay_s=0.4))
-        window.refresh_gitlab()
+        self.open_dialog(window).load_refs()
         self.check(self.pump_until(window.gitlab_busy, 2.0), "races: GitLab fetch in flight before close")
         self.check(not window.flash_active(), "races: no flash worker before close")
         self.close_window(window, "races: closed during GitLab fetch", max_s=3.0)
+
+    def section_theme(self) -> None:
+        app = QApplication.instance()
+        adapter = FakeWinIDEAAdapter(download_seconds=6.0)
+        window = self.new_window(adapter)
+        window.on_firmware_ready(self.artifact("theme"), SOURCE)
+        self.dialogs.clear()
+        window.start_flash()
+        self.check(self.wait_step(window, Step.DOWNLOAD.value, 5.0), "theme: flash downloading")
+        for dark in (True, False, True):
+            t0 = time.monotonic()
+            window.apply_dark_mode(dark)
+            log.info("Theme switch took %.2f s (%d top-level widgets)", time.monotonic() - t0, len(app.topLevelWidgets()))
+            name = "dark" if dark else "light"
+            self.check(current_theme_name() == name and THEMES[name]["primary"] in app.styleSheet(),
+                       f"theme: switched to {name} while flashing")
+            self.pump(0.1)
+        self.check(window.flash_active() and window.ui.pushButton_flash.property("state") == "flashing",
+                   "theme: button still Cancel while flashing")
+        self.check(self.wait_step(window, Step.DONE.value, 10.0), "theme: flash reached Done in dark mode")
+        self.check(self.wait_flash_idle(window), "theme: flash worker released")
+        dialog = self.open_dialog(window)
+        window.apply_dark_mode(False)
+        self.check(dialog.isVisible() and current_theme_name() == "light", "theme: switched back with the dialog open")
+        dialog.reject()
+        self.check(self.dialogs == [], f"theme: no error dialogs: {self.dialogs}")
+        self.close_window(window, "theme")
+        apply_theme(app, False)
 
     def section_secrets(self) -> None:
         window = self.new_window(FakeWinIDEAAdapter(download_seconds=0.1))
@@ -465,6 +557,17 @@ class Stress:
         file_text = self.log_file.read_text(encoding="utf-8")
         self.check(TOKEN not in file_text, "secrets: token absent from the log file")
         self.check("token in a message: ***" in file_text, "secrets: log file has the masked line")
+        dialog = self.open_dialog(window)
+        dialog.ui.lineEdit_token.setText(TOKEN)
+        dialog.load_refs()  # the typed token goes to the (fake) keyring, never to the settings
+        self.pump_until(lambda: not dialog.busy(), 5.0)
+        dialog._note(logging.INFO, f"PRIVATE-TOKEN: {TOKEN}")
+        self.check(TOKEN not in dialog.ui.plainTextEdit_gitlabLog.toPlainText(), "secrets: token absent from the GitLab log")
+        dialog.reject()
+        settings_file = self.workdir / f"window{self._window_count}" / "settings.json"
+        self.check(settings_file.is_file() and TOKEN not in settings_file.read_text(encoding="utf-8"),
+                   "secrets: token absent from settings.json")
+        self.check(self.keyring.get(GITLAB_URL) == TOKEN, "secrets: token stored in the keyring")
         bundle = window.export_bundle(self.workdir / "bundle")
         with zipfile.ZipFile(bundle) as zf:
             contents = {name: zf.read(name).decode("utf-8", "replace") for name in zf.namelist()}
@@ -477,8 +580,10 @@ class Stress:
 SECTIONS = {
     "flash": ("full fetch->map->flash, cancel mid-download, resize + log filter while live", Stress.section_flash),
     "rollback": ("every failure branch; workspace paths restored, failed rollback shown", Stress.section_rollback),
-    "gitlab": ("refresh storms, 401/403/404/connection, double-click, cancel, close mid-fetch", Stress.section_gitlab),
+    "gitlab": ("dialog: CI + package, 401/403/404/connection, double-click, Stop, close mid-fetch",
+               Stress.section_gitlab),
     "races": ("cancel at 0..400 ms, double Flash/Cancel, close mid-download / mid-fetch", Stress.section_races),
+    "theme": ("light/dark switched while flashing and with the dialog open", Stress.section_theme),
     "secrets": ("a realistic PAT through panel, log file and debug bundle", Stress.section_secrets),
 }
 
@@ -536,6 +641,9 @@ def main(argv: list[str] | None = None) -> int:
     QMessageBox.warning = staticmethod(critical)
     QMessageBox.information = staticmethod(lambda *a, **k: QMessageBox.StandardButton.Ok)
     QMessageBox.question = staticmethod(question)
+    # The GitLab dialog reads/writes the token through these; keep the real keyring out of it.
+    gitlab_dialog.get_token = stress.keyring.get
+    gitlab_dialog.set_token = stress.keyring.__setitem__
 
     selected = args.section or list(SECTIONS)
     started = time.monotonic()
