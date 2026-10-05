@@ -761,3 +761,18 @@ Bản `.exe` phải mang theo hai file theme; `style.py` tìm chúng theo vị t
 ### Đã kiểm tra
 
 - RED / GREEN, `pytest -q`, `pytest -k thread -v`, `pytest -k "not gui" -q`, `tools/stress_test.py`, smoke sáng và tối: RED: `1 failed, 1 passed` (spec chưa chép `wflash/resources`); GREEN: `2 passed`; `pytest -q`: `306 passed in 18.69s`; `-k thread`: `38 passed`; `-k "not gui"`: `173 passed`; stress: `CHECKPOINTS=348 FAILED=0 QT_THREADING_WARNINGS=0`, `STRESS_RESULT=PASS`; smoke light exit 0; smoke dark (HOME tạm) exit 0 và log `wflash.main: Theme: dark`.
+
+## Phase 1.41: Sửa popup Load from GitLab bị ép dòng Project/Branch/Job
+
+User chạy app trên macOS và thấy trong tab CI Artifact các ô Project, Branch/tag, Job name bị ép dẹt, nút "Load branches/tags" mất chữ. Nguyên nhân gốc: `gitlab_dialog.ui` đặt cứng `minimumSize` 760×600 và kích thước mặc định 880×720. Qt chỉ tự áp chiều cao tối thiểu của layout cho cửa sổ **không** có `minimumSize` đặt tay; với style native của macOS các ô cao hơn nên layout cần 820 px, nhưng popup vẫn mở 720 px và layout phải ép các dòng xuống 13 px (bảng job và ô log giữ chiều cao cố định). Ở chế độ offscreen (style Fusion) layout chỉ cần 711 px nên test GUI không thấy lỗi. Sửa ở nguồn: bỏ `minimumSize` trong `.ui` để layout tự quyết chiều cao tối thiểu (popup tự mở 820 px trên macOS), và thêm test chặn kiểu lỗi này cho cả ba cửa sổ.
+
+### Thay đổi
+
+- **`wflash/gui/gitlab_dialog.ui`**: bỏ thuộc tính `minimumSize` 760×600; **`wflash/gui/ui_gitlab_dialog.py`** sinh lại bằng `pyside6-uic`.
+- **`tests/test_gui_window_min_size.py`** (mới): mỗi cửa sổ (popup GitLab, Preferences, cửa sổ chính) phải có `minimumSize` và chiều cao thực tế không nhỏ hơn `layout().minimumSize()`.
+
+### Đã kiểm tra
+
+- Tái hiện với style native macOS: trước khi sửa `lineEdit_ciProject`/`comboBox_ref`/`comboBox_jobName` cao 13 px, popup 880×720 trong khi layout cần 820; sau khi sửa các dòng cao 27–29 px, popup tự mở 880×820 (đã xem ảnh chụp).
+- RED: `tests/test_gui_window_min_size.py` → `1 failed, 2 passed` (`assert 600 >= 680` ở gitlab_dialog); GREEN: `3 passed`.
+- `pytest -q`: 309 passed; `pytest -k thread -q`: 38 passed; `tools/stress_test.py`: `STRESS_RESULT=PASS`.

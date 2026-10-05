@@ -27,7 +27,6 @@ class Ui_GitlabDialog(object):
         if not GitlabDialog.objectName():
             GitlabDialog.setObjectName(u"GitlabDialog")
         GitlabDialog.resize(880, 720)
-        GitlabDialog.setMinimumSize(QSize(760, 600))
         self.verticalLayout_gitlabDialog = QVBoxLayout(GitlabDialog)
         self.verticalLayout_gitlabDialog.setObjectName(u"verticalLayout_gitlabDialog")
         self.groupBox_connection = QGroupBox(GitlabDialog)
