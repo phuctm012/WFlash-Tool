@@ -805,3 +805,24 @@ User muốn dùng conda Miniforge thay cho venv trên Windows. Hướng dẫn th
 ### Đã kiểm tra
 
 - Đọc lại luồng `goto` của script (không dùng biến được gán trong cùng khối ngoặc, tránh lỗi mở rộng biến lúc parse của `cmd`); file đã là CRLF. Chưa chạy được trên Windows từ máy macOS: sẽ được kiểm tra ở Phần 6 của hướng dẫn.
+
+## Phase 1.44: Kết quả spike vòng 1 trên Windows và chuẩn bị vòng 2
+
+User chạy spike 01–05 trên Windows 11 với winIDEA 9.21.408 và workspace SAF85xx thật. Kết quả ghi vào `docs/winidea_api_notes.md`, file này không còn trống. Ba phát hiện làm thay đổi thiết kế:
+
+- File `.s3` **không** nằm trong danh sách download của Debug mà trong danh sách Download Files của thiết bị external flash (Winbond W25Q64JW, cấu hình UMI, phần HServer của workspace). Mỗi dòng chỉ có path, offset và ô tick, **không có tên**. Vì vậy profile không thể khớp entry `.s3` theo tên như thiết kế ban đầu (`winidea_entry`).
+- Đọc path symbol file chạy được qua `/IDE/System.Debug.Applications[i].SymbolFiles.File[j].Path`. Workspace có 3 Application `App_M7`, `App_BBE`, `App_A53`, và một Application có thể có nhiều symbol file.
+- `isystem.connect` là 9.26.11, còn winIDEA là 9.21.408. Mọi thao tác vẫn chạy, nhưng lệch version. Instance có id rỗng.
+
+Ngoài ra: `CLoaderController.download()` chạy 6–8 s, sau đó CPU ở trạng thái `isMustInit`. `CDebugFacade.reset()` cho `isStopped=1` (không phải `isHalted`), và `run()` cho `isRunning=1`. Bước 03 vòng 1 truyền đường dẫn file vào `--url` nên việc ghi path chưa được kiểm chứng. Thêm `spike/06_probe_umi.py` (chỉ đọc) để dò URL và class của danh sách file Winbond. Thêm mục "Vòng 2" vào hướng dẫn thử nghiệm. Plan 2 chưa viết, vì cách đọc/ghi danh sách `.s3` quyết định lại cách profile khớp entry.
+
+### Thay đổi
+
+- **`docs/winidea_api_notes.md`**: ghi môi trường, API, URL đã chạy và đã lỗi, trạng thái CPU, câu hỏi mở.
+- **`spike/06_probe_umi.py`** (mới): dump chữ ký `CUMIController`/storage/loader/option class; thử `getOptionJSON`/`getOptionStr` với các tiền tố `/iOPEN/`, `/HServer/`… cho `UMI1.Devices.Devices[0].DownloadFiles`; dump JSON cây `Applications`; đọc danh sách download của `CLoaderController`.
+- **`spike/README.md`**: thêm bước 06.
+- **`docs/windows_test_guide.md`**: mục "Vòng 2" (V2.1–V2.6).
+
+### Đã kiểm tra
+
+- Đọc toàn bộ `results.7z` (00_env, 01, 02, 03, 3 lần 04, 2 lần 05, 4 ảnh chụp; `00_manual.txt` trống). `python -m py_compile spike/06_probe_umi.py` thành công. Script 06 chưa chạy được trên macOS (cần winIDEA).

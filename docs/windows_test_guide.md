@@ -325,3 +325,61 @@ Kèm thêm (nếu tiện):
 2. Viết Plan 2: `RealWinIDEAAdapter` (đọc/ghi path entry, download có cancel/timeout, reset/halt từng core, báo lỗi rõ khi lệch version/bitness).
 3. Sửa các lỗi Windows (nếu có) tìm thấy ở Phần 4–6.
 4. Gửi lại bản mới để thử flash thật bằng WFlash.
+
+---
+
+## Vòng 2 (sau kết quả ngày 2026-10-06)
+
+Vòng 1 đã cho biết: connect, đọc path symbol file, download, reset và run đều chạy. Còn thiếu ba thứ (chi tiết ở `docs/winidea_api_notes.md`, mục *Open questions*):
+
+- File `.s3` nằm trong danh sách **Download Files của thiết bị Winbond** (Hardware → Winbond W25Q64JW SPI → Configure…), không nằm trong danh sách download của Debug. Chưa biết URL để đọc/ghi danh sách đó.
+- Bước 03 vòng 1 đã truyền **đường dẫn file** vào `--url`, nên chưa thử được việc ghi path. `--url` phải là **option URL**, dạng `/IDE/...`.
+- `isystem.connect` đang là **9.26.11**, còn winIDEA là **9.21.408**.
+
+Làm theo thứ tự, trong env đã dùng ở vòng 1:
+
+**V2.1. Version `isystem.connect`.** Tìm trong `C:\Data\_Devtools\Winidea408\` file package Python (tên chứa `isystem.connect` hoặc `isystem_connect`, đuôi `.whl` hoặc `.tar.gz`), thường trong thư mục con `sdk` hoặc `python`:
+
+```bat
+dir /s /b C:\Data\_Devtools\Winidea408\*isystem*connect* > spike\results\v2_sdk_search.txt
+```
+
+- Nếu **có** file: tạo env mới để không phá env đang chạy được, cài file đó, rồi chạy lại `python 01_connect.py`:
+  ```bat
+  conda create -n wflash921 python=3.12 -y
+  conda activate wflash921
+  python -m pip install "<đường dẫn file tìm được>"
+  cd spike
+  python 01_connect.py
+  ```
+  Nếu 01 vẫn `isAttached -> True` thì dùng env `wflash921` cho các bước sau.
+- Nếu **không có** file: ghi "không có" vào `00_manual.txt` và dùng tiếp env cũ (9.26.11).
+
+**V2.2. Dò danh sách file của Winbond (chỉ đọc):**
+
+```bat
+python 06_probe_umi.py
+```
+
+**V2.3. Thử ghi path symbol file** (đổi tạm, script tự khôi phục; không flash):
+
+```bat
+copy NUL C:\Data\tmp\wflash_test.elf
+python 03_set_paths.py --url "/IDE/System.Debug.Applications[0].SymbolFiles.File[1].Path" --new-path C:\Data\tmp\wflash_test.elf --keep
+```
+
+Có `--keep` nên path **không** tự khôi phục. Mở *Debug → Configure Session → App_M7 → Symbol Files* và xem dòng thứ hai có thành `C:\Data\tmp\wflash_test.elf` không (chụp màn hình `v2_symbol_changed.png`). Sau đó **khôi phục** bằng giá trị cũ in ở dòng `read old -> '...'` trong file kết quả 03:
+
+```bat
+python 03_set_paths.py --url "/IDE/System.Debug.Applications[0].SymbolFiles.File[1].Path" --new-path "<giá trị read old>" --keep
+```
+
+Mở lại dialog để chắc chắn đã về như cũ. **Đừng lưu workspace** trong lúc path đang là file test.
+
+**V2.4. Download có ghi Winbond không?** Mở cửa sổ *View → Output* (hoặc Progress) của winIDEA, chạy `python 04_download.py`, rồi chụp màn hình Output (`v2_download_output.png`). Sau đó bấm tay *Hardware → Winbond W25Q64JW SPI → Program*, ghi thời gian và chụp Output (`v2_program_output.png`). So sánh hai lần là biết download của Debug có ghi Winbond hay không.
+
+**V2.5. Bổ sung `00_manual.txt`** (lần trước file trống): danh sách **đầy đủ** Download Files của thiết bị Winbond (kéo thanh cuộn, ghi từng dòng: path đầy đủ, offset, có tick hay không), và tên file thực tế trong artifact GitLab cần nạp vào từng dòng.
+
+**V2.6. Phần 4–6 của hướng dẫn** (test tự động, app, GitLab, build `.exe`) vẫn chưa có kết quả. Làm nếu có thời gian; không chặn Plan 2.
+
+Gửi lại `spike\results\` (cả file cũ và mới) như vòng 1.

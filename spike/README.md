@@ -27,6 +27,7 @@ Mục đích: xác minh API `isystem.connect` trên winIDEA 9.21 + workspace SAF
 | `python 03_set_paths.py --url <URL> --new-path C:\tmp\test.elf` | đổi path rồi tự khôi phục | Đổi tạm, tự khôi phục |
 | `python 04_download.py` | flash bằng cấu hình hiện tại, đo thời gian | **Có: flash ECU** |
 | `python 05_reset.py` | reset + halt | **Có: reset ECU** |
+| `python 06_probe_umi.py` | dò danh sách file của external flash (Winbond/UMI), chữ ký các class UMI/storage | Không (chỉ đọc) |
 
 - Nhiều instance winIDEA: thêm `--instance <id>` (id lấy từ output 01).
 - URL cho bước 03 lấy từ các dòng `getOptionStr ... -> '...elf'` thành công trong output 02.
