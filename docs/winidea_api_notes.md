@@ -2,7 +2,7 @@
 
 **This file is the authority for every real `isystem.connect` call in `wflash/core/winidea_adapter.py`.** A call that is not recorded here is a guess and must carry `# UNVERIFIED:` in the code. See `CLAUDE.md`, "Rule zero".
 
-Status: **spike round 1 ran on 2026-10-06** (spike 01–05, results in the user's `results.7z`). Connect, reading symbol-file paths, debug download, reset and run are observed. **Writing any path, and reading the external-flash (.s3) file list, are NOT verified yet** — see "Open questions". Round 2 is `spike/06_probe_umi.py` plus a corrected `03_set_paths.py` run.
+Status: **spike round 2 ran on 2026-10-10** (06 + 03; see "Round 2 findings" below). **Spike round 1 ran on 2026-10-06** (spike 01–05, results in the user's `results.7z`). Connect, reading symbol-file paths, debug download, reset and run are observed. **Writing any path, and reading the external-flash (.s3) file list, are NOT verified yet** — see "Open questions". Round 2 is `spike/06_probe_umi.py` plus a corrected `03_set_paths.py` run.
 
 Everything below is pasted or condensed from the probe output; nothing is paraphrased from documentation.
 
@@ -122,10 +122,43 @@ Observed:
 
 Multi-core: `cmgr.getCoreIds` / `cmgr.getCores` do not exist (the probe printed nothing). Per-core state is unverified; `CMulticoreConnectionMgr` exists and is the next thing to look at if per-core reset/halt is required.
 
+## Round 2 findings (2026-10-10)
+
+Workspace this time: `C:/Data/tranph9/winIDEA/WinIdea_R_04_01_01/STRX_WinIdea_SUZ_YVF_R_04_01_01/SUZ_7G5_M7.xjrf` (a different copy; its `App_M7` has **one** symbol file). TCP port 5316 for 06, 5315 for 03 (winIDEA was probably restarted in between, see the JSON hazard).
+
+### External-flash file list: the URL that works
+
+```
+ide.getOptionStr("/iOPEN/UMIConfig.Devices.Devices[0].DownloadFiles[0].Path")  -> 'Radar_SUZ05_Gen7.s3'
+```
+
+`/IOPEN/` (capitals) works too. Every other root fails with `Cannot resolve path`: `/iOPEN/UMI1...`, `/iOPEN/HServerData...`, `/iOPEN/HW.BDM.UMIConfig...`, and all `/HServer/`, `/IDE/...` forms. `/iOPEN/Data.UMI1...` is rewritten by winIDEA to `Cfg.SoC[0].BBS.UMI1...` and then fails. So the XML element `HServerData.HW.BDM.UMIConfig` maps to the option root **`/iOPEN/UMIConfig`**.
+
+Count, offset and enabled fields of each row: not known yet (spike 07). Writing: not tried yet.
+
+### Index out of range is a distinct error
+
+`getOptionStr("/IDE/System.Debug.Applications[0].SymbolFiles.File[1].Path")` when only one file exists:
+`ValueError: E_INVALIDARG ... __StringOut__: Array index (1) out of range (1): File[1].Path  [DataDescriptor_Algorithm.cpp, 456]`. `optionExists(<same url>) -> False` (no exception). The adapter can enumerate a list by reading index 0, 1, 2… until this error, or by `optionExists`.
+
+### HAZARD: getOptionJSON on a large tree
+
+`ide.getOptionJSON("/IDE/System.Debug.Applications")` returned a huge string in which every scalar is `"IDArray container not supported: ..."`, and **every call after it failed** with `AttributeError: ICONNECT_E_ROUTING: can not access winIDEA. Check if it is still up and running.` (`error code: -2147221487`), then `ConnectionMgr() should be connected to winIDEA for this operation!`. winIDEA stopped answering (probably hung or crashed). **The adapter must never call `getOptionJSON` on a list/tree.** Read single scalar options only.
+
+`ICONNECT_E_ROUTING` is also the exception shape for "connection lost": `AttributeError` (not `ValueError`), message starts with `ICONNECT_E_ROUTING`.
+
+### UMI / storage API (from docstrings, not yet called)
+
+- `CUMIController(cmgr)` constructs fine. Methods: `getDeviceIndex(deviceName, isThrowOnNotFound=?)`, **`write(deviceIndex, programMode)` — "Writes contents of pre-configured files to device"** (= the *Program* menu item), `verify(deviceIndex, …)` (throws `CUMIException` on mismatch), `erase(deviceIndex, programMode)`, `isDeviceEmpty(DWORD)` / `(DWORD, ADDRESS, ADDRESS)`, `readHash`, `getLastError()`. `programMode` is `IConnectUMI::wProgDevice` or `wProgCache`. `secure/unsecure` removed since 9.21.418.
+- `CStorageDeviceFactory`: `DEVICES_OPT_URL`, `getDeviceNames(connectionMgr, deviceNames: std::vector<std::string>)` — "collects all enabled storage device names", `makeDevice(...)`, `terminateDevice(...)` (eMMC only).
+- `CStorageDeviceController`: same `write(programMode)`, `verify`, `erase`, without a device index.
+- `CLoaderController.download()`: **Deprecated: "Use CSessionCtrl::begin_program instead"**. "Downloads executables to the target. The download files are defined in winIDEA, *Debug / Configure Session / SoCs / Edit / Program Files*. **This method resets the target.**" — so it programs the SoC program files; whether it also triggers the UMI device ("Program at download" is checked) is still open.
+- `CLoaderController.getDownloadList(listType, isAbsolutePath)` — needs two arguments (deprecated too).
+
 ## Open questions
 
 1. **Version mismatch.** `isystem.connect` 9.26.11 against winIDEA 9.21.408. Connect, read, download, reset and run all worked, but `CLAUDE.md` requires the versions to match. Is there a Python SDK package under `C:/Data/_Devtools/Winidea408/` (9.21.408)? If yes, install it and re-run 01 to confirm nothing changes.
-2. **External-flash file list API** (spike 06): option prefix for HServer options (`/iOPEN/`? `OPT_DEST_IOPEN`?), exact URL for `DownloadFiles[i].Path`, the field names for offset and enabled, and whether `CUMIController` / storage-device classes expose the list or a "program device" call.
+2. ~~External-flash URL~~ found: `/iOPEN/UMIConfig.Devices.Devices[0].DownloadFiles[i].Path`. Still open: field names for offset and enabled, the device name, the `wProgDevice` constant (spike 07); whether `setOption` on that URL works (03); whether `CUMIController.write()` programs the Winbond as the menu does (spike 08).
 3. **Writing paths**: re-run 03 with `--url "/IDE/System.Debug.Applications[0].SymbolFiles.File[1].Path"`, and with the external-flash URL once 06 finds it. Confirm the read-back, the restore, and whether the change shows in the dialogs **without saving the workspace**.
 4. **Does `CLoaderController.download()` program the Winbond device?** Compare with *Hardware → Winbond W25Q64JW SPI → Program* (time it; check the winIDEA Output/Progress view during the spike download).
 5. **Selecting one of several winIDEA instances** when `getInstanceId()` is empty.

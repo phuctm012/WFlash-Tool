@@ -826,3 +826,23 @@ Ngoài ra: `CLoaderController.download()` chạy 6–8 s, sau đó CPU ở trạ
 ### Đã kiểm tra
 
 - Đọc toàn bộ `results.7z` (00_env, 01, 02, 03, 3 lần 04, 2 lần 05, 4 ảnh chụp; `00_manual.txt` trống). `python -m py_compile spike/06_probe_umi.py` thành công. Script 06 chưa chạy được trên macOS (cần winIDEA).
+
+## Phase 1.45: Kết quả spike vòng 2, chuẩn bị vòng 3 (ghi path và program Winbond)
+
+Vòng 2 tìm được URL đọc danh sách file của Winbond: `/iOPEN/UMIConfig.Devices.Devices[0].DownloadFiles[i].Path`. Phần `HServerData.HW.BDM.UMIConfig` trong XML workspace tương ứng với gốc option `/iOPEN/UMIConfig`. Docstring của `CUMIController.write(deviceIndex, programMode)` cho biết nó "ghi các file đã cấu hình vào thiết bị", tức là bằng nút Program. `CLoaderController.download()` đã bị đánh dấu deprecated, và docstring nói nó nạp *Program Files* của SoC rồi reset target. Ngoài ra có hai phát hiện quan trọng cho adapter:
+
+- `getOptionJSON` trên cả cây `Applications` làm winIDEA ngừng trả lời. Mọi lệnh sau đó đều lỗi `ICONNECT_E_ROUTING`, vì vậy adapter chỉ được đọc từng option đơn.
+- Đọc chỉ số vượt danh sách cho lỗi riêng: "Array index (1) out of range (1)". `optionExists` trả `False`, nên dùng được để đếm số dòng.
+
+Bước 03 vòng 2 dùng `File[1]` nhưng workspace mới chỉ có một symbol file, nên vẫn chưa ghi được path. Thêm spike 07 (chỉ đọc: đếm dòng, field offset/tick, tên thiết bị, hằng số `wProgDevice`, docstring đầy đủ, `CSessionCtrl`) và spike 08 (program Winbond bằng `CUMIController.write`, hỏi `YES` trước khi ghi, không đoán hằng số). Thêm mục "Vòng 3" vào hướng dẫn.
+
+### Thay đổi
+
+- **`docs/winidea_api_notes.md`**: mục "Round 2 findings": URL `/iOPEN/UMIConfig...`, lỗi out-of-range, hazard `getOptionJSON`, chữ ký UMI/storage/loader.
+- **`spike/07_umi_details.py`**, **`spike/08_umi_program.py`** (mới).
+- **`spike/README.md`**: thêm 07, 08 và cảnh báo về 06.
+- **`docs/windows_test_guide.md`**: mục "Vòng 3" (V3.1–V3.5).
+
+### Đã kiểm tra
+
+- Đọc toàn bộ `06_probe_umi_20261010_140822.txt` và `03_set_paths_20261010_141112.txt`. `py_compile` cho 07 và 08 thành công. Hai script chưa chạy được trên macOS (cần winIDEA).

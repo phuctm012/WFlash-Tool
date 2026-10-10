@@ -383,3 +383,49 @@ Mở lại dialog để chắc chắn đã về như cũ. **Đừng lưu workspa
 **V2.6. Phần 4–6 của hướng dẫn** (test tự động, app, GitLab, build `.exe`) vẫn chưa có kết quả. Làm nếu có thời gian; không chặn Plan 2.
 
 Gửi lại `spike\results\` (cả file cũ và mới) như vòng 1.
+
+---
+
+## Vòng 3 (sau kết quả ngày 2026-10-10)
+
+Vòng 2 đã tìm được URL đọc path `.s3` của Winbond: `/iOPEN/UMIConfig.Devices.Devices[0].DownloadFiles[i].Path`. Vòng này kiểm tra việc **ghi** path và việc **program** Winbond qua API. Lấy bản mới của nhánh (`git pull`) để có `spike\07_umi_details.py` và `spike\08_umi_program.py`.
+
+> Ở vòng 2, ngay sau lệnh JSON của script 06, winIDEA ngừng trả lời. Nếu lúc đó winIDEA bị treo hoặc crash, ghi lại vào `00_manual.txt`. Các script vòng 3 không dùng lệnh đó.
+
+Mở winIDEA với workspace bạn dùng ở vòng 2, rồi trong thư mục `spike`:
+
+**V3.1. Đọc chi tiết (chỉ đọc):**
+
+```bat
+python 07_umi_details.py
+```
+
+**V3.2. Thử ghi path `.s3`** (đổi tạm, script tự khôi phục; không flash). Dùng dòng 0 (`Radar_SUZ05_Gen7.s3`):
+
+```bat
+copy NUL C:\Data\tmp\wflash_test.s3
+python 03_set_paths.py --url "/iOPEN/UMIConfig.Devices.Devices[0].DownloadFiles[0].Path" --new-path C:\Data\tmp\wflash_test.s3
+```
+
+Không có `--keep`, nên script tự đổi rồi khôi phục. Trong file kết quả, dòng `read back` phải là path test, còn `read after restore` phải là `Radar_SUZ05_Gen7.s3`. Mở lại dialog Configure của Winbond để chắc chắn path dòng đầu vẫn đúng.
+
+**V3.3. Thử ghi path `.elf`** (workspace này `App_M7` chỉ có 1 file nên dùng `File[0]`):
+
+```bat
+copy NUL C:\Data\tmp\wflash_test.elf
+python 03_set_paths.py --url "/IDE/System.Debug.Applications[0].SymbolFiles.File[0].Path" --new-path C:\Data\tmp\wflash_test.elf
+```
+
+Kiểm tra tương tự trong *Debug → Configure Session → App_M7 → Symbol Files*.
+
+**V3.4. Program Winbond qua API** (⚠️ **ghi external flash**, giống bấm *Hardware → Winbond → Program*). Trước đó kiểm tra các file đang tick trong Download Files là firmware tốt.
+
+```bat
+python 08_umi_program.py
+```
+
+Script in danh sách file, tên thiết bị, rồi hỏi xác nhận. Gõ `YES` để ghi. Nếu script dừng với dòng "device index or program mode not found", chỉ cần gửi kết quả 07 và 08. So thời gian với lần bấm Program tay (V2.4 nếu đã làm).
+
+**V3.5.** Nếu chưa làm V2.4/V2.5 ở vòng 2 thì làm luôn: ảnh Output khi download và khi Program tay, và danh sách đầy đủ Download Files của Winbond (path, offset, tick) vào `00_manual.txt`.
+
+Gửi lại `spike\results\` như các vòng trước.

@@ -28,6 +28,8 @@ Mục đích: xác minh API `isystem.connect` trên winIDEA 9.21 + workspace SAF
 | `python 04_download.py` | flash bằng cấu hình hiện tại, đo thời gian | **Có: flash ECU** |
 | `python 05_reset.py` | reset + halt | **Có: reset ECU** |
 | `python 06_probe_umi.py` | dò danh sách file của external flash (Winbond/UMI), chữ ký các class UMI/storage | Không (chỉ đọc) |
+| `python 07_umi_details.py` | đọc đủ danh sách file của Winbond, field offset/tick, tên thiết bị, hằng số program mode | Không (chỉ đọc) |
+| `python 08_umi_program.py` | program Winbond bằng `CUMIController.write()` (hỏi xác nhận, gõ `YES`), rồi reset | **Có: ghi external flash** |
 
 - Nhiều instance winIDEA: thêm `--instance <id>` (id lấy từ output 01).
 - URL cho bước 03 lấy từ các dòng `getOptionStr ... -> '...elf'` thành công trong output 02.
@@ -35,3 +37,5 @@ Mục đích: xác minh API `isystem.connect` trên winIDEA 9.21 + workspace SAF
 ## Gửi kết quả
 
 Nén thư mục `spike\results\` và gửi lại.
+
+> Lưu ý: `06_probe_umi.py` gọi `getOptionJSON` trên cả cây `Applications`, và lệnh này đã làm winIDEA ngừng trả lời. Nếu chạy lại 06, chuẩn bị khởi động lại winIDEA. Script 07 không gọi lệnh đó (trừ khi thêm `--json`).
