@@ -440,10 +440,10 @@ Lần chạy `08_umi_program.py` đầu tiên dừng ở `no device found -> sto
 >
 > *Hardware → Winbond → Program* bấm tay với 2 file đang tick đã khôi phục được ECU, chỉ có 1 lần erase (user xác nhận). Cách bấm tay là cách flash an toàn đã biết. Bản cảnh báo trước đó về menu này quá thận trọng.
 
-So flash với file (chỉ đọc), trước tiên ở chế độ lấy mẫu để đo tốc độ đọc:
+**Tạm thời không chạy `09_flash_compare.py`.** `umi.read` không phải đọc thụ động: lần chạy `--full` báo `Error loading monitor`, tức là nó nạp monitor vào target. Khi ECU đang chạy, thao tác này có thể làm dừng firmware. Sau khi đã chạy 09, tắt nguồn ECU rồi bật lại để kiểm tra firmware.
+
+Chạy script chỉ đọc tài liệu API và menu (không flash, không đụng target):
 
 ```bat
-python 09_flash_compare.py
+python 10_program_api_docs.py
 ```
-
-Script in tiến độ và tốc độ đọc. Chỉ thêm `--full` khi tốc độ đủ nhanh: cần đọc khoảng 4,5 MB.

@@ -930,3 +930,16 @@ User khôi phục được ECU bằng *Hardware → Winbond → Program*, không
 ### Đã kiểm tra
 
 - Đối chiếu ảnh với log hai pha ERASING của lần chạy 08. Chỉ đổi tài liệu, không chạy lại test.
+
+## Phase 1.52: umi.read nạp monitor vào target; spike 10 chỉ đọc tài liệu
+
+Lần chạy 09 `--full` cuối cùng cũng kết thúc: không so được đoạn nào, đoạn đầu lỗi `UMI Monitor errCode=0x1`, các đoạn sau lỗi `Error loading monitor`. Vậy trước đây gọi 09 là "chỉ đọc" là chưa đủ: nó không ghi flash theo những gì biết được, nhưng có đụng target. Tạm dừng 09. Hướng tìm API tương đương nút Program chuyển sang đọc docstring và cấu trúc menu, không gọi lệnh nào tác động lên target.
+
+### Thay đổi
+
+- **`spike/10_program_api_docs.py`** (mới): in docstring các hàm liên quan (`invoke`, `serviceCall`, `flush`, `write`, `begin_program`...), hằng số `IConnectUMI`, cấu trúc menu.
+- **`docs/windows_test_guide.md`**, **`spike/README.md`**, **`docs/winidea_api_notes.md`**: cảnh báo về 09, thay bằng 10.
+
+### Đã kiểm tra
+
+- Đọc `09_flash_compare_20261107_120935.txt`: 0 đoạn `MATCH`/`DIFFERENT`. Chạy 10 với module giả: in được docstring, hằng số và menu; không có lời gọi nào tới `invoke`, `write`, `flush`, `read`, `reset`. Chưa chạy trên winIDEA thật.

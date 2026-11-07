@@ -264,6 +264,15 @@ Checked: **Mass erase before download**, Allow mass erase, **Program at download
 
 Most likely explanation of the incident, not proven: `umi.write(index, mode)` runs the device's erase option once per enabled row, so the mass erase before the CAL row removed the `.s3` written just before it; the menu item erases once for all rows. "Verify after program" is off, so winIDEA would not have reported the loss. Hash verification may also explain the 6-8 s `download()` in round 1 (content already matching is skipped), also not proven.
 
+### umi.read is not passive (09 --full, 2026-11-07)
+
+On a running ECU, the first segment took a long time with no output, then:
+
+- `0x000000`: `OSError: UMI_ERRORC_OPERATION CUMIController::read() failed! UMI Monitor errCode=0x1  [CUMIController.cpp, 540]`; `getLastError -> '001 - Operation failed! [fpcErrCode=0x01] [extErrCode=0x0000] [(null)]'`.
+- Every later segment: `OSError: CUMIController::read failed! Error code unknown to isystem.connect facade: 39  [CUMIController.cpp, 551]`; `getLastError -> '001 - Operation failed! [fpcErrCode=0x39] [extErrCode=0x0000] [Error loading monitor]'`.
+
+Nothing was compared, so this run neither confirms nor rules out the chip erase. "Error loading monitor" indicates `read` needs a monitor loaded into the target, so it can disturb running firmware. What state it needs is unknown; the target was presumably running. **The adapter must not call `umi.read` on a running target without this being resolved.** `CUMIController.flush` ("Programs the device from the intermediate cache") and `write(..., wProgCache)` are a further candidate for a single-erase program; unverified, docstring only.
+
 ### Matching SDK location
 
 `C:\Data\_Devtools\Winidea408\Python\Lib\site-packages\isystem_connect-9.21.408.1.dist-info`: winIDEA ships its own Python with `isystem.connect` 9.21.408.1. There is no wheel to install. All spike runs so far used 9.26.11.
