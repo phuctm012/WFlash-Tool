@@ -367,6 +367,10 @@ Both with the real GitLab artifacts and the adapter's path changes; Output of ea
 - Flash 1: `.s3` job 11606126, ELF job 11606119.
 - Flash 2, a different firmware with Verify samples: `.s3` job 11593258, ELF job 11593251. Chunk 01 size differs from flash 1 (`0x0B'1382` against `0x0B'2EC2`), then 37 `Running Reading` lines, one per sample, before the reset.
 
+### Reset before programming and the status after it (debug bundle, 2026-11-07 15:06)
+
+`debug.reset()` followed by `begin_program()` in one session works: 98.8 s, then `stopped=True`, read confirmed, `Done`, ECU ran (user report). **The reset does not prevent the monitor failure**: runs with it still returned after 4.9 s, with `stopped=False`, and the confirming read failed. A power cycle cleared it. The user sees the same failure when flashing by hand, so it is not caused by WFlash; whether winIDEA or the external flash causes it is unknown.
+
 ### Matching SDK location
 
 `C:\Data\_Devtools\Winidea408\Python\Lib\site-packages\isystem_connect-9.21.408.1.dist-info`: winIDEA ships its own Python with `isystem.connect` 9.21.408.1. There is no wheel to install. `C:\Data\_Devtools\Winidea408\Python\python.exe` reports Python `3.13.12 (MSC v.1944 64 bit)` and `ic.getModuleVersion() -> 9.21.408.1`. All spike runs so far used 9.26.11.

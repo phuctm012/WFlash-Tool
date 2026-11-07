@@ -1219,3 +1219,15 @@ User chạy bản mới: lỗi `Error loading monitor` lúc flash giờ được
 ### Đã kiểm tra
 
 - RED rồi GREEN; `pytest -q`, `pytest -k thread -q`, `tools/stress_test.py`. Chưa thử lại trên ECU.
+
+## Phase 2.14: Vòng 7 đạt trên ECU thật
+
+User xác nhận luồng hoàn chỉnh: khi gặp lỗi monitor, WFlash báo lỗi thay vì `Done`; tắt bật nguồn ECU rồi flash lại thành công, ECU chạy đúng. Bundle cho thấy reset trước khi flash không gây hại nhưng cũng không ngăn được lỗi. Lỗi này cũng xảy ra khi flash tay, nên đây là giới hạn của môi trường chứ không do WFlash. Bundle là của bản trước khi rút gọn popup, nên popup ngắn chưa được xem trên Windows. `WFlash.exe` chưa được build lại với adapter thật.
+
+### Thay đổi
+
+- **`docs/winidea_api_notes.md`**: kết quả reset trước khi flash.
+
+### Đã kiểm tra
+
+- Đọc `wflash_debug_20261107_150629.zip`. Chỉ đổi tài liệu.
