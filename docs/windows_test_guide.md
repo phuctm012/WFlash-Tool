@@ -480,3 +480,41 @@ Gửi lại `results\13_device_options_*.txt`.
 6. Tải artifact **firmware khác**, Flash, tắt bật nguồn, kiểm tra ECU đúng là chạy firmware mới. Đây là bước đầu tiên chứng minh firmware mới thật sự được ghi.
 7. Thử lỗi: trong winIDEA tạm bỏ tick dòng `RAD_SUZ05_FFI.s3`, rồi bấm Flash. Mong đợi báo lỗi không tìm thấy entry, không có `ERASING`, path giữ nguyên. Sau đó tick lại dòng đó.
 8. Export debug bundle, gửi lại cùng Output của winIDEA.
+
+## Vòng 8: kiểm chứng cho tính năng developer debug
+
+Lấy bản mới của nhánh `feat/developer-debug`. Trong workspace, các dòng phải nằm theo thứ tự FFI, CAL, BM, FBL, BM ở offset `0x0`, FBL ở offset `0xF1000`. Trong `App_M7` có sẵn ELF của BM và FBL. Làm trong thư mục `spike`.
+
+**Phần A: không ghi flash**
+
+1. Đọc dấu tick:
+   ```bat
+   python 14_tick_options.py
+   ```
+2. Thử đảo dấu tick của dòng BM (thay `<i>` bằng số dòng BM trong kết quả bước 1, script tự khôi phục):
+   ```bat
+   python 14_tick_options.py --toggle-row <i>
+   ```
+3. Thử đảo dấu tick ELF của BM. Thay `<j>` bằng số dòng của `Radar_SUZ05_Gen7_BM.elf`, và `<field>` bằng field đọc ra `true` hoặc `false` ở bước 1 (thường là `Load`):
+   ```bat
+   python 14_tick_options.py --toggle-symbol <j> --field <field>
+   ```
+   Trong lúc script chạy không cần làm gì. Sau đó mở *Debug → Configure Session → App_M7 → Symbol Files* để chắc chắn dấu tick đúng như trước.
+4. Tìm pipeline theo commit. Token chỉ nằm trong biến môi trường, không vào file kết quả:
+   ```bat
+   set GITLAB_TOKEN=<token>
+   python 15_pipeline_sha.py --project alm/projects_group/e-ad_group/e-ad_radar_cust_suz05_group/SUZ05_APP_Application_Software-Impl --sha <commit đầy đủ>
+   set GITLAB_TOKEN=
+   ```
+   `<commit đầy đủ>` lấy từ `git rev-parse HEAD` trong source repo, ví dụ commit có pipeline đã chạy. Nếu báo lỗi SSL, thêm `--ca-bundle <file chứng chỉ>`.
+
+Gửi kết quả phần A trước. Nếu không ghi được dấu tick thì **chưa làm phần B**.
+
+**Phần B: có ghi flash**
+
+⚠️ Hai bước dưới **ghi vào flash**, gồm cả BM và FBL. Cách khôi phục: bỏ tick BM và FBL, chỉ tick FFI và CAL, rồi Debug → Download bấm tay. Nếu gặp `Error loading monitor`, tắt bật nguồn ECU trước. Chọn BM và FBL là bản tốt, và đúng cặp với FFI.
+
+5. Trong winIDEA tick FFI, CAL, BM, FBL. Xóa Output, bấm Debug → Download. Chép Output vào `results\v8_manual_output.txt`. Tắt bật nguồn, kiểm tra ECU. Rồi chạy `python 09_flash_compare.py` (không `--full`). Phần FFI bị BM hoặc FBL ghi đè sẽ báo `DIFFERENT`, đó là dự kiến; các file BM và FBL là `.bin` nên script này bỏ qua hoặc báo lỗi đọc file, cứ gửi kết quả.
+6. Xóa Output, chạy `python 12_begin_program.py`, xem danh sách file rồi gõ `YES`. Chép Output vào `results\v8_api_output.txt`. Tắt bật nguồn, kiểm tra ECU, và kiểm tra ECU đúng là đang chạy BM và FBL đã chọn nếu có cách phân biệt.
+
+Gửi lại `spike\results\`, kèm: Output có đúng 1 `ERASING` không, và ECU có chạy đúng không.

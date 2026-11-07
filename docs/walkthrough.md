@@ -1268,3 +1268,16 @@ Viết plan 11 task theo spec đã duyệt. Task 1 là spike trên máy thật, 
 ### Đã kiểm tra
 
 - Tự rà soát plan theo spec. Chỉ có tài liệu.
+
+## Phase 3.2: Spike 14, 15 và Vòng 8
+
+Trước khi viết phần flash mới, cần biết API có ghi được dấu tick không, field nào là dấu tick của Symbol File, winIDEA xử lý các dòng chồng nhau thế nào, và GitLab có tìm được pipeline theo commit không. Chưa có gì trong số này từng chạy trên máy thật.
+
+### Thay đổi
+
+- **`spike/14_tick_options.py`**, **`spike/15_pipeline_sha.py`** (mới).
+- **`spike/README.md`**, **`docs/windows_test_guide.md`**: mục "Vòng 8", ghi rõ phần ghi flash và cách khôi phục.
+
+### Đã kiểm tra
+
+- Chạy 14 và 15 với module giả: đọc in đúng, đảo rồi khôi phục đúng, token không xuất hiện trong file kết quả. Chưa chạy trên máy thật.
