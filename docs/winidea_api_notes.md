@@ -323,9 +323,18 @@ Status right after: `status: 49`, `isStopped: 1`, `isMustInit: 0`, `isStopReason
 
 **Recommended program call: `begin_program`.** It is the documented replacement for the deprecated `download()`, and the observed result is the same.
 
+### Decisions for Plan 2 (user, 2026-11-07)
+
+1. The `.s3` row is matched by file name (`RAD_SUZ05_FFI.s3`): exactly one enabled row, otherwise no flash. The `App_M7` ELF is matched the same way.
+2. Cancel is locked from the moment programming starts.
+3. Post-flash sampled compare is an optional checkbox, off by default.
+4. A version mismatch of `isystem.connect` is logged as a warning, not blocked.
+
+Requested, not decided: a checkbox for "Mass erase before download". This is an exception to the spec's "no flash-loader configuration" and to Approach A. The option's URL is unknown (spike 13).
+
 ### Matching SDK location
 
-`C:\Data\_Devtools\Winidea408\Python\Lib\site-packages\isystem_connect-9.21.408.1.dist-info`: winIDEA ships its own Python with `isystem.connect` 9.21.408.1. There is no wheel to install. All spike runs so far used 9.26.11.
+`C:\Data\_Devtools\Winidea408\Python\Lib\site-packages\isystem_connect-9.21.408.1.dist-info`: winIDEA ships its own Python with `isystem.connect` 9.21.408.1. There is no wheel to install. `C:\Data\_Devtools\Winidea408\Python\python.exe` reports Python `3.13.12 (MSC v.1944 64 bit)` and `ic.getModuleVersion() -> 9.21.408.1`. All spike runs so far used 9.26.11.
 
 ### Scope decided by the user (2026-11-07)
 

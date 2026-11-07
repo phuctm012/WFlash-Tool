@@ -33,6 +33,7 @@ Mục đích: xác minh API `isystem.connect` trên winIDEA 9.21 + workspace SAF
 | `python 09_flash_compare.py` | so flash với file đang tick. **Tạm thời không chạy:** `umi.read` nạp monitor vào target | Không ghi flash, **có đụng target** |
 | `python 10_program_api_docs.py` | in tài liệu API, đọc cấu trúc menu | Không |
 | `python 12_begin_program.py` | flash qua `CSessionCtrl.begin_program()` (hỏi `YES`), in trạng thái sau đó | **Có: ghi external flash** |
+| `python 13_device_options.py` | liệt kê option của thiết bị Winbond từ file workspace và đọc từng option | Không (chỉ đọc) |
 | `python 11_find_examples.py` | tìm ví dụ và tài liệu `isystem.connect` trên máy, chép vào `results\examples` (không kết nối winIDEA) | Không |
 
 - Nhiều instance winIDEA: thêm `--instance <id>` (id lấy từ output 01).

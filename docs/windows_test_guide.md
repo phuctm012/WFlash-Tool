@@ -458,3 +458,13 @@ Với mỗi script: xóa Output của winIDEA, chạy script, chép Output vào 
 
 1. `python 04_download.py`, Output lưu thành `results\v5_04_output.txt`.
 2. Chỉ khi bước 1 tốt: `python 12_begin_program.py`, gõ `YES`, Output lưu thành `results\v5_12_output.txt`.
+
+## Vòng 6: tìm option "Mass erase before download"
+
+Chỉ đọc, không flash. Chạy bằng Python đi kèm winIDEA (`isystem.connect` 9.21.408.1), trong thư mục `spike`:
+
+```bat
+C:\Data\_Devtools\Winidea408\Python\python.exe 13_device_options.py
+```
+
+Gửi lại `results\13_device_options_*.txt`.

@@ -1005,3 +1005,16 @@ Spike 12: 98,8 s, một pha ERASING, 79 sector, SoC vẫn `ATTACHED`, target d�
 ### Đã kiểm tra
 
 - Đọc `v5_12_output.txt`, `12_begin_program_20261107_125053.txt`, `09_flash_compare_20261107_125753.txt` (37 `MATCH`, 0 `DIFFERENT`, 0 lỗi). Chỉ đổi tài liệu.
+
+## Phase 1.58: Chốt quyết định cho Plan 2; spike 13 tìm option mass erase
+
+User đồng ý: khớp `.s3` và ELF theo tên file, khóa Cancel từ lúc bắt đầu flash, so mẫu sau flash là tùy chọn mặc định tắt, lệch version chỉ cảnh báo. Python đi kèm winIDEA là 3.13.12 với `isystem.connect` 9.21.408.1. User muốn thêm checkbox "erase before download". Việc này đi ngược spec §1 (không cấu hình flash loader) và Approach A (chỉ đổi path), nên cần user chốt sau khi biết option có đọc/ghi được không. Tên option chưa biết; thêm spike 13 đọc file workspace để liệt kê field của thiết bị, rồi đọc từng field.
+
+### Thay đổi
+
+- **`spike/13_device_options.py`** (mới): chỉ đọc, chỉ dùng thư viện chuẩn.
+- **`docs/winidea_api_notes.md`**, **`spike/README.md`**, **`docs/windows_test_guide.md`**: ghi quyết định và Vòng 6.
+
+### Đã kiểm tra
+
+- Chạy 13 với module giả và file `.xjrf` tự tạo: liệt kê đúng field, kể cả field lồng và phần tử danh sách; bỏ qua `DownloadFiles`; `setOption` và `getOptionJSON` không bị gọi. Cấu trúc XML thật mới được suy ra từ output spike 02. Chưa chạy trên winIDEA thật.
