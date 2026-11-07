@@ -5,7 +5,7 @@
 # Mass erase và các tùy chọn khác theo cấu hình workspace.
 name: SUZ05_M7_FFI
 gitlab:
-  project: group/saf85xx-sw     # đổi thành project thật, hoặc sửa trong Load from GitLab
+  project: alm/projects_group/e-ad_group/e-ad_radar_cust_suz05_group/SUZ05_APP_Application_Software-Impl
   job_filter: "*"
 programs:
   - winidea_entry: "RAD_SUZ05_FFI.s3"
