@@ -449,3 +449,12 @@ python 10_program_api_docs.py
 ```
 
 Sau `10`, chạy `python 11_find_examples.py` (không kết nối winIDEA, không đụng ECU), rồi gửi `results\examples\` và file kết quả. Nếu winIDEA cài ở chỗ khác, thêm `--root <thư mục>`.
+
+## Vòng 5: flash qua API giống Debug → Download
+
+Debug → Download bấm tay chỉ có 1 pha ERASING và ECU chạy tốt. Vòng này kiểm tra API có làm giống vậy không. ⚠️ Mỗi bước `04` và `12` **ghi vào flash**. Nếu ECU không chạy sau một bước, khôi phục bằng Debug → Download bấm tay rồi báo lại, không chạy bước tiếp.
+
+Với mỗi script: xóa Output của winIDEA, chạy script, chép Output vào file, chạy `python 09_flash_compare.py` (không `--full`, khoảng 3 phút), rồi tắt bật nguồn và kiểm tra firmware.
+
+1. `python 04_download.py`, Output lưu thành `results\v5_04_output.txt`.
+2. Chỉ khi bước 1 tốt: `python 12_begin_program.py`, gõ `YES`, Output lưu thành `results\v5_12_output.txt`.

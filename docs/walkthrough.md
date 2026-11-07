@@ -968,3 +968,16 @@ Sau khi Program bằng tay, 09 bản lấy mẫu đọc được flash và mọi
 ### Đã kiểm tra
 
 - Đọc `09_flash_compare_20261107_122743.txt`: toàn bộ mẫu `MATCH`, không có lỗi. Chỉ đổi tài liệu.
+
+## Phase 1.55: Debug → Download chỉ xóa một lần; spike 12 thử begin_program
+
+User bấm Debug → Download và gửi log: nạp cả hai file trước (`Device 'Program' feature`), rồi một pha ERASING và ghi 79 sector, ECU chạy bình thường. Đây là luồng tool cần tái tạo. Log không có lần chạy API nào nên chưa biết `download()` hay `begin_program()` có cùng trình tự không. Thêm spike 12 cho `begin_program`, vì tài liệu khuyên dùng nó thay `download()` đã deprecated và nói nó dừng target ở reset vector. Vòng 5 yêu cầu chạy 04 trước, rồi 12, mỗi lần lưu Output và kiểm tra lại.
+
+### Thay đổi
+
+- **`spike/12_begin_program.py`** (mới): hỏi `YES`, đo thời gian, in cấu hình và trạng thái trước/sau.
+- **`docs/winidea_api_notes.md`**, **`spike/README.md`**, **`docs/windows_test_guide.md`**: ghi log và Vòng 5.
+
+### Đã kiểm tra
+
+- Chạy 12 với module giả: `--yes` gọi `begin_program`; không gõ `YES` thì không gọi. Chưa chạy với winIDEA thật.

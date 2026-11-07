@@ -285,6 +285,26 @@ Nothing was compared, so this run neither confirms nor rules out the chip erase.
 
 Every read took about **4.3-4.4 s whether it was 11 or 256 bytes**, so the cost is per call, not per byte (probably the monitor load, not proven). `--full` makes about 1120 calls of 4 KB, which would take about 80 minutes; that fits the earlier "stuck" look. Why the earlier `--full` run ended with `Error loading monitor` while this run succeeded is unknown. The effect of `read` on running firmware is still unmeasured.
 
+### Debug -> Download in the GUI: one erase (user log, 2026-11-07)
+
+Same workspace, same two enabled rows. ECU ran normally afterwards (user report). Condensed Output:
+
+```
+LOADING App_BBE, App_A53, App_M7 (ELFs) ... EMULATION STARTED
+Running  Device 'Program' feature
+LOADING  .../RAD_SUZ05_FFI.s3  (20 chunks)
+LOADING  .../20260623_142557_2018688_CAL_T008_v0_0.sre  Offset=0x7F'0000, Size=0x2018
+Running  Erasing       ERASING Winbond W25Q64JW SPI
+Running  Programming   PROGRAMMING Winbond W25Q64JW SPI (79 sectors)
+OK
+PROGRAMMING 0 bytes
+EMULATION END - Executing cleanup
+```
+
+All enabled rows are loaded first, then there is **one** erase and one program pass. 79 sectors covers both files because the CAL shares block `0x7F0000` with the `.s3`. The session ends afterwards, which fits `isMustInit: 1` seen after the API `download()` in round 1. The user also confirmed `umi.read` in 09 left the ECU unaffected.
+
+Whether `CLoaderController.download()` and `CSessionCtrl.begin_program()` produce this same sequence is not verified; the round 1 runs did not capture Output. Spikes 04 and 12 test that.
+
 ### Matching SDK location
 
 `C:\Data\_Devtools\Winidea408\Python\Lib\site-packages\isystem_connect-9.21.408.1.dist-info`: winIDEA ships its own Python with `isystem.connect` 9.21.408.1. There is no wheel to install. All spike runs so far used 9.26.11.
