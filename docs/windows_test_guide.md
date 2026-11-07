@@ -478,5 +478,5 @@ Gửi lại `results\13_device_options_*.txt`.
 4. Tắt bật nguồn ECU, kiểm tra firmware. Kiểm tra trong winIDEA: dòng `.s3` và ELF `App_M7` trỏ tới file trong cache, dòng CAL và ELF khác giữ nguyên.
 5. Không đóng app, bấm Flash lần nữa với tick **Verify samples** (thêm khoảng 3 phút). Mong đợi xong không lỗi.
 6. Tải artifact **firmware khác**, Flash, tắt bật nguồn, kiểm tra ECU đúng là chạy firmware mới. Đây là bước đầu tiên chứng minh firmware mới thật sự được ghi.
-7. Thử lỗi: chọn sai tên file trong bảng mapping (mong đợi báo lỗi, không flash, path giữ nguyên).
+7. Thử lỗi: trong winIDEA tạm bỏ tick dòng `RAD_SUZ05_FFI.s3`, rồi bấm Flash. Mong đợi báo lỗi không tìm thấy entry, không có `ERASING`, path giữ nguyên. Sau đó tick lại dòng đó.
 8. Export debug bundle, gửi lại cùng Output của winIDEA.
