@@ -429,3 +429,7 @@ Script in danh sách file, tên thiết bị, rồi hỏi xác nhận. Gõ `YES`
 **V3.5.** Nếu chưa làm V2.4/V2.5 ở vòng 2 thì làm luôn: ảnh Output khi download và khi Program tay, và danh sách đầy đủ Download Files của Winbond (path, offset, tick) vào `00_manual.txt`.
 
 Gửi lại `spike\results\` như các vòng trước.
+
+### Bổ sung vòng 3 (sau kết quả ngày 2026-11-07)
+
+Lần chạy `08_umi_program.py` đầu tiên dừng ở `no device found -> stop` và **chưa ghi gì vào flash**: thiết bị Winbond có `Name` rỗng nên không lấy được danh sách tên. Script đã sửa để dùng chỉ số thiết bị 0, và chỉ ghi khi thiết bị đó đang bật và đúng model `W25Q64JW`. Lấy bản mới của nhánh rồi chạy lại V3.4. Nếu chưa chạy V3.2 và V3.3 (ghi path), chạy chúng trước.

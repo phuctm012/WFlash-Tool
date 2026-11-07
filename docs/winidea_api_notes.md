@@ -2,7 +2,7 @@
 
 **This file is the authority for every real `isystem.connect` call in `wflash/core/winidea_adapter.py`.** A call that is not recorded here is a guess and must carry `# UNVERIFIED:` in the code. See `CLAUDE.md`, "Rule zero".
 
-Status: **spike round 2 ran on 2026-10-10** (06 + 03; see "Round 2 findings" below). **Spike round 1 ran on 2026-10-06** (spike 01–05, results in the user's `results.7z`). Connect, reading symbol-file paths, debug download, reset and run are observed. **Writing any path, and reading the external-flash (.s3) file list, are NOT verified yet** — see "Open questions". Round 2 is `spike/06_probe_umi.py` plus a corrected `03_set_paths.py` run.
+Status: **spike round 3 (07, 08) ran on 2026-11-07; see "Round 3 findings". Path writes and `CUMIController.write` are still not verified.** Spike round 2 ran on 2026-10-10 (06 + 03; see "Round 2 findings" below). **Spike round 1 ran on 2026-10-06** (spike 01–05, results in the user's `results.7z`). Connect, reading symbol-file paths, debug download, reset and run are observed. **Writing any path, and reading the external-flash (.s3) file list, are NOT verified yet** — see "Open questions". Round 2 is `spike/06_probe_umi.py` plus a corrected `03_set_paths.py` run.
 
 Everything below is pasted or condensed from the probe output; nothing is paraphrased from documentation.
 
@@ -155,10 +155,59 @@ Count, offset and enabled fields of each row: not known yet (spike 07). Writing:
 - `CLoaderController.download()`: **Deprecated: "Use CSessionCtrl::begin_program instead"**. "Downloads executables to the target. The download files are defined in winIDEA, *Debug / Configure Session / SoCs / Edit / Program Files*. **This method resets the target.**" — so it programs the SoC program files; whether it also triggers the UMI device ("Program at download" is checked) is still open.
 - `CLoaderController.getDownloadList(listType, isAbsolutePath)` — needs two arguments (deprecated too).
 
+## Round 3 findings (2026-11-07)
+
+Workspace `.../WinIdea_R_04_01_01/.../SUZ_7G5_M7.xjrf`, `isystem.connect` still 9.26.11.2.316513. Observed with `ide.getOptionStr` unless noted. Root below: `D = /iOPEN/UMIConfig.Devices.Devices[0]`.
+
+### Download file rows
+
+`ide.getDynamicOptionSize(D + ".DownloadFiles") -> 3`, so rows can be counted directly. Index 3 raises `Array index (3) out of range (3)`.
+
+| Row | `.Enabled` | `.Offset` | `.Type` | `.Path` |
+|---|---|---|---|---|
+| 0 | `'false'` | `'0x1AA000'` | `'Auto'` | `'Radar_SUZ05_Gen7.s3'` |
+| 1 | `'true'` | `'0x0'` | `'Auto'` | `'C:/Users/testla3/Downloads/artifacts (16)/out/FFI/RAD_SUZ05_FFI.s3'` |
+| 2 | not read | not read | not read | `'20260623_142557_2018688_CAL_T008_v0_0.sre'` |
+
+Field names that do not exist on a row: `Address`, `Enable`, `Use`, `Used`, `Checked`, `Active`, `Download`, `Load`, `Format`, `Options.*`.
+
+### Device entry
+
+| Option | Value |
+|---|---|
+| `D.Name` | `''` (empty) |
+| `D.Device` | `'W25Q64JW'` |
+| `D.Enabled` | `'true'` |
+| `D.ProgramAtDownload` | `'true'` |
+| `D.VerifyOnTheFly` | `'false'` |
+| `D.AllowDownloadOnly` | `'false'` |
+
+Not found under these names: `DeviceName`, `Type`, `Interface`, `Parallel`, `MassEraseBeforeDownload`, `AllowMassErase`, `VerifyAfterProgram`, `ReadOnly`, `UseBufferCompression`, `UseHashVerification`.
+
+### Device identity
+
+`CStorageDeviceFactory.getDeviceNames(cmgr, ic.StrVector())` returns `None` and leaves the vector **empty** on this workspace. The cause is probably the empty `Name`, not proven. `CStorageDeviceFactory.DEVICES_OPT_URL` is `'/iOPEN/Data.UMI.Devices.Devices'`, a different root from the working `UMIConfig` one. `getDeviceIndex` returns the index or -1 (docstring); not yet called on this workspace with a real name.
+
+### Program API
+
+`ic.IConnectUMI` holds `wProgDevice`, `wProgCache`, `wProgMask` (values not printed yet). The module has no top-level `wProg*` names.
+
+`CUMIController.write` has three overloads (docstring, none called yet):
+
+1. `write(deviceIndex, programMode)`: "Writes contents of pre-configured files to device."
+2. `write(deviceIndex, programMode, fileFormat, offset, fileName)`: "Writes contents of file to device." `fileFormat` is a `wFile...` flag such as `IConnectUMI::wFileFormatAuto`. **This could program a file without touching the workspace paths.** Whether it honours the device's erase options is unknown.
+3. `write(dwDevice, programMode, address, size, data)`: raw bytes.
+
+`CSessionCtrl` (since 9.21.45, docstring only): `begin_program()` "downloads the executable code to the target SoCs and halts execution at the reset vector"; `begin_reset()` resets and halts without programming; `begin_prepare()`, `end()`, `get_status().SoCs()[i].status_string()` (e.g. `'ATTACHED'`), `program_verify()`. It is the documented replacement for the deprecated `CLoaderController.download()`.
+
+### Spike 08 did not write
+
+The first 08 run stopped at `no device found -> stop` because of the empty device list, **before `umi.write`**, so nothing was programmed. The script now falls back to `--device-index` (default 0) and refuses unless that entry is enabled and its `Device` equals `--expect-device` (default `W25Q64JW`).
+
 ## Open questions
 
 1. **Version mismatch.** `isystem.connect` 9.26.11 against winIDEA 9.21.408. Connect, read, download, reset and run all worked, but `CLAUDE.md` requires the versions to match. Is there a Python SDK package under `C:/Data/_Devtools/Winidea408/` (9.21.408)? If yes, install it and re-run 01 to confirm nothing changes.
-2. ~~External-flash URL~~ found: `/iOPEN/UMIConfig.Devices.Devices[0].DownloadFiles[i].Path`. Still open: field names for offset and enabled, the device name, the `wProgDevice` constant (spike 07); whether `setOption` on that URL works (03); whether `CUMIController.write()` programs the Winbond as the menu does (spike 08).
+2. ~~External-flash URL~~ found: `/iOPEN/UMIConfig.Devices.Devices[0].DownloadFiles[i].Path`. Fields and program constant are now known (Round 3). Still open: whether `setOption` on that URL works (03); whether `CUMIController.write()` programs the Winbond as the menu does (spike 08).
 3. **Writing paths**: re-run 03 with `--url "/IDE/System.Debug.Applications[0].SymbolFiles.File[1].Path"`, and with the external-flash URL once 06 finds it. Confirm the read-back, the restore, and whether the change shows in the dialogs **without saving the workspace**.
 4. **Does `CLoaderController.download()` program the Winbond device?** Compare with *Hardware → Winbond W25Q64JW SPI → Program* (time it; check the winIDEA Output/Progress view during the spike download).
 5. **Selecting one of several winIDEA instances** when `getInstanceId()` is empty.

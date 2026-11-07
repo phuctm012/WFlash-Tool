@@ -3,13 +3,17 @@
 Giống bấm tay Hardware -> Winbond ... -> Program: ghi các file đang được tick trong
 Download Files của thiết bị. Script hỏi xác nhận trước khi ghi, đo thời gian, rồi reset target.
 
-Tên thiết bị lấy từ CStorageDeviceFactory.getDeviceNames (hoặc --device-name).
+Thiết bị: --device-name, hoặc tên từ CStorageDeviceFactory.getDeviceNames. Nếu không có tên
+(thiết bị Winbond có Name rỗng), dùng --device-index (mặc định 0). Script chỉ ghi khi thiết bị
+ở chỉ số đó đang bật và có model đúng --expect-device.
 Program mode lấy từ module (tên chứa 'wProgDevice'); không tìm thấy thì dừng, không đoán.
 """
 import threading
 import time
 
 from _common import Report, base_args, connect, try_call
+
+DEVICES = "/iOPEN/UMIConfig.Devices.Devices"
 
 
 def find_prog_device(ic):
@@ -25,39 +29,57 @@ def find_prog_device(ic):
 def main() -> None:
     parser = base_args(__doc__)
     parser.add_argument("--device-name", help="Tên thiết bị UMI (mặc định: thiết bị đầu tiên tìm được)")
+    parser.add_argument("--device-index", type=int, default=0, help="Chỉ số thiết bị khi không có tên (mặc định 0)")
+    parser.add_argument("--expect-device", default="W25Q64JW", help="Model thiết bị phải khớp (mặc định W25Q64JW)")
     parser.add_argument("--yes", action="store_true", help="Không hỏi xác nhận")
     args = parser.parse_args()
     report = Report("08_umi_program")
     try:
         ic, cmgr = connect(report, args.instance)
         ide = ic.CIDEController(cmgr)
-
-        report.section("files that will be programmed")
-        for i in range(32):
-            url = f"/iOPEN/UMIConfig.Devices.Devices[0].DownloadFiles[{i}].Path"
-            if try_call(report, url, lambda u=url: ide.getOptionStr(u)) is None:
-                break
+        umi = ic.CUMIController(cmgr)
 
         report.section("device")
-        name = args.device_name
-        if name is None:
-            names = ic.StrVector()
-            try_call(report, "getDeviceNames", lambda: ic.CStorageDeviceFactory.getDeviceNames(cmgr, names))
-            report.line(f"device names: {list(names)}")
-            if not len(names):
-                report.line("no device found -> stop")
+        names = ic.StrVector()
+        try_call(report, "getDeviceNames", lambda: ic.CStorageDeviceFactory.getDeviceNames(cmgr, names))
+        report.line(f"device names: {list(names)}")
+        try_call(report, "getDynamicOptionSize Devices", lambda: ide.getDynamicOptionSize(DEVICES))
+        for probe in ("W25Q64JW", ""):
+            try_call(report, f"umi.getDeviceIndex({probe!r})", lambda n=probe: umi.getDeviceIndex(n))
+
+        name = args.device_name or (names[0] if len(names) else None)
+        if name is not None:
+            index = try_call(report, f"umi.getDeviceIndex({name!r})", lambda: umi.getDeviceIndex(name))
+            if index is None or index < 0:
+                report.line("device name not found -> stop")
                 return
-            name = names[0]
-        umi = ic.CUMIController(cmgr)
-        index = try_call(report, f"umi.getDeviceIndex({name!r})", lambda: umi.getDeviceIndex(name))
-        mode_name, mode = find_prog_device(ic)
-        report.line(f"program mode: {mode_name} = {mode!r}")
-        if index is None or mode is None:
-            report.line("device index or program mode not found -> stop (gửi kết quả 07 để mình xem)")
+        else:
+            # Spike 07: the Winbond entry has an empty Name, so getDeviceNames returns nothing.
+            index = args.device_index
+            report.line(f"no device name -> using device index {index}")
+
+        dev = f"{DEVICES}[{index}]"
+        model = try_call(report, f"{dev}.Device", lambda: ide.getOptionStr(f"{dev}.Device"))
+        enabled = try_call(report, f"{dev}.Enabled", lambda: ide.getOptionStr(f"{dev}.Enabled"))
+        if model != args.expect_device or enabled != "true":
+            report.line(f"expected an enabled {args.expect_device!r} at index {index} -> stop")
             return
 
+        mode_name, mode = find_prog_device(ic)
+        report.line(f"program mode: {mode_name} = {mode!r}")
+        if mode is None:
+            report.line("program mode not found -> stop")
+            return
+
+        report.section("files configured on this device")
+        for i in range(ide.getDynamicOptionSize(f"{dev}.DownloadFiles")):
+            row = f"{dev}.DownloadFiles[{i}]"
+            try_call(report, f"[{i}] Enabled", lambda r=row: ide.getOptionStr(f"{r}.Enabled"))
+            try_call(report, f"[{i}] Offset", lambda r=row: ide.getOptionStr(f"{r}.Offset"))
+            try_call(report, f"[{i}] Path", lambda r=row: ide.getOptionStr(f"{r}.Path"))
+
         if not args.yes:
-            answer = input(f"Program device {name!r} now? This WRITES the Winbond flash. Type YES: ")
+            answer = input(f"Program device {model} (index {index}) now? This WRITES the Winbond flash. Type YES: ")
             if answer.strip() != "YES":
                 report.line("cancelled by user")
                 return

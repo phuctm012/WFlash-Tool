@@ -846,3 +846,18 @@ Bước 03 vòng 2 dùng `File[1]` nhưng workspace mới chỉ có một symbol
 ### Đã kiểm tra
 
 - Đọc toàn bộ `06_probe_umi_20261010_140822.txt` và `03_set_paths_20261010_141112.txt`. `py_compile` cho 07 và 08 thành công. Hai script chưa chạy được trên macOS (cần winIDEA).
+
+## Phase 1.46: Kết quả spike 07 và 08, sửa cách 08 chọn thiết bị
+
+Spike 07 cho biết danh sách file của Winbond có 3 dòng, đếm được bằng `getDynamicOptionSize`, và mỗi dòng có các field `Path`, `Offset`, `Enabled`, `Type`. Thiết bị có `Device='W25Q64JW'`, `Enabled='true'`, `ProgramAtDownload='true'` nhưng `Name` rỗng. Vì vậy `getDeviceNames` trả về danh sách trống và spike 08 dừng trước `umi.write`, chưa ghi gì vào flash. Đây là lỗi của script: nó giả định thiết bị luôn có tên, trong khi `CUMIController.write` nhận chỉ số thiết bị. Sửa 08 để dùng `--device-index` (mặc định 0) khi không có tên, và từ chối ghi nếu thiết bị ở chỉ số đó không bật hoặc không đúng model `--expect-device`. Docstring còn cho thấy `write` có overload nhận trực tiếp đường dẫn file, có thể giúp program mà không phải đổi path trong workspace; hướng này chưa được thử.
+
+### Thay đổi
+
+- **`spike/08_umi_program.py`**: chọn thiết bị theo chỉ số khi không có tên, kiểm tra model và trạng thái bật, liệt kê `Enabled`/`Offset`/`Path` từng dòng trước khi hỏi `YES`.
+- **`docs/winidea_api_notes.md`**: mục "Round 3 findings".
+- **`docs/windows_test_guide.md`**: mục "Bổ sung vòng 3".
+
+### Đã kiểm tra
+
+- Đọc `07_umi_details_20261107_112142.txt` và `08_umi_program_20261107_112400.txt`.
+- Chạy 08 với một module `isystem.connect` giả: đúng model thì gọi `write(0, wProgDevice)`; sai model thì dừng; không gõ `YES` thì không ghi. Chưa chạy với winIDEA thật.
