@@ -89,8 +89,7 @@ class MainWindow(MappingTableMixin, FlashMixin, LogPanelMixin, QMainWindow):
         text = redact(str(exc))
         hint = getattr(exc, "hint", "")
         if hint:
-            text += f"\n\nHint: {redact(hint)}"
-        text += "\n\nUse 'Export debug bundle…' in the Information tab to collect logs for support."
+            text += f"\n\n{redact(hint)}"  # the detail is in the log and the debug bundle
         title = "WFlash — rollback failed" if getattr(exc, "rollback_failed", False) else "WFlash error"
         QMessageBox.critical(self, title, text)
 

@@ -358,12 +358,12 @@ def test_verify_flash_applies_the_row_offset(connected, world, tmp_path):
     assert "read 0 0x1100 16" in world.calls
 
 
-def test_verify_flash_read_failure_quotes_the_device_error(connected, world, tmp_path):
+def test_verify_flash_read_failure_logs_the_device_error(connected, world, tmp_path, caplog):
     _prepare_flash(world, tmp_path)
     world.read_error = OSError("CUMIController::read failed!")
-    with pytest.raises(WinIDEAError) as err:
+    with caplog.at_level(logging.ERROR), pytest.raises(WinIDEAError):
         connected.verify_flash(lambda p, m: None)
-    assert "Operation failed" in str(err.value)
+    assert any("Operation failed" in r.getMessage() for r in caplog.records)
 
 
 def test_verify_flash_with_a_missing_file_fails(connected, world, tmp_path):
@@ -404,17 +404,18 @@ def test_programming_monitor_failure_advises_a_power_cycle(connected, world):
     world.begin_program_error = OSError("Device 'Program' feature: 'Error loading monitor'")
     with pytest.raises(FlashError) as err:
         connected.download(lambda p, m: None, CancelToken(), 600)
-    assert "power off and on" in err.value.hint
-    assert "does not clear" in err.value.hint
+    assert err.value.hint.startswith("Turn the ECU power off and on, then flash again.")
+    assert "Error loading monitor" not in str(err.value)
 
 
-def test_verify_monitor_failure_says_the_flash_finished_and_advises_a_power_cycle(connected, world, tmp_path):
+def test_verify_monitor_failure_says_the_flash_finished_and_advises_a_power_cycle(connected, world, tmp_path, caplog):
     _prepare_flash(world, tmp_path)
     world.read_error = OSError("CUMIController::read failed! Error code unknown to isystem.connect facade: 39")
     world.umi_last_error = MONITOR_ERROR
-    with pytest.raises(WinIDEAError) as err:
+    with caplog.at_level(logging.ERROR), pytest.raises(WinIDEAError) as err:
         connected.verify_flash(lambda p, m: None)
-    assert "Error loading monitor" in str(err.value)
+    assert "Error loading monitor" not in str(err.value)
+    assert any("Error loading monitor" in r.getMessage() for r in caplog.records)
     assert "power off and on" in err.value.hint
     assert "programming finished" in err.value.hint.lower()
 
@@ -462,12 +463,13 @@ def _silent_monitor_failure(world):
     world.umi_last_error = MONITOR_ERROR
 
 
-def test_download_reports_a_program_that_failed_silently(connected, world):
+def test_download_reports_a_program_that_failed_silently(connected, world, caplog):
     _silent_monitor_failure(world)
-    with pytest.raises(FlashError) as err:
+    with caplog.at_level(logging.ERROR), pytest.raises(FlashError) as err:
         connected.download(lambda p, m: None, CancelToken(), 600)
-    assert "Error loading monitor" in str(err.value)
-    assert "power off and on" in err.value.hint
+    assert str(err.value) == "Flash failed: winIDEA could not start programming."
+    assert err.value.hint == "Turn the ECU power off and on, then flash again."
+    assert any("Error loading monitor" in r.getMessage() for r in caplog.records)
 
 
 def test_workflow_restores_the_paths_and_does_not_finish_after_a_silent_failure(adapter, world, tmp_path):
@@ -484,3 +486,11 @@ def test_download_logs_the_target_status_after_programming(connected, world, cap
     with caplog.at_level(logging.INFO):
         connected.download(lambda p, m: None, CancelToken(), 600)
     assert any("stopped=True" in r.getMessage() for r in caplog.records)
+
+
+def test_binding_errors_stay_out_of_the_message_and_go_to_the_log(connected, world, caplog):
+    world.options.pop("/iOPEN/UMIConfig.Devices.Devices[0].Enabled")
+    with caplog.at_level(logging.ERROR), pytest.raises(WinIDEAError) as err:
+        connected.read_programs()
+    assert "E_INVALIDARG" not in str(err.value)
+    assert any("E_INVALIDARG" in r.getMessage() for r in caplog.records)

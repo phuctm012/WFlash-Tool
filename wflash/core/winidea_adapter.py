@@ -94,7 +94,7 @@ HALT_POLL_S = 0.2
 MONITOR_ERROR_TEXT = "error loading monitor"
 PROBE_BYTES = 16
 # Observed on the user's ECU: only a power cycle clears it, a reset from winIDEA does not.
-POWER_CYCLE_HINT = "Turn the ECU power off and on, then flash again; a reset from winIDEA does not clear this."
+POWER_CYCLE_HINT = "Turn the ECU power off and on, then flash again."
 BITNESS_HINT = (
     "Install isystem.connect from the winIDEA installation, and use Python with the same bitness "
     "as winIDEA. Meanwhile start WFlash with --adapter fake."
@@ -131,7 +131,8 @@ class RealWinIDEAAdapter:
         try:
             import isystem.connect as ic
         except Exception as exc:  # a wrong-bitness DLL raises ImportError or OSError
-            raise WinIDEAError(f"Cannot load isystem.connect: {exc}", hint=BITNESS_HINT) from exc
+            log.error("Cannot load isystem.connect: %s", exc)
+            raise WinIDEAError("Cannot load isystem.connect.", hint=BITNESS_HINT) from exc
         return ic
 
     def list_instances(self) -> list[InstanceInfo]:
@@ -165,7 +166,8 @@ class RealWinIDEAAdapter:
             ide = ic.CIDEController(cmgr)
             actual = ide.getPath(ic.CIDEController.WORKSPACE_FILE_NAME) if attached else ""
         except Exception as exc:
-            raise WinIDEAError(f"Cannot connect to winIDEA: {exc}") from exc
+            log.error("Cannot connect to winIDEA: %s", exc)
+            raise WinIDEAError("Cannot connect to winIDEA.") from exc
         if not attached:
             raise WinIDEAError("isystem.connect did not attach to winIDEA")
         if not _same_workspace(actual, expected):
@@ -187,10 +189,12 @@ class RealWinIDEAAdapter:
         return self._ic, self._cmgr, self._ide
 
     def _fail(self, action: str, exc: Exception) -> WinIDEAError:
+        # The binding's text is long and technical: it goes to the log, the popup stays short.
         text = str(exc)
+        log.error("winIDEA failed while %s: %s", action, text)
         if "ICONNECT_E_ROUTING" in text:
-            return WinIDEAError(f"Connection to winIDEA lost while {action}: {text}")
-        return WinIDEAError(f"winIDEA failed while {action}: {text}")
+            return WinIDEAError(f"Connection to winIDEA lost while {action}.")
+        return WinIDEAError(f"winIDEA failed while {action}.")
 
     def get_info(self) -> dict[str, str]:
         ic, _cmgr, ide = self._session()
@@ -359,11 +363,12 @@ class RealWinIDEAAdapter:
         try:
             ic.CSessionCtrl(cmgr).begin_program()
         except Exception as exc:
-            advice = POWER_CYCLE_HINT + " " if MONITOR_ERROR_TEXT in str(exc).lower() else ""
+            log.error("begin_program failed: %s", exc)
+            if MONITOR_ERROR_TEXT in str(exc).lower():
+                raise FlashError("Flash failed: winIDEA could not start programming.", hint=POWER_CYCLE_HINT) from exc
             raise FlashError(
-                f"Programming failed: {exc}",
-                hint=advice
-                + "The external flash may be erased or partly written. Flash again, or use Debug > Download in winIDEA.",
+                "Flash failed.",
+                hint="The flash may be erased or incomplete. Flash again, or use Debug > Download in winIDEA.",
             ) from exc
         finally:
             done.set()
@@ -383,10 +388,11 @@ class RealWinIDEAAdapter:
             umi.read(0, 0, PROBE_BYTES, ic.ByteVector(PROBE_BYTES))
         except Exception as exc:
             detail = f"{exc}; {umi.getLastError()}"
-            advice = POWER_CYCLE_HINT if MONITOR_ERROR_TEXT in detail.lower() else "Check the Output view in winIDEA, then flash again."
+            log.error("Programming could not be confirmed: %s", detail)
+            if MONITOR_ERROR_TEXT in detail.lower():
+                raise FlashError("Flash failed: winIDEA could not start programming.", hint=POWER_CYCLE_HINT) from exc
             raise FlashError(
-                f"Programming could not be confirmed: {detail}",
-                hint=f"{advice} The firmware on the ECU may be the previous one or incomplete; see the Output view in winIDEA.",
+                "The flash could not be confirmed.", hint="Check the Output view in winIDEA, then flash again."
             ) from exc
 
     def _reset_before_programming(self, ic, cmgr) -> None:
@@ -449,7 +455,8 @@ class RealWinIDEAAdapter:
                 segments = parse_srec(Path(workspace_dir) / stored)
                 samples += [(address + offset, data, stored) for address, data in sample_ranges(segments)]
         except OSError as exc:
-            raise FlashError(f"Cannot read a flashed file for the verify: {exc}") from exc
+            log.error("Cannot read a flashed file for the verify: %s", exc)
+            raise FlashError("Cannot read a flashed file for the check.") from exc
         except WinIDEAError:
             raise
         except Exception as exc:
@@ -461,10 +468,11 @@ class RealWinIDEAAdapter:
                 umi.read(0, address, len(expected), data)
             except Exception as exc:
                 detail = f"{exc}; {umi.getLastError()}"
-                hint = "Programming finished, but the check could not read the flash."
+                log.error("Reading the flash failed at 0x%06X: %s", address, detail)
+                hint = "Programming finished, but it could not be checked."
                 if MONITOR_ERROR_TEXT in detail.lower():
                     hint += f" {POWER_CYCLE_HINT}"
-                raise WinIDEAError(f"Reading the flash failed at 0x{address:06X}: {detail}", hint=hint) from exc
+                raise WinIDEAError("The flash check could not read the flash.", hint=hint) from exc
             actual = bytes(b if isinstance(b, int) else ord(b) for b in data)
             if actual != expected:
                 offset = next(k for k, (a, b) in enumerate(zip(actual, expected)) if a != b)

@@ -138,7 +138,7 @@ def test_gui_failure_shows_hint_and_bundle_has_rollback_and_source(env, qtbot):
     qtbot.waitUntil(lambda: bool(env.shown), timeout=5000)
     title, text = env.shown[0]
     assert title == "WFlash error"
-    assert "Fake failure" in text and "Hint:" in text and "Export debug bundle" in text
+    assert "Fake failure" in text and "Export debug bundle" not in text
     qtbot.waitUntil(w.ui.pushButton_flash.isEnabled, timeout=3000)
     assert env.adapter.programs["App"] == OLD_APP
     bundle = w.export_bundle(env.tmp / "bundle")
@@ -368,3 +368,8 @@ def test_gui_source_buttons_are_disabled_while_flashing(env, qtbot):
     qtbot.waitUntil(lambda: w.current_step() == Step.DONE.value, timeout=5000)
     qtbot.waitUntil(lambda: not w.flash_active(), timeout=3000)
     assert all(b.isEnabled() for b in w.source_load_buttons())
+
+
+def test_gui_error_popup_shows_only_the_message_and_the_hint(env):
+    env.window.show_error(WinIDEAError("Short message.", hint="Do this."))
+    assert env.shown[-1][1] == "Short message.\n\nDo this."

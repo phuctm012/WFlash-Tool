@@ -1205,3 +1205,17 @@ User báo WFlash hiện `Done` khi winIDEA thực ra lỗi `Error loading monito
 ### Đã kiểm tra
 
 - RED rồi GREEN; `pytest -q`, `pytest -k thread -q`, `tools/stress_test.py`. Đọc `log.txt` trong bundle. Chưa chạy lại trên ECU, nhất là chưa tái hiện được lỗi monitor với bản mới.
+
+## Phase 2.13: Popup lỗi ngắn gọn
+
+User chạy bản mới: lỗi `Error loading monitor` lúc flash giờ được báo đúng, nhưng popup hiện cả mã lỗi kỹ thuật. Popup giờ chỉ có một câu ngắn và gợi ý, đúng với spec §8. Chi tiết của `isystem.connect` chỉ ghi vào log và debug bundle. Bỏ dòng nhắc Export debug bundle trong popup, vì nút đó luôn có ở tab Information.
+
+### Thay đổi
+
+- **`wflash/core/winidea_adapter.py`**: thông báo ngắn, `log.error` giữ chi tiết; nguyên nhân gốc vẫn ở `__cause__`.
+- **`wflash/gui/main_window.py`**: `show_error` chỉ hiện thông báo và gợi ý.
+- **`tests/test_real_adapter.py`**, **`tests/test_gui_main_window.py`**: cập nhật và thêm test.
+
+### Đã kiểm tra
+
+- RED rồi GREEN; `pytest -q`, `pytest -k thread -q`, `tools/stress_test.py`. Chưa thử lại trên ECU.
