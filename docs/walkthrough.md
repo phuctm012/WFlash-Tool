@@ -918,3 +918,15 @@ User khôi phục được ECU bằng *Hardware → Winbond → Program*, không
 ### Đã kiểm tra
 
 - Chạy 09 với module giả, đọc chậm giả lập: in tiến độ, vẫn báo đúng `MATCH`/`DIFFERENT`. Chưa chạy lại trên winIDEA thật.
+
+## Phase 1.51: Ảnh cấu hình Winbond giải thích sự cố
+
+Ảnh hộp thoại Device của workspace `R_04_01_01` cho thấy "Mass erase before download" đang bật và "Verify after program" đang tắt. Giả thuyết hợp lý nhất, chưa chứng minh: `umi.write` áp dụng mass erase cho từng dòng đang tick, nên lần xóa trước file CAL đã xóa `.s3` vừa ghi, và winIDEA không báo gì vì không verify.
+
+### Thay đổi
+
+- **`docs/winidea_api_notes.md`**: ghi cấu hình thiết bị và giả thuyết.
+
+### Đã kiểm tra
+
+- Đối chiếu ảnh với log hai pha ERASING của lần chạy 08. Chỉ đổi tài liệu, không chạy lại test.

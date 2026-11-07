@@ -258,6 +258,12 @@ Which API call does what the menu does is unknown. Candidates, none verified: `C
 
 `umi.read` with `--full` ran for an unknown time on the 1.4 MB first segment without output and looked stuck. Read speed is not measured yet.
 
+### Device dialog of the R_04_01_01 workspace (user screenshot, 2026-11-07)
+
+Checked: **Mass erase before download**, Allow mass erase, **Program at download**, Use buffer compression, **Use hash verification**. Not checked: Allow download only, Read-only, **Verify after program**, Verify on the fly. Safe mode Auto, Core Auto. Rows: `Radar_SUZ05_Gen7.s3` unticked (offset `1AA000`), `../../../debug/LED_R5/BENCH_...` ticked, `20260623_142557_2018688_...` ticked.
+
+Most likely explanation of the incident, not proven: `umi.write(index, mode)` runs the device's erase option once per enabled row, so the mass erase before the CAL row removed the `.s3` written just before it; the menu item erases once for all rows. "Verify after program" is off, so winIDEA would not have reported the loss. Hash verification may also explain the 6-8 s `download()` in round 1 (content already matching is skipped), also not proven.
+
 ### Matching SDK location
 
 `C:\Data\_Devtools\Winidea408\Python\Lib\site-packages\isystem_connect-9.21.408.1.dist-info`: winIDEA ships its own Python with `isystem.connect` 9.21.408.1. There is no wheel to install. All spike runs so far used 9.26.11.
