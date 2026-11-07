@@ -113,6 +113,9 @@ class GitlabDialog(QDialog):
         self._keys: dict[str, int] = {}  # running worker key -> generation at start
         self._stopped: set[str] = set()  # keys cancelled by Stop/close: show "Cancelled"
         self._profile_key: str | None = None
+        self._source_label: str | None = None  # which of the profile's sources is being loaded
+        self._job_filter: str | None = None
+        self._base_title = self.windowTitle()
         self._token_saved_for: tuple[str, str] = ("", "")  # (url, token) known to be in the keyring
         self._job_rows: list[JobRow] = []
         self._jobs_project: tuple[str, int] | None = None  # project the job table was listed from
@@ -144,8 +147,12 @@ class GitlabDialog(QDialog):
         self._update_controls()
 
     # -- opening and closing ----------------------------------------------------------
-    def prepare(self) -> None:
-        """Load the current settings and profile into the fields; called before each open()."""
+    def prepare(self, source_label: str | None = None, job_filter: str | None = None) -> None:
+        """Load the current settings and profile into the fields; called before each open().
+
+        With several sources, `source_label` says which one this download fills. Each has its
+        own jobs, so changing source starts the job list and job name afresh.
+        """
         settings = self._host.settings
         self.ui.lineEdit_gitlabUrl.setText(settings.gitlab_url)
         token = (get_token(settings.gitlab_url) or "") if settings.gitlab_url else ""
@@ -167,6 +174,13 @@ class GitlabDialog(QDialog):
             self.ui.comboBox_jobName.clear()
             self.ui.comboBox_jobName.setEditText(settings.ci_job_name)
             self._fill_jobs([], None)
+        if source_label != self._source_label:
+            self._source_label = source_label
+            self.ui.comboBox_jobName.clear()
+            self.ui.comboBox_jobName.setEditText("" if source_label else settings.ci_job_name)
+            self._fill_jobs([], None)
+        self._job_filter = job_filter
+        self.setWindowTitle(f"{self._base_title} — {source_label}" if source_label else self._base_title)
         self._update_ci_project_label()
         self._reset_progress()
         self._set_status("Ready")
@@ -193,6 +207,9 @@ class GitlabDialog(QDialog):
     def _profile_key_now(self) -> str:
         profile = self._host.profile
         return self._host.settings.last_profile or (profile.name if profile else "")
+
+    def current_job_filter(self) -> str:
+        return self._job_filter or self._host.profile.gitlab.job_filter
 
     def ci_project(self) -> str:
         profile = self._host.profile
@@ -283,7 +300,8 @@ class GitlabDialog(QDialog):
             settings.gitlab_url = url
         settings.ca_bundle = self.ui.lineEdit_caBundle.text().strip()
         settings.verify_tls = self.ui.checkBox_verifyTls.isChecked()
-        settings.ci_job_name = self._job_name()
+        if self._source_label is None:  # a source's job name must not leak into the other source
+            settings.ci_job_name = self._job_name()
         settings.package_project = self.ui.lineEdit_pkgProject.text().strip()
         settings.package_name = self.ui.lineEdit_packageName.text().strip()
         self._store_ci_project()
@@ -451,7 +469,7 @@ class GitlabDialog(QDialog):
         if not ref:
             self._fail_input("Choose a branch or tag first (Load branches/tags).")
             return
-        project, job_filter = self.ci_project(), self._host.profile.gitlab.job_filter
+        project, job_filter = self.ci_project(), self.current_job_filter()
         factory, settings = self._host._client_factory, self._snapshot()
 
         def job(ctx: WorkerContext):
@@ -541,7 +559,7 @@ class GitlabDialog(QDialog):
         if not ref:
             self._fail_input("Choose a branch or tag first (Load branches/tags).")
             return
-        project, job_filter, job_name = self.ci_project(), self._host.profile.gitlab.job_filter, self._job_name()
+        project, job_filter, job_name = self.ci_project(), self.current_job_filter(), self._job_name()
         factory, settings = self._host._client_factory, self._snapshot()
         cache_root, max_jobs = settings.resolved_cache_dir(), settings.max_cached_jobs
 

@@ -23,7 +23,8 @@ class DebugContext:
     adapter_info: dict[str, str] = field(default_factory=dict)
     snapshots: dict[str, dict] = field(default_factory=dict)
     errors: list[str] = field(default_factory=list)
-    source: dict[str, str] = field(default_factory=dict)  # FirmwareSource.to_dict() of the loaded firmware
+    # FirmwareSource.to_dict() of the loaded firmware, or {source id: that} with several sources.
+    source: dict = field(default_factory=dict)
 
     def snapshot(self, label: str, programs: list[FileEntry], applications: list[FileEntry]) -> None:
         self.snapshots[label] = {

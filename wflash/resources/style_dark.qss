@@ -227,7 +227,7 @@ QLabel#label_flashStats {
 QLabel#label_step {
     font-weight: 600;
 }
-QLabel#label_rollbackWarning {
+QLabel#label_rollbackWarning, QLabel#label_commitWarning {
     background-color: #3a2324;
     border: 1px solid #7a3a37;
     border-radius: 6px;

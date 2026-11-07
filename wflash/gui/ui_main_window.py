@@ -85,6 +85,13 @@ class Ui_MainWindow(object):
 
         self.verticalLayout_main.addWidget(self.label_rollbackWarning)
 
+        self.label_commitWarning = QLabel(self.centralWidget_main)
+        self.label_commitWarning.setObjectName(u"label_commitWarning")
+        self.label_commitWarning.setVisible(False)
+        self.label_commitWarning.setWordWrap(True)
+
+        self.verticalLayout_main.addWidget(self.label_commitWarning)
+
         self.horizontalLayout_workArea = QHBoxLayout()
         self.horizontalLayout_workArea.setObjectName(u"horizontalLayout_workArea")
         self.frame_settingPanel = QFrame(self.centralWidget_main)
@@ -161,6 +168,12 @@ class Ui_MainWindow(object):
 
         self.verticalLayout_sourceCard.addWidget(self.label_sourceCache)
 
+        self.verticalLayout_sourceSlots = QVBoxLayout()
+        self.verticalLayout_sourceSlots.setSpacing(6)
+        self.verticalLayout_sourceSlots.setObjectName(u"verticalLayout_sourceSlots")
+
+        self.verticalLayout_sourceCard.addLayout(self.verticalLayout_sourceSlots)
+
 
         self.gridLayout_setting.addWidget(self.frame_sourceCard, 2, 0, 1, 2)
 
@@ -204,13 +217,13 @@ class Ui_MainWindow(object):
 
         self.horizontalLayout_afterFlash.addWidget(self.checkBox_run)
 
+
+        self.gridLayout_setting.addLayout(self.horizontalLayout_afterFlash, 4, 1, 1, 1)
+
         self.checkBox_verifyFlash = QCheckBox(self.frame_settingPanel)
         self.checkBox_verifyFlash.setObjectName(u"checkBox_verifyFlash")
 
-        self.horizontalLayout_afterFlash.addWidget(self.checkBox_verifyFlash)
-
-
-        self.gridLayout_setting.addLayout(self.horizontalLayout_afterFlash, 4, 1, 1, 1)
+        self.gridLayout_setting.addWidget(self.checkBox_verifyFlash, 5, 1, 1, 1)
 
 
         self.verticalLayout_settingPanel.addLayout(self.gridLayout_setting)

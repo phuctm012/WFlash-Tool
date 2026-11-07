@@ -2,16 +2,23 @@
 # File CAL (.sre), App_BBE và App_A53 giữ nguyên như trong workspace.
 # winidea_entry là tên file của dòng đang tick trong Hardware > Winbond > Configure > Download Files.
 # winidea_app là "<Application>/<tên file symbol>". File trong artifact phải trùng tên với file này.
+# .s3 và ELF nằm ở hai artifact khác nhau, nên có hai nguồn, mỗi nguồn một nút Load.
+# Mọi job build* đều có ELF, mọi job create_ffi* đều có .s3; chỉ job thành công mới hiện ra.
 # Mass erase và các tùy chọn khác theo cấu hình workspace.
 name: SUZ05_M7_FFI
 gitlab:
   project: alm/projects_group/e-ad_group/e-ad_radar_cust_suz05_group/SUZ05_APP_Application_Software-Impl
   job_filter: "*"
+sources:
+  ffi: {label: "FFI (.s3)", job_filter: "create_ffi*"}
+  m7: {label: "M7 (.elf)", job_filter: "build*"}
 programs:
   - winidea_entry: "RAD_SUZ05_FFI.s3"
+    source: ffi
     pattern: "**/RAD_SUZ05_FFI.s3"
 applications:
   - winidea_app: "App_M7/Radar_SUZ05_Gen7.elf"
+    source: m7
     pattern: "**/Radar_SUZ05_Gen7.elf"
 post_flash:
   reset: true

@@ -1,5 +1,6 @@
 import json
 import zipfile
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -22,6 +23,7 @@ from tests.gui_stubs import (
 from wflash import APP_AUTHOR, __version__
 from wflash.core.errors import GitLabError, WinIDEAError
 from wflash.core.fake_adapter import FakeWinIDEAAdapter
+from wflash.core.firmware_source import FirmwareSource
 from wflash.core.flash_workflow import Step
 from wflash.core.settings import AppSettings
 from wflash.gui import main_window as main_window_module
@@ -258,3 +260,125 @@ def test_gui_profile_path_recorded_even_when_profile_is_broken(qtbot, tmp_path, 
     qtbot.addWidget(w)
     assert w.profile is None
     assert w.ctx.profile_path == bad
+
+
+MULTI_SOURCE_PROFILE = """
+name: TwoSources
+gitlab: {project: group/app}
+sources:
+  ffi: {label: "FFI (.s3)", job_filter: "build_ffi*"}
+  m7: {label: "M7 (.elf)"}
+programs:
+  - {winidea_entry: "App", source: ffi, pattern: "**/App.s3"}
+applications:
+  - {winidea_app: "CM7_0", source: m7, pattern: "**/x_cm7_0.elf"}
+"""
+
+
+def source_of(name, commit=""):
+    return FirmwareSource("ci", "group/app", f"CI artifact · {name}", "detail", "Cached · 1 file", commit=commit)
+
+
+def select_multi_source(env):
+    w = env.window
+    (Path(w.settings.profiles_dir) / "two.yaml").write_text(MULTI_SOURCE_PROFILE, encoding="utf-8")
+    w.reload_profiles()
+    w.ui.comboBox_profile.setCurrentIndex(w.ui.comboBox_profile.findText("two"))
+    assert w.profile.name == "TwoSources"
+    return w
+
+
+def load_source(env, w, source_id, tree, commit="abc12345", name=None):
+    """Click that source's Load button and deliver what the dialog would deliver."""
+    w.source_load_button(source_id).click()
+    dialog = w._gitlab_dialog
+    assert dialog.isVisible()
+    path = make_artifact_tree(env.tmp / f"art_{source_id}_{commit}", tree)
+    dialog.firmwareReady.emit(path, source_of(name or source_id, commit))
+    dialog.reject()
+    return path
+
+
+def test_gui_profile_without_sources_keeps_the_single_load_button(env):
+    w = env.window
+    assert w.ui.pushButton_loadFromGitlab.isVisibleTo(w)
+    assert w.source_load_buttons() == []
+
+
+def test_gui_sources_replace_the_single_button_with_one_per_source(env):
+    w = select_multi_source(env)
+    assert not w.ui.pushButton_loadFromGitlab.isVisibleTo(w)
+    assert [b.isVisibleTo(w) for b in w.source_load_buttons()] == [True, True]
+    assert "not loaded" in w.source_summary("ffi").text().lower()
+
+
+def test_gui_flash_needs_every_source_and_each_row_only_sees_its_own_artifact(env, qtbot):
+    w = select_multi_source(env)
+    ffi = load_source(env, w, "ffi", {"out/App.s3": b"F", "out/x_cm7_0.elf": b"wrong"})
+    rows = w.mapping_rows()
+    assert [(r.target, r.ok) for r in rows] == [("App", True), ("CM7_0", False)]
+    assert w.mapping_combo(1).count() == 1  # only the "select file" entry: not the ELF of the FFI artifact
+    assert not w.mapping_complete()
+    m7 = load_source(env, w, "m7", {"bin/x_cm7_0.elf": b"M", "bin/App.s3": b"wrong"})
+    assert w.mapping_rows()[0].selected == ffi / "out" / "App.s3"
+    assert w.mapping_rows()[1].selected == m7 / "bin" / "x_cm7_0.elf"
+    qtbot.waitUntil(w.ui.pushButton_flash.isEnabled, timeout=3000)
+    assert set(w.ctx.source) == {"ffi", "m7"}
+    assert "ffi" in w.source_summary("ffi").text()
+
+
+def test_gui_reloading_one_source_keeps_the_other_and_its_manual_choice(env):
+    w = select_multi_source(env)
+    load_source(env, w, "ffi", {"out/App.s3": b"F"})
+    m7 = load_source(env, w, "m7", {"a/x_cm7_0.elf": b"1", "b/x_cm7_0.elf": b"2"})
+    assert not w.mapping_rows()[1].ok  # two matches: the user chooses
+    combo = w.mapping_combo(1)
+    combo.setCurrentIndex(combo.findText("b/x_cm7_0.elf"))
+    assert w.mapping_rows()[1].selected == m7 / "b" / "x_cm7_0.elf"
+    ffi2 = load_source(env, w, "ffi", {"new/App.s3": b"G"}, commit="abc12346", name="second")
+    assert w.mapping_rows()[0].selected == ffi2 / "new" / "App.s3"
+    assert w.mapping_rows()[1].selected == m7 / "b" / "x_cm7_0.elf"
+
+
+def test_gui_dialog_uses_the_filter_and_names_the_source(env):
+    w = select_multi_source(env)
+    w.source_load_button("ffi").click()
+    dialog = w._gitlab_dialog
+    assert dialog.current_job_filter() == "build_ffi*"
+    assert "FFI (.s3)" in dialog.windowTitle()
+    dialog.reject()
+    w.source_load_button("m7").click()
+    assert dialog.current_job_filter() == "*"
+    assert "M7 (.elf)" in dialog.windowTitle()
+    dialog.reject()
+
+
+def test_gui_different_commits_warn_but_do_not_block(env, qtbot):
+    w = select_multi_source(env)
+    load_source(env, w, "ffi", {"out/App.s3": b"F"}, commit="aaaaaaaa1")
+    assert not w.ui.label_commitWarning.isVisibleTo(w)
+    load_source(env, w, "m7", {"bin/x_cm7_0.elf": b"M"}, commit="bbbbbbbb2")
+    assert w.ui.label_commitWarning.isVisibleTo(w)
+    assert "aaaaaaaa" in w.ui.label_commitWarning.text() and "bbbbbbbb" in w.ui.label_commitWarning.text()
+    qtbot.waitUntil(w.ui.pushButton_flash.isEnabled, timeout=3000)
+    load_source(env, w, "ffi", {"out/App.s3": b"G"}, commit="bbbbbbbb2")
+    assert not w.ui.label_commitWarning.isVisibleTo(w)
+
+
+def test_gui_missing_commit_does_not_warn(env):
+    w = select_multi_source(env)
+    load_source(env, w, "ffi", {"out/App.s3": b"F"}, commit="aaaaaaaa1")
+    load_source(env, w, "m7", {"bin/x_cm7_0.elf": b"M"}, commit="")
+    assert not w.ui.label_commitWarning.isVisibleTo(w)
+
+
+def test_gui_source_buttons_are_disabled_while_flashing(env, qtbot):
+    w = select_multi_source(env)
+    load_source(env, w, "ffi", {"out/App.s3": b"F"})
+    load_source(env, w, "m7", {"bin/x_cm7_0.elf": b"M"})
+    qtbot.waitUntil(w.ui.pushButton_flash.isEnabled, timeout=3000)
+    w.start_flash()
+    assert not any(b.isEnabled() for b in w.source_load_buttons())
+    qtbot.waitUntil(lambda: w.current_step() == Step.DONE.value, timeout=5000)
+    qtbot.waitUntil(lambda: not w.flash_active(), timeout=3000)
+    assert all(b.isEnabled() for b in w.source_load_buttons())

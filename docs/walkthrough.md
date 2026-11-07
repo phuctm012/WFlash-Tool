@@ -1131,3 +1131,21 @@ Với adapter thật, Cancel bị khóa từ bước Downloading, vì dừng gi�
 ### Đã kiểm tra
 
 - RED: 2 test mới lỗi. GREEN: `pytest -q`: 366 passed; `pytest -k thread -q`: 42 passed; `tools/stress_test.py`: `CHECKPOINTS=361 FAILED=0 QT_THREADING_WARNINGS=0`, `STRESS_RESULT=PASS`; smoke `--adapter fake` và `--adapter real` (macOS, không có `isystem`) đều exit 0. Chưa chạy với winIDEA thật.
+
+## Phase 2.8: Nạp nhiều artifact: mỗi nguồn một nút Load
+
+User xác nhận `.s3` và ELF nằm ở hai artifact khác nhau. Trước đây mỗi lần Load thay toàn bộ firmware, nên nút Flash không bao giờ bật được. Profile giờ có thể khai báo `sources`, và mỗi đích ghi `source`. Vùng Setting có một nút Load cho mỗi nguồn; tải lại một nguồn chỉ thay nguồn đó và giữ lựa chọn thủ công của nguồn kia. Mỗi dòng mapping chỉ thấy file của nguồn đã khai báo, nên file trùng tên trong artifact kia không thể bị lấy nhầm. Profile không có `sources` vẫn chạy như cũ. Thêm cảnh báo khi hai artifact CI khác commit, không chặn flash; package không có commit nên không so được. Theo user, mọi job `build*` đều có ELF và mọi job `create_ffi*` đều có `.s3`, nên hai nguồn dùng hai bộ lọc đó. Browse jobs giờ chỉ liệt kê job thành công, vì job lỗi vẫn có thể có artifact. Ảnh chụp cho thấy hàng After flash bị cắt chữ khi có ba ô, nên Verify samples được chuyển xuống dòng riêng.
+
+### Thay đổi
+
+- **`wflash/core/profile.py`**: `SourceSpec`, `sources`, `job_filter_for`, kiểm tra tính nhất quán.
+- **`wflash/core/file_matcher.py`**: `MappingRow.source`/`root`, `build_mapping_for_source`, `pending_rows`.
+- **`wflash/core/firmware_source.py`**, **`firmware_fetch.py`**: lưu commit của pipeline.
+- **`wflash/gui/mapping_table.py`**, **`main_window.py`**, **`flash_mixin.py`**, **`gitlab_dialog.py`**: dòng nguồn động, popup nhận tên nguồn và bộ lọc job riêng, cảnh báo commit.
+- **`wflash/gui/main_window.ui`**, **`ui_main_window.py`** (sinh lại), **`style*.qss`**: `verticalLayout_sourceSlots`, `label_commitWarning`.
+- **`profiles/suz05_m7_ffi.yaml`**, **`README.md`**, **`docs/windows_test_guide.md`**, **`tools/stress_test.py`**, test mới.
+
+### Đã kiểm tra
+
+- RED rồi GREEN theo từng phần. `pytest -q`: 385 passed; `pytest -k thread -q`: 42 passed; `tools/stress_test.py`: `CHECKPOINTS=371 FAILED=0 QT_THREADING_WARNINGS=0`, `STRESS_RESULT=PASS`.
+- Chụp ảnh với style native macOS trong vòng lặp Qt thật: hai dòng nguồn, cảnh báo commit và ba checkbox hiện đủ chữ. Chưa thử với GitLab thật.

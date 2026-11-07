@@ -138,6 +138,7 @@ class MainWindow(MappingTableMixin, FlashMixin, LogPanelMixin, QMainWindow):
             self._update_flash_controls()
             return
         self.profile = profile
+        self.rebuild_source_slots()
         self.ui.checkBox_reset.setChecked(profile.post_flash.reset)
         self.ui.checkBox_run.setChecked(profile.post_flash.run)
         self.settings.last_profile = path.name
@@ -150,8 +151,17 @@ class MainWindow(MappingTableMixin, FlashMixin, LogPanelMixin, QMainWindow):
         # Never while flashing: the button is disabled then, this is the second guard.
         if self.flash_active() or self._closing or self.profile is None:
             return
+        self._loading_source = None
         self._gitlab_dialog.prepare()
         self._gitlab_dialog.open()  # window-modal: Flash cannot be pressed while it is open
+
+    def open_gitlab_dialog_for(self, source_id: str) -> None:
+        if self.flash_active() or self._closing or self.profile is None:
+            return
+        self._loading_source = source_id
+        spec = self.profile.sources[source_id]
+        self._gitlab_dialog.prepare(spec.label, self.profile.job_filter_for(source_id))
+        self._gitlab_dialog.open()
 
     # -- preferences and theme --------------------------------------------------------
     def open_preferences(self, *_args) -> None:

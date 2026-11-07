@@ -95,3 +95,54 @@ def test_suz05_profile_targets_only_the_ffi_row_and_the_m7_elf():
     profile = load_profile(Path(__file__).parents[1] / "profiles" / "suz05_m7_ffi.yaml")
     assert [p.winidea_entry for p in profile.programs] == ["RAD_SUZ05_FFI.s3"]
     assert [a.winidea_app for a in profile.applications] == ["App_M7/Radar_SUZ05_Gen7.elf"]
+
+
+MULTI = """
+name: multi
+gitlab: {project: group/app}
+sources:
+  ffi: {label: "FFI (.s3)", job_filter: "build_ffi*"}
+  m7: {label: "M7 (.elf)"}
+programs:
+  - {winidea_entry: "a.s3", source: ffi, pattern: "**/a.s3"}
+applications:
+  - {winidea_app: "App_M7/b.elf", source: m7, pattern: "**/b.elf"}
+"""
+
+
+def _load(tmp_path, text):
+    path = tmp_path / "p.yaml"
+    path.write_text(text, encoding="utf-8")
+    return load_profile(path)
+
+
+def test_profile_sources_are_optional(tmp_path):
+    profile = _load(tmp_path, "name: x\ngitlab: {project: g/a}\nprograms:\n  - {winidea_entry: a, pattern: '*'}\n")
+    assert profile.sources == {} and profile.programs[0].source is None
+
+
+def test_profile_declares_sources_and_targets_name_them(tmp_path):
+    profile = _load(tmp_path, MULTI)
+    assert profile.sources["ffi"].label == "FFI (.s3)"
+    assert profile.job_filter_for("ffi") == "build_ffi*"
+    assert profile.job_filter_for("m7") == "*"
+    assert profile.programs[0].source == "ffi"
+
+
+@pytest.mark.parametrize(
+    "old, new, message",
+    [
+        ("source: m7, pattern", "source: nope, pattern", "unknown source"),
+        ("source: m7, pattern", "pattern", "needs a source"),
+        ("  m7: {label: \"M7 (.elf)\"}\n", "  m7: {label: \"M7 (.elf)\"}\n  x: {label: X}\n", "no target"),
+    ],
+)
+def test_profile_rejects_inconsistent_sources(tmp_path, old, new, message):
+    with pytest.raises(ProfileError, match=message):
+        _load(tmp_path, MULTI.replace(old, new))
+
+
+def test_profile_rejects_a_target_source_without_sources(tmp_path):
+    text = "name: x\ngitlab: {project: g/a}\nprograms:\n  - {winidea_entry: a, source: s, pattern: '*'}\n"
+    with pytest.raises(ProfileError, match="unknown source"):
+        _load(tmp_path, text)

@@ -250,8 +250,36 @@ class Stress:
             self.check(not window.flash_locked(), f"{label}: unlocked afterwards")
         self.close_window(window, label)
 
+    def check_two_sources(self, label: str) -> None:
+        """The .s3 and the ELF from two artifacts: Flash waits for both, and each row sees only its own."""
+        adapter = FakeWinIDEAAdapter(download_seconds=0.2)
+        window = self.new_window(adapter)
+        folder = Path(window.settings.profiles_dir)
+        (folder / "two.yaml").write_text(
+            "name: Two\ngitlab: {project: group/app}\n"
+            "sources:\n  ffi: {label: FFI}\n  m7: {label: M7}\n"
+            "programs:\n  - {winidea_entry: App, source: ffi, pattern: '**/*.s3'}\n"
+            "applications:\n  - {winidea_app: CM7_0, source: m7, pattern: '**/*cm7_0*.elf'}\n",
+            encoding="utf-8",
+        )
+        window.reload_profiles()
+        window.ui.comboBox_profile.setCurrentIndex(window.ui.comboBox_profile.findText("two"))
+        for source_id in ("ffi", "m7"):
+            window.source_load_button(source_id).click()
+            window._gitlab_dialog.firmwareReady.emit(self.artifact(f"two_{source_id}"), SOURCE)
+            window._gitlab_dialog.reject()
+            self.pump(0.02)
+            self.check(window.mapping_complete() == (source_id == "m7"), f"{label}: complete only after both ({source_id})")
+        window.start_flash()
+        self.check(self.wait_step(window, Step.DONE.value, 10.0), f"{label}: reached Done")
+        self.check(self.wait_flash_idle(window), f"{label}: worker released")
+        self.check("two_ffi" in adapter.programs["App"], f"{label}: program file from the FFI artifact")
+        self.check("two_m7" in adapter.applications["CM7_0"], f"{label}: symbol file from the M7 artifact")
+        self.close_window(window, label)
+
     def section_flash(self) -> None:
         self.check_locked_flash("flash[locked]")
+        self.check_two_sources("flash[two-sources]")
         for i in range(self.iterations):
             label = f"flash[{i}]"
             adapter = FakeWinIDEAAdapter(download_seconds=0.3)

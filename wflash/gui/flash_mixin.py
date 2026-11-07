@@ -139,6 +139,8 @@ class FlashMixin:
         ):
             widget.setEnabled(not flashing)
         self.ui.pushButton_loadFromGitlab.setEnabled(not flashing and self.profile is not None)
+        for button in self.source_load_buttons():
+            button.setEnabled(not flashing)
         self.ui.checkBox_run.setEnabled(not flashing and self.ui.checkBox_reset.isChecked())
 
     # -- instances --------------------------------------------------------------------

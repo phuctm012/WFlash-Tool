@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from wflash.core.file_matcher import build_mapping, candidates_for_kind, match_pattern
+from wflash.core.file_matcher import build_mapping, build_mapping_for_source, candidates_for_kind, match_pattern, pending_rows
 from wflash.core.profile import load_profile
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "profiles" / "saf85xx_example.yaml"
@@ -64,3 +64,30 @@ def test_to_dict(tmp_path):
         "candidates": [str(tmp_path / "App.s3")],
         "selected": str(tmp_path / "App.s3"),
     }
+
+
+def _multi_profile(tmp_path):
+    path = tmp_path / "multi.yaml"
+    path.write_text(
+        "name: m\ngitlab: {project: g/a}\n"
+        "sources:\n  ffi: {label: F}\n  m7: {label: M}\n"
+        "programs:\n  - {winidea_entry: a.s3, source: ffi, pattern: '**/a.s3'}\n"
+        "applications:\n  - {winidea_app: 'App/b.elf', source: m7, pattern: '**/b.elf'}\n",
+        encoding="utf-8",
+    )
+    return load_profile(path)
+
+
+def test_build_mapping_for_source_only_makes_the_rows_of_that_source(tmp_path):
+    profile = _multi_profile(tmp_path)
+    root = tmp_path / "art"
+    make_tree(root, ["out/a.s3", "out/b.elf"])  # b.elf here belongs to the other source
+    [row] = build_mapping_for_source(profile, "ffi", root)
+    assert (row.kind, row.target, row.source, row.root) == ("program", "a.s3", "ffi", root)
+    assert row.selected == root / "out" / "a.s3"
+    assert row.to_dict()["source"] == "ffi"
+
+
+def test_pending_rows_lists_every_target_without_a_file(tmp_path):
+    rows = pending_rows(_multi_profile(tmp_path))
+    assert [(r.target, r.source, r.ok) for r in rows] == [("a.s3", "ffi", False), ("App/b.elf", "m7", False)]

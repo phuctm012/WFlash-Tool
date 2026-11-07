@@ -474,7 +474,7 @@ Gửi lại `results\13_device_options_*.txt`.
 ⚠️ Bước 3 trở đi **ghi vào flash**. Nếu ECU không chạy, khôi phục bằng Debug → Download bấm tay rồi gửi log.
 
 1. Lấy bản mới. Mở một winIDEA duy nhất với workspace `R_04_01_01`. `python -m pip install -e ".[dev]"`, rồi `python main.py --verbose`.
-2. Chọn profile `SUZ05_M7_FFI`, Load from GitLab, tải artifact. Kiểm tra bảng mapping và chọn instance. Thử **cùng firmware đang có trên ECU trước**.
+2. Chọn profile `SUZ05_M7_FFI`. Dùng nút Load của **FFI (.s3)** để tải artifact chứa `RAD_SUZ05_FFI.s3`, rồi nút Load của **M7 (.elf)** để tải artifact chứa `Radar_SUZ05_Gen7.elf`. Nhập GitLab URL `https://gitlab.hella.com` trong popup. Kiểm tra bảng mapping và chọn instance. Nếu thấy cảnh báo khác commit, kiểm tra lại đã chọn đúng cặp artifact chưa. Thử **cùng firmware đang có trên ECU trước**.
 3. Bấm Flash. Kiểm tra: Cancel bị khóa khi bước Downloading bắt đầu; Output của winIDEA có đúng 1 `ERASING`; xong thì target dừng.
 4. Tắt bật nguồn ECU, kiểm tra firmware. Kiểm tra trong winIDEA: dòng `.s3` và ELF `App_M7` trỏ tới file trong cache, dòng CAL và ELF khác giữ nguyên.
 5. Không đóng app, bấm Flash lần nữa với tick **Verify samples** (thêm khoảng 3 phút). Mong đợi xong không lỗi.

@@ -18,14 +18,23 @@ class GitLabSpec(_Strict):
     job_filter: str = "*"
 
 
+class SourceSpec(_Strict):
+    """One artifact or package the firmware files come from; it has its own Load button."""
+
+    label: str = Field(min_length=1)
+    job_filter: str | None = None
+
+
 class ProgramSpec(_Strict):
     winidea_entry: str = Field(min_length=1)
     pattern: str = Field(min_length=1)
+    source: str | None = None
 
 
 class ApplicationSpec(_Strict):
     winidea_app: str = Field(min_length=1)
     pattern: str = Field(min_length=1)
+    source: str | None = None
 
 
 class PostFlash(_Strict):
@@ -40,6 +49,7 @@ class Timeouts(_Strict):
 class Profile(_Strict):
     name: str = Field(min_length=1)
     gitlab: GitLabSpec
+    sources: dict[str, SourceSpec] = Field(default_factory=dict)
     programs: list[ProgramSpec] = Field(min_length=1)
     applications: list[ApplicationSpec] = Field(default_factory=list)
     post_flash: PostFlash = Field(default_factory=PostFlash)
@@ -55,6 +65,25 @@ class Profile(_Strict):
             if dupes:
                 raise ValueError(f"Duplicate {label}: {', '.join(dupes)}")
         return self
+
+    @model_validator(mode="after")
+    def _consistent_sources(self) -> "Profile":
+        targets = [*self.programs, *self.applications]
+        for target in targets:
+            name = getattr(target, "winidea_entry", None) or target.winidea_app
+            if target.source is None:
+                if self.sources:
+                    raise ValueError(f"Target '{name}' needs a source: the profile declares sources")
+            elif target.source not in self.sources:
+                raise ValueError(f"Target '{name}' names an unknown source '{target.source}'")
+        unused = sorted(set(self.sources) - {t.source for t in targets})
+        if unused:
+            raise ValueError(f"Source with no target: {', '.join(unused)}")
+        return self
+
+    def job_filter_for(self, source_id: str | None) -> str:
+        spec = self.sources.get(source_id) if source_id else None
+        return (spec.job_filter if spec else None) or self.gitlab.job_filter
 
 
 def load_profile(path: Path) -> Profile:

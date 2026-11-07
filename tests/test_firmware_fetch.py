@@ -80,12 +80,11 @@ def test_browse_jobs_lists_every_pipeline_newest_first():
     client = StubClient()
     rows = browse_jobs(client, 42, "main", "build_*")
     assert [(r.pipeline_id, r.job_id, r.job_name, r.status) for r in rows] == [
-        (101, 9, "build_app", "failed"),
         (100, 7, "build_app", "success"),
         (100, 8, "build_boot", "success"),
     ]
-    assert rows[0].when == "2026-10-04 09:05"
-    assert rows[2].when == "2026-10-03 09:00"  # no finished_at: pipeline creation time
+    assert rows[0].when == "2026-10-03 09:05"
+    assert rows[1].when == "2026-10-03 09:00"  # no finished_at: pipeline creation time
     assert client.calls[0] == ("pipelines", "main", 10)
 
 
@@ -172,3 +171,28 @@ def test_fetch_package_non_zip_is_cached_as_is(tmp_path):
     assert (path / "App.s3").read_bytes() == b"S0 raw"
     assert source.cache_note == "Downloaded · 1 file"
     assert isinstance(path, Path)
+
+
+def test_ci_source_records_the_pipeline_commit_and_a_package_has_none(tmp_path):
+    from wflash.core.firmware_source import FirmwareSource
+
+    assert FirmwareSource("ci", "p", "t", "d", "c").commit == ""
+    assert FirmwareSource("ci", "p", "t", "d", "c", commit="abc").to_dict()["commit"] == "abc"
+    assert JobRow(1, 2, "n", "r", "s", "w").commit == ""
+
+
+def test_browse_jobs_carries_the_pipeline_commit():
+    rows = browse_jobs(StubClient(), 42, "main")
+    assert rows[0].commit == "a" * 8
+
+
+def test_browse_jobs_lists_only_successful_jobs():
+    jobs = {
+        100: [
+            Job(7, "build_app", "build", "failed", ""),
+            Job(8, "build_ok", "build", "success", ""),
+            Job(9, "build_manual", "build", "manual", ""),
+        ]
+    }
+    client = StubClient(pipelines=[Pipeline(100, "main", "success", "a" * 8, "2026-10-03T09:00:00Z")], jobs=jobs)
+    assert [row.job_name for row in browse_jobs(client, 42, "main")] == ["build_ok"]

@@ -42,7 +42,7 @@ Fake adapter giả lập lỗi qua biến môi trường `WFLASH_FAKE_FAIL` (n�
 
 1. **Load from GitLab…** (popup, mở từ vùng *Setting*): GitLab URL, Personal Access Token (scope `read_api`, lưu trong Windows Credential Manager / keychain, không bao giờ ghi ra file), ô **Verify TLS certificate** (mặc định bật; chỉ tắt khi ở mạng tin cậy — app ghi một dòng WARNING mỗi phiên), CA bundle nếu GitLab dùng chứng chỉ nội bộ.
 2. **Preferences…**: thư mục cache + số bản tải giữ lại + nút **Clear cache** (xóa cả artifact CI lẫn package), thư mục profile, verbose, **Dark mode** (áp dụng ngay và được lưu lại).
-3. **Profile** (`profiles/*.yaml`): project GitLab, filter tên job, pattern file, và tên đích trong winIDEA. `winidea_entry` là tên file của dòng đang tick trong Download Files của thiết bị flash; `winidea_app` là `<Application>/<tên file symbol>`. File trong artifact phải trùng tên với file đang cấu hình. Xem `profiles/suz05_m7_ffi.yaml`.
+3. **Profile** (`profiles/*.yaml`): project GitLab, filter tên job, pattern file, và tên đích trong winIDEA. `winidea_entry` là tên file của dòng đang tick trong Download Files của thiết bị flash; `winidea_app` là `<Application>/<tên file symbol>`. File trong artifact phải trùng tên với file đang cấu hình. Nếu các file nằm ở nhiều artifact, khai báo `sources` và ghi `source` cho từng đích: vùng Setting có một nút Load cho mỗi nguồn, mỗi dòng mapping chỉ thấy file của nguồn đó, và Flash chỉ bật khi đủ mọi nguồn. Hai artifact CI khác commit thì app hiện cảnh báo nhưng vẫn cho flash. Xem `profiles/suz05_m7_ffi.yaml`.
 
 ## Giao diện
 

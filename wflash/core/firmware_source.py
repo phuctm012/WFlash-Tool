@@ -14,6 +14,7 @@ class FirmwareSource:
     title: str  # "CI artifact · job #7 build_app" / "Package · saf85xx-firmware 1.4.0"
     detail: str  # "group/saf85xx-sw · main · pipeline #100" / "group/pkgs · 2026-10-04 09:20"
     cache_note: str  # "Cached · 3 files" / "Downloaded · 3 files"
+    commit: str = ""  # the pipeline's commit for a CI artifact; a package has none
 
     def to_dict(self) -> dict[str, str]:
         return asdict(self)
