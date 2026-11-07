@@ -104,6 +104,43 @@ def find_latest_job(
     )
 
 
+def find_build_jobs(
+    client: GitLabClient,
+    project_id: int,
+    sha: str,
+    ffi_job: str,
+    elf_job: str,
+    cancel: CancelToken | None = None,
+) -> tuple[JobRow, JobRow]:
+    """The FFI and ELF jobs of the newest pipeline of `sha` where both succeeded. Never another commit."""
+    pipelines = client.list_pipelines_for_commit(project_id, sha)
+    if not pipelines:
+        raise GitLabError(
+            f"Commit {sha[:8]} has no pipeline.",
+            hint="Push the commit and wait for its pipeline, or use Choose job in GitLab…",
+        )
+    problems: list[str] = []
+    for pipeline in pipelines:
+        _check(cancel)
+        jobs = {job.name: job for job in client.list_jobs(project_id, pipeline.id, archived_only=False)}
+        wanted = [jobs.get(ffi_job), jobs.get(elf_job)]
+        if all(job is not None and job.status == "success" for job in wanted):
+            return tuple(_job_row(pipeline, job) for job in wanted)
+        if not problems:
+            for name, job in zip((ffi_job, elf_job), wanted):
+                if job is None or job.status != "success":
+                    problems.append(f"{name}: {job.status if job else 'not in the pipeline'}")
+    raise GitLabError(
+        f"Commit {sha[:8]} has no finished build: {'; '.join(problems)}.",
+        hint="Run the job in GitLab, then load again.",
+    )
+
+
+def _job_row(pipeline, job) -> JobRow:
+    when = short_timestamp(job.finished_at or pipeline.created_at)
+    return JobRow(pipeline.id, job.id, job.name, pipeline.ref, job.status, when, pipeline.sha)
+
+
 def fetch_ci_artifact(
     client: GitLabClient,
     project: str,

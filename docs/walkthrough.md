@@ -1306,3 +1306,17 @@ Profile SUZ05 giờ khai báo 4 cấu hình build (cặp job FFI, ELF và job BM
 ### Đã kiểm tra
 
 - RED rồi GREEN với `pytest tests/test_profile.py`; `pytest -q`.
+
+## Phase 3.5: Tìm cặp job của một cấu hình build theo commit
+
+`find_build_jobs` tìm pipeline đúng commit, lấy pipeline mới nhất có cả job FFI và ELF thành công, và không bao giờ chuyển sang commit khác. Khi không có, thông báo nêu rõ job nào và trạng thái gì. Lệnh tìm theo `sha` chờ kết quả spike 15 trên GitLab thật.
+
+### Thay đổi
+
+- **`wflash/core/gitlab_client.py`**: `list_pipelines_for_commit`, tham số `archived_only`.
+- **`wflash/core/firmware_fetch.py`**: `find_build_jobs`.
+- **`tests/test_firmware_fetch.py`**, **`tests/test_gitlab_client.py`**: test mới.
+
+### Đã kiểm tra
+
+- RED rồi GREEN với hai file test trên. Chưa chạy với GitLab thật.

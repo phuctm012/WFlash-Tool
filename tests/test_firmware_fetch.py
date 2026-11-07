@@ -11,6 +11,7 @@ from wflash.core.firmware_fetch import (
     JobRow,
     browse_jobs,
     fetch_ci_artifact,
+    find_build_jobs,
     find_latest_job,
 )
 from wflash.core.gitlab_client import Job, Pipeline
@@ -151,3 +152,38 @@ def test_ci_source_records_the_pipeline_commit(tmp_path):
     assert FirmwareSource("ci", "p", "t", "d", "c").commit == ""
     assert FirmwareSource("ci", "p", "t", "d", "c", commit="abc").to_dict()["commit"] == "abc"
     assert JobRow(1, 2, "n", "r", "s", "w").commit == ""
+
+
+class ShaClient(StubClient):
+    def __init__(self, by_pipeline):
+        super().__init__(pipelines=[Pipeline(p, "main", "success", "s" * 8, "2026-10-03T09:00:00Z") for p in by_pipeline], jobs=by_pipeline)
+
+    def list_pipelines_for_commit(self, project_id, sha, limit=10):
+        return self.pipelines
+
+    def list_jobs(self, project_id, pipeline_id, name_glob="*", archived_only=True):
+        return self.jobs[pipeline_id]
+
+
+def job(id_, name, status="success"):
+    return Job(id_, name, "build", status, "")
+
+
+def test_find_build_jobs_returns_the_pair_of_the_newest_complete_pipeline():
+    client = ShaClient({200: [job(1, "ffi", "failed"), job(2, "elf")], 100: [job(3, "ffi"), job(4, "elf")]})
+    ffi, elf = find_build_jobs(client, 42, "s" * 40, "ffi", "elf")
+    assert (ffi.job_id, elf.job_id) == (3, 4)
+    assert ffi.commit == "s" * 8
+
+
+def test_find_build_jobs_without_a_pipeline_suggests_a_push():
+    with pytest.raises(GitLabError) as err:
+        find_build_jobs(ShaClient({}), 42, "abcdef1234", "ffi", "elf")
+    assert "abcdef12" in str(err.value) and "push" in err.value.hint.lower()
+
+
+def test_find_build_jobs_names_a_job_that_has_not_run():
+    client = ShaClient({100: [job(3, "ffi", "manual"), job(4, "elf")]})
+    with pytest.raises(GitLabError) as err:
+        find_build_jobs(client, 42, "abcdef1234", "ffi", "elf")
+    assert "ffi" in str(err.value) and "manual" in str(err.value)
