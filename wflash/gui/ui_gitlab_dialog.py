@@ -203,73 +203,6 @@ class Ui_GitlabDialog(object):
         self.verticalLayout_ciArtifact.addWidget(self.tableWidget_jobs)
 
         self.tabWidget_source.addTab(self.tab_ciArtifact, "")
-        self.tab_packageRegistry = QWidget()
-        self.tab_packageRegistry.setObjectName(u"tab_packageRegistry")
-        self.verticalLayout_packageRegistry = QVBoxLayout(self.tab_packageRegistry)
-        self.verticalLayout_packageRegistry.setObjectName(u"verticalLayout_packageRegistry")
-        self.gridLayout_package = QGridLayout()
-        self.gridLayout_package.setObjectName(u"gridLayout_package")
-        self.label_pkgProject = QLabel(self.tab_packageRegistry)
-        self.label_pkgProject.setObjectName(u"label_pkgProject")
-
-        self.gridLayout_package.addWidget(self.label_pkgProject, 0, 0, 1, 1)
-
-        self.lineEdit_pkgProject = QLineEdit(self.tab_packageRegistry)
-        self.lineEdit_pkgProject.setObjectName(u"lineEdit_pkgProject")
-
-        self.gridLayout_package.addWidget(self.lineEdit_pkgProject, 0, 1, 1, 1)
-
-        self.label_packageName = QLabel(self.tab_packageRegistry)
-        self.label_packageName.setObjectName(u"label_packageName")
-
-        self.gridLayout_package.addWidget(self.label_packageName, 1, 0, 1, 1)
-
-        self.lineEdit_packageName = QLineEdit(self.tab_packageRegistry)
-        self.lineEdit_packageName.setObjectName(u"lineEdit_packageName")
-
-        self.gridLayout_package.addWidget(self.lineEdit_packageName, 1, 1, 1, 1)
-
-
-        self.verticalLayout_packageRegistry.addLayout(self.gridLayout_package)
-
-        self.horizontalLayout_packageActions = QHBoxLayout()
-        self.horizontalLayout_packageActions.setObjectName(u"horizontalLayout_packageActions")
-        self.pushButton_fetchLatest = QPushButton(self.tab_packageRegistry)
-        self.pushButton_fetchLatest.setObjectName(u"pushButton_fetchLatest")
-
-        self.horizontalLayout_packageActions.addWidget(self.pushButton_fetchLatest)
-
-        self.pushButton_browseVersions = QPushButton(self.tab_packageRegistry)
-        self.pushButton_browseVersions.setObjectName(u"pushButton_browseVersions")
-
-        self.horizontalLayout_packageActions.addWidget(self.pushButton_browseVersions)
-
-        self.horizontalSpacer_packageActions = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
-
-        self.horizontalLayout_packageActions.addItem(self.horizontalSpacer_packageActions)
-
-
-        self.verticalLayout_packageRegistry.addLayout(self.horizontalLayout_packageActions)
-
-        self.tableWidget_versions = QTableWidget(self.tab_packageRegistry)
-        if (self.tableWidget_versions.columnCount() < 3):
-            self.tableWidget_versions.setColumnCount(3)
-        __qtablewidgetitem6 = QTableWidgetItem()
-        self.tableWidget_versions.setHorizontalHeaderItem(0, __qtablewidgetitem6)
-        __qtablewidgetitem7 = QTableWidgetItem()
-        self.tableWidget_versions.setHorizontalHeaderItem(1, __qtablewidgetitem7)
-        __qtablewidgetitem8 = QTableWidgetItem()
-        self.tableWidget_versions.setHorizontalHeaderItem(2, __qtablewidgetitem8)
-        self.tableWidget_versions.setObjectName(u"tableWidget_versions")
-        self.tableWidget_versions.setMinimumSize(QSize(0, 128))
-        self.tableWidget_versions.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        self.tableWidget_versions.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
-        self.tableWidget_versions.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        self.tableWidget_versions.verticalHeader().setVisible(False)
-
-        self.verticalLayout_packageRegistry.addWidget(self.tableWidget_versions)
-
-        self.tabWidget_source.addTab(self.tab_packageRegistry, "")
 
         self.verticalLayout_gitlabDialog.addWidget(self.tabWidget_source)
 
@@ -336,8 +269,6 @@ class Ui_GitlabDialog(object):
         self.label_ciProject.setBuddy(self.lineEdit_ciProject)
         self.label_ref.setBuddy(self.comboBox_ref)
         self.label_jobName.setBuddy(self.comboBox_jobName)
-        self.label_pkgProject.setBuddy(self.lineEdit_pkgProject)
-        self.label_packageName.setBuddy(self.lineEdit_packageName)
         self.label_gitlabLog.setBuddy(self.plainTextEdit_gitlabLog)
 #endif // QT_CONFIG(shortcut)
         QWidget.setTabOrder(self.lineEdit_gitlabUrl, self.lineEdit_token)
@@ -352,12 +283,7 @@ class Ui_GitlabDialog(object):
         QWidget.setTabOrder(self.comboBox_jobName, self.pushButton_downloadSelected)
         QWidget.setTabOrder(self.pushButton_downloadSelected, self.pushButton_browseJobs)
         QWidget.setTabOrder(self.pushButton_browseJobs, self.tableWidget_jobs)
-        QWidget.setTabOrder(self.tableWidget_jobs, self.lineEdit_pkgProject)
-        QWidget.setTabOrder(self.lineEdit_pkgProject, self.lineEdit_packageName)
-        QWidget.setTabOrder(self.lineEdit_packageName, self.pushButton_fetchLatest)
-        QWidget.setTabOrder(self.pushButton_fetchLatest, self.pushButton_browseVersions)
-        QWidget.setTabOrder(self.pushButton_browseVersions, self.tableWidget_versions)
-        QWidget.setTabOrder(self.tableWidget_versions, self.pushButton_stopDownload)
+        QWidget.setTabOrder(self.tableWidget_jobs, self.pushButton_stopDownload)
         QWidget.setTabOrder(self.pushButton_stopDownload, self.pushButton_cancel)
 
         self.retranslateUi(GitlabDialog)
@@ -379,7 +305,7 @@ class Ui_GitlabDialog(object):
         self.label_caBundle.setText(QCoreApplication.translate("GitlabDialog", u"CA bundle:", None))
         self.lineEdit_caBundle.setPlaceholderText(QCoreApplication.translate("GitlabDialog", u"Optional: .pem file for an internal certificate", None))
         self.pushButton_browseCa.setText(QCoreApplication.translate("GitlabDialog", u"Browse\u2026", None))
-        self.label_connectionHint.setText(QCoreApplication.translate("GitlabDialog", u"Required token scope: read_api (branches/tags, pipelines, jobs, artifacts, packages). The token is stored in the system keyring (Windows Credential Manager), never in a file.", None))
+        self.label_connectionHint.setText(QCoreApplication.translate("GitlabDialog", u"Required token scope: read_api (branches/tags, pipelines, jobs, artifacts). The token is stored in the system keyring (Windows Credential Manager), never in a file.", None))
         self.label_ciProject.setText(QCoreApplication.translate("GitlabDialog", u"Project:", None))
         self.lineEdit_ciProject.setPlaceholderText(QCoreApplication.translate("GitlabDialog", u"group/project (empty = the profile's project)", None))
         self.label_ciProjectSource.setText(QCoreApplication.translate("GitlabDialog", u"from profile", None))
@@ -401,19 +327,6 @@ class Ui_GitlabDialog(object):
         ___qtablewidgetitem5 = self.tableWidget_jobs.horizontalHeaderItem(5)
         ___qtablewidgetitem5.setText(QCoreApplication.translate("GitlabDialog", u"Download", None))
         self.tabWidget_source.setTabText(self.tabWidget_source.indexOf(self.tab_ciArtifact), QCoreApplication.translate("GitlabDialog", u"CI Artifact", None))
-        self.label_pkgProject.setText(QCoreApplication.translate("GitlabDialog", u"Project:", None))
-        self.lineEdit_pkgProject.setPlaceholderText(QCoreApplication.translate("GitlabDialog", u"group/project holding the generic package", None))
-        self.label_packageName.setText(QCoreApplication.translate("GitlabDialog", u"Package name:", None))
-        self.lineEdit_packageName.setPlaceholderText(QCoreApplication.translate("GitlabDialog", u"e.g. saf85xx-firmware", None))
-        self.pushButton_fetchLatest.setText(QCoreApplication.translate("GitlabDialog", u"Fetch Latest Version", None))
-        self.pushButton_browseVersions.setText(QCoreApplication.translate("GitlabDialog", u"Browse versions\u2026", None))
-        ___qtablewidgetitem6 = self.tableWidget_versions.horizontalHeaderItem(0)
-        ___qtablewidgetitem6.setText(QCoreApplication.translate("GitlabDialog", u"Version", None))
-        ___qtablewidgetitem7 = self.tableWidget_versions.horizontalHeaderItem(1)
-        ___qtablewidgetitem7.setText(QCoreApplication.translate("GitlabDialog", u"Uploaded", None))
-        ___qtablewidgetitem8 = self.tableWidget_versions.horizontalHeaderItem(2)
-        ___qtablewidgetitem8.setText(QCoreApplication.translate("GitlabDialog", u"Download", None))
-        self.tabWidget_source.setTabText(self.tabWidget_source.indexOf(self.tab_packageRegistry), QCoreApplication.translate("GitlabDialog", u"Package Registry", None))
         self.label_downloadStatus.setText(QCoreApplication.translate("GitlabDialog", u"Ready", None))
         self.pushButton_stopDownload.setText(QCoreApplication.translate("GitlabDialog", u"Stop", None))
         self.label_gitlabLog.setText(QCoreApplication.translate("GitlabDialog", u"GitLab log", None))

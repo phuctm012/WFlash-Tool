@@ -1,8 +1,6 @@
 """On-disk cache of downloaded firmware: <root>/<project_id>/<job_id>/files.
 
-The same layout caches Package Registry downloads under its own root
-(`<cache_dir>/packages`, key = package id). Only digit-named directories belong to a
-cache, so the artifact cache never touches the `packages` folder next to its entries.
+Only digit-named directories belong to the cache; anything else next to its entries is left alone.
 """
 from __future__ import annotations
 
@@ -69,20 +67,6 @@ class ArtifactCache:
             except OSError as exc:
                 raise ArtifactError(
                     f"Failed to extract artifact: {exc}",
-                    hint="Check free disk space and path length, then retry."
-                ) from exc
-
-        return self._store(project_id, job_id, fill)
-
-    def store_file(self, project_id: int, job_id: int, file_path: Path) -> Path:
-        """Cache one downloaded file as-is (a package file that is not a zip)."""
-
-        def fill(files_dir: Path) -> None:
-            try:
-                shutil.copy2(file_path, files_dir / file_path.name)
-            except OSError as exc:
-                raise ArtifactError(
-                    f"Failed to cache file {file_path.name}: {exc}",
                     hint="Check free disk space and path length, then retry."
                 ) from exc
 

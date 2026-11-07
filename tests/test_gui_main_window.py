@@ -10,8 +10,6 @@ from PySide6.QtWidgets import QApplication, QDialog, QMessageBox
 from tests.gui_stubs import (
     GITLAB_URL,
     OLD_APP,
-    PKG_NAME,
-    PKG_PROJECT,
     SOURCE,
     TOKEN,
     FakeGitLabSession,
@@ -123,18 +121,6 @@ def test_gui_full_chain_gitlab_dialog_to_flash(env, qtbot):
     assert env.adapter.target_state == "halted"
     assert env.shown == []
     assert "Flash completed successfully" in w.log_visible_text()
-
-
-def test_gui_package_registry_firmware_fills_the_mapping(env, qtbot):
-    w = env.window
-    w.open_gitlab_dialog()
-    dialog = w._gitlab_dialog
-    dialog.ui.lineEdit_pkgProject.setText(PKG_PROJECT)
-    dialog.ui.lineEdit_packageName.setText(PKG_NAME)
-    dialog.fetch_latest()
-    qtbot.waitUntil(w.mapping_complete, timeout=5000)
-    assert w.ui.label_sourceTitle.text() == f"Package · {PKG_NAME} 1.4.0"
-    assert w.ctx.source["kind"] == "package"
 
 
 def test_gui_ambiguous_mapping_blocks_flash(env):

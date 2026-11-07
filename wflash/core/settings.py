@@ -14,7 +14,6 @@ from wflash.core.errors import GitLabError
 from wflash.core.logging_setup import get_logger
 
 KEYRING_SERVICE = "WFlash-GitLab"
-PACKAGES_SUBDIR = "packages"  # Package Registry downloads are cached in <cache_dir>/packages
 log = get_logger("settings")
 
 
@@ -71,14 +70,9 @@ class AppSettings:
     # Profile file name (e.g. "saf.yaml") -> CI project typed in Load from GitLab.
     ci_project_overrides: dict[str, str] = field(default_factory=dict)
     ci_job_name: str = ""
-    package_project: str = ""
-    package_name: str = ""
 
     def resolved_cache_dir(self) -> Path:
         return Path(self.cache_dir) if self.cache_dir else default_cache_dir()
-
-    def resolved_package_cache_dir(self) -> Path:
-        return self.resolved_cache_dir() / PACKAGES_SUBDIR
 
     def resolved_profiles_dir(self) -> Path:
         return Path(self.profiles_dir) if self.profiles_dir else bundled_profiles_dir()

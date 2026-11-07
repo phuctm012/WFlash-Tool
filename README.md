@@ -41,13 +41,13 @@ Fake adapter giả lập lỗi qua biến môi trường `WFLASH_FAKE_FAIL` (n�
 ## Cấu hình
 
 1. **Load from GitLab…** (popup, mở từ vùng *Setting*): GitLab URL, Personal Access Token (scope `read_api`, lưu trong Windows Credential Manager / keychain, không bao giờ ghi ra file), ô **Verify TLS certificate** (mặc định bật; chỉ tắt khi ở mạng tin cậy — app ghi một dòng WARNING mỗi phiên), CA bundle nếu GitLab dùng chứng chỉ nội bộ.
-2. **Preferences…**: thư mục cache + số bản tải giữ lại + nút **Clear cache** (xóa cả artifact CI lẫn package), thư mục profile, verbose, **Dark mode** (áp dụng ngay và được lưu lại).
+2. **Preferences…**: thư mục cache + số bản tải giữ lại + nút **Clear cache** thư mục profile, verbose, **Dark mode** (áp dụng ngay và được lưu lại).
 3. **Profile** (`profiles/*.yaml`): project GitLab, filter tên job, pattern file, và tên đích trong winIDEA. `winidea_entry` là tên file của dòng đang tick trong Download Files của thiết bị flash; `winidea_app` là `<Application>/<tên file symbol>`. File trong artifact phải trùng tên với file đang cấu hình. Nếu các file nằm ở nhiều artifact, khai báo `sources` và ghi `source` cho từng đích: vùng Setting có một nút Load cho mỗi nguồn, mỗi dòng mapping chỉ thấy file của nguồn đó, và Flash chỉ bật khi đủ mọi nguồn. Hai artifact CI khác commit thì app hiện cảnh báo nhưng vẫn cho flash. Xem `profiles/suz05_m7_ffi.yaml`.
 
 ## Giao diện
 
 - Một cửa sổ duy nhất. Phần đầu: nút **Flash** lớn (khi đang flash, chính nút đó thành **Cancel** màu đỏ), thanh tiến trình, nhãn `phần trăm | ETA | Speed` và `Step: …`.
-- Vùng **Setting** (trái): profile, nguồn firmware (**Load from GitLab…** và thẻ cho biết đang dùng artifact/package nào), instance winIDEA, Reset/Run sau khi flash, **Preferences…**.
+- Vùng **Setting** (trái): profile, nguồn firmware (**Load from GitLab…** và thẻ cho biết đang dùng artifact nào), instance winIDEA, Reset/Run sau khi flash, **Preferences…**.
 - Bảng mapping (phải) có cột `#`; dòng đỏ là dòng chưa có file. Dưới cùng là tab **Information** (log). Thanh trạng thái hiện version và tác giả.
 - Theme **Teal** sáng (mặc định) hoặc tối. Speed/ETA chỉ là **ước lượng**: winIDEA chỉ báo phần trăm, còn số byte lấy từ kích thước file `.s3` trên đĩa.
 
@@ -55,7 +55,6 @@ Fake adapter giả lập lỗi qua biến môi trường `WFLASH_FAKE_FAIL` (n�
 
 1. Chọn profile → **Load from GitLab…**:
    - Tab **CI Artifact**: project (mặc định lấy từ profile; sửa thì app nhớ theo từng profile) → **Load branches/tags** → chọn branch/tag → **Browse jobs…** rồi bấm **Download** ở dòng muốn tải (hoặc nhấp đúp), hoặc bấm **Download Selected Artifact**: tải job đang chọn, nếu chưa chọn dòng nào thì tải job thành công mới nhất khớp branch/tag + job name.
-   - Tab **Package Registry**: project + tên package → **Fetch Latest Version**, hoặc **Browse versions…** rồi tải một version (file đầu tiên của version; zip được giải nén, file thường được giữ nguyên).
    - **Stop** hủy lần tải đang chạy (popup vẫn mở); **Cancel** hủy rồi đóng popup. Tải xong popup tự đóng, cửa sổ chính dựng bảng mapping. Có cache theo job/version (nút ghi **Cached**).
 2. Kiểm tra bảng mapping; dòng đỏ (0 hoặc nhiều file khớp) phải chọn file thủ công — nút Flash chỉ bật khi mọi dòng đã có file.
 3. Chọn instance winIDEA đang mở → **Flash**. Lỗi hoặc **Cancel** trong lúc đổi path/download sẽ khôi phục đường dẫn cũ trong workspace. Nếu chính việc khôi phục thất bại, cửa sổ hiện dải đỏ **ROLLBACK FAILED**: kiểm tra lại danh sách download/symbol file trong winIDEA trước khi flash tiếp.

@@ -1,7 +1,6 @@
 """Core firmware lookups against a duck-typed client (no network, no Qt)."""
 import io
 import zipfile
-from pathlib import Path
 
 import pytest
 
@@ -12,11 +11,9 @@ from wflash.core.firmware_fetch import (
     JobRow,
     browse_jobs,
     fetch_ci_artifact,
-    fetch_package,
     find_latest_job,
-    latest_package,
 )
-from wflash.core.gitlab_client import Job, PackageVersion, Pipeline
+from wflash.core.gitlab_client import Job, Pipeline
 
 FILES = {"out/App.s3": b"S0", "out/x_cm7_0.elf": b"E0", "out/x_cm7_1.elf": b"E1"}
 
@@ -32,7 +29,7 @@ def zip_bytes(files=FILES) -> bytes:
 class StubClient:
     """Answers the GitLabClient calls firmware_fetch makes; records them."""
 
-    def __init__(self, pipelines=None, jobs=None, package_file=("fw.zip", zip_bytes())):
+    def __init__(self, pipelines=None, jobs=None):
         self.pipelines = pipelines if pipelines is not None else [
             Pipeline(101, "main", "success", "b" * 8, "2026-10-04T09:00:00Z"),
             Pipeline(100, "main", "success", "a" * 8, "2026-10-03T09:00:00Z"),
@@ -42,7 +39,6 @@ class StubClient:
             100: [Job(7, "build_app", "build", "success", "2026-10-03T09:05:00Z"),
                   Job(8, "build_boot", "build", "success", "")],
         }
-        self.package_file = package_file
         self.calls = []
 
     def list_pipelines(self, project_id, ref, limit=20):
@@ -61,17 +57,6 @@ class StubClient:
         if cancel is not None:
             cancel.raise_if_cancelled()
         path = dest / f"artifacts_{job_id}.zip"
-        path.write_bytes(data)
-        return path
-
-    def list_package_versions(self, project_id, package_name, limit=20):
-        self.calls.append(("versions", package_name, limit))
-        return [PackageVersion(502, package_name, "1.4.0", "2026-10-04T09:20:00Z")][:limit]
-
-    def download_package(self, project_id, package, dest, progress_cb=None, cancel=None):
-        self.calls.append(("package", package.id))
-        name, data = self.package_file
-        path = dest / name
         path.write_bytes(data)
         return path
 
@@ -143,44 +128,6 @@ def test_fetch_ci_artifact_cancel_leaves_no_cache_entry(tmp_path):
     assert cache.entries() == []
 
 
-def test_latest_package_asks_for_one_version():
-    client = StubClient()
-    assert latest_package(client, 43, "fw").version == "1.4.0"
-    assert client.calls == [("versions", "fw", 1)]
-
-
-def test_fetch_package_zip_is_extracted(tmp_path):
-    client = StubClient()
-    cache = ArtifactCache(tmp_path / "cache" / "packages")
-    version = PackageVersion(502, "fw", "1.4.0", "2026-10-04T09:20:00Z")
-    path, source = fetch_package(client, "group/pkgs", 43, version, cache)
-    assert (path / "out" / "x_cm7_1.elf").read_bytes() == b"E1"
-    assert source.kind == "package"
-    assert source.title == "Package · fw 1.4.0"
-    assert source.detail == "group/pkgs · 2026-10-04 09:20"
-    assert source.cache_note == "Downloaded · 3 files"
-    _, again = fetch_package(client, "group/pkgs", 43, version, cache)
-    assert again.cache_note == "Cached · 3 files"
-    assert [c for c in client.calls if c[0] == "package"] == [("package", 502)]
-
-
-def test_fetch_package_non_zip_is_cached_as_is(tmp_path):
-    client = StubClient(package_file=("App.s3", b"S0 raw"))
-    cache = ArtifactCache(tmp_path / "packages")
-    path, source = fetch_package(client, "g/p", 43, PackageVersion(9, "fw", "2.0", ""), cache)
-    assert (path / "App.s3").read_bytes() == b"S0 raw"
-    assert source.cache_note == "Downloaded · 1 file"
-    assert isinstance(path, Path)
-
-
-def test_ci_source_records_the_pipeline_commit_and_a_package_has_none(tmp_path):
-    from wflash.core.firmware_source import FirmwareSource
-
-    assert FirmwareSource("ci", "p", "t", "d", "c").commit == ""
-    assert FirmwareSource("ci", "p", "t", "d", "c", commit="abc").to_dict()["commit"] == "abc"
-    assert JobRow(1, 2, "n", "r", "s", "w").commit == ""
-
-
 def test_browse_jobs_carries_the_pipeline_commit():
     rows = browse_jobs(StubClient(), 42, "main")
     assert rows[0].commit == "a" * 8
@@ -196,3 +143,11 @@ def test_browse_jobs_lists_only_successful_jobs():
     }
     client = StubClient(pipelines=[Pipeline(100, "main", "success", "a" * 8, "2026-10-03T09:00:00Z")], jobs=jobs)
     assert [row.job_name for row in browse_jobs(client, 42, "main")] == ["build_ok"]
+
+
+def test_ci_source_records_the_pipeline_commit(tmp_path):
+    from wflash.core.firmware_source import FirmwareSource
+
+    assert FirmwareSource("ci", "p", "t", "d", "c").commit == ""
+    assert FirmwareSource("ci", "p", "t", "d", "c", commit="abc").to_dict()["commit"] == "abc"
+    assert JobRow(1, 2, "n", "r", "s", "w").commit == ""

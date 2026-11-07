@@ -12,11 +12,6 @@ from tests.gui_stubs import (
     EXAMPLE_PROFILE,
     GITLAB_URL,
     JOB_ID,
-    PKG_NAME,
-    PKG_PROJECT,
-    PKG_PROJECT_ID,
-    PKG_RAW_ID,
-    PKG_ZIP_ID,
     PROJECT,
     PROJECT_ID,
     TOKEN,
@@ -72,27 +67,6 @@ def load_and_browse(d, qtbot):
     idle(d, qtbot)
     d.browse_jobs()
     idle(d, qtbot)
-
-
-def test_gui_prepare_fills_fields_from_settings_profile_and_keyring(qtbot, tmp_path, session, monkeypatch):
-    patch_keyring(monkeypatch, {GITLAB_URL: TOKEN})
-    w = DialogHost(tmp_path, session)
-    qtbot.addWidget(w)
-    w.settings = dataclasses.replace(
-        w.settings, verify_tls=False, ca_bundle="/ca.pem", package_project=PKG_PROJECT, package_name=PKG_NAME,
-        ci_job_name="build_app",
-    )
-    d = w.dialog
-    d.prepare()
-    assert d.ui.lineEdit_gitlabUrl.text() == GITLAB_URL
-    assert d.ui.lineEdit_token.text() == TOKEN
-    assert not d.ui.checkBox_verifyTls.isChecked() and not d.ui.lineEdit_caBundle.isEnabled()
-    assert d.ui.lineEdit_ciProject.text() == PROJECT
-    assert d.ui.label_ciProjectSource.isVisibleTo(d)
-    assert d.ui.comboBox_jobName.currentText() == "build_app"
-    assert (d.ui.lineEdit_pkgProject.text(), d.ui.lineEdit_packageName.text()) == (PKG_PROJECT, PKG_NAME)
-    assert d.ui.label_downloadStatus.text() == "Ready"
-    assert not d.ui.pushButton_stopDownload.isEnabled()
 
 
 def test_gui_ci_refs_jobs_and_row_download(host, qtbot, tmp_path):
@@ -179,61 +153,6 @@ def test_gui_ci_project_edit_is_remembered_per_profile(host, qtbot):
     d.ui.lineEdit_ciProject.editingFinished.emit()
     assert host.settings.ci_project_overrides == {}
     assert d.ci_project() == PROJECT and d.ui.label_ciProjectSource.isVisibleTo(d)
-
-
-def test_gui_package_fetch_latest_extracts_the_zip(host, qtbot, tmp_path):
-    d = host.dialog
-    d.ui.tabWidget_source.setCurrentWidget(d.ui.tab_packageRegistry)
-    d.ui.lineEdit_pkgProject.setText(PKG_PROJECT)
-    d.ui.lineEdit_packageName.setText(PKG_NAME)
-    qtbot.mouseClick(d.ui.pushButton_fetchLatest, Qt.MouseButton.LeftButton)
-    qtbot.waitUntil(lambda: len(host.firmware_loaded) == 1, timeout=5000)
-    path, source = host.firmware_loaded[0]
-    assert (path / "out" / "x_cm7_0.elf").read_bytes() == b"E0"
-    assert source.kind == "package" and source.title == f"Package · {PKG_NAME} 1.4.0"
-    assert source.detail == f"{PKG_PROJECT} · 2026-10-04 09:20"
-    assert ArtifactCache(tmp_path / "cache" / "packages").has(PKG_PROJECT_ID, PKG_ZIP_ID)
-    assert (host.settings.package_project, host.settings.package_name) == (PKG_PROJECT, PKG_NAME)
-
-
-def test_gui_package_browse_versions_and_download_a_plain_file(host, qtbot):
-    d = host.dialog
-    d.ui.lineEdit_pkgProject.setText(PKG_PROJECT)
-    d.ui.lineEdit_packageName.setText(PKG_NAME)
-    d.browse_versions()
-    idle(d, qtbot)
-    table = d.ui.tableWidget_versions
-    assert [table.item(i, 0).text() for i in range(table.rowCount())] == ["1.4.0", "1.3.0"]  # -debug dropped
-    assert table.item(1, 1).text() == "2026-10-01 07:00"
-    assert d.version_button(1).text() == "Download"
-    qtbot.mouseClick(d.version_button(1), Qt.MouseButton.LeftButton)
-    qtbot.waitUntil(lambda: len(host.firmware_loaded) == 1, timeout=5000)
-    path, source = host.firmware_loaded[0]
-    assert (path / "App.s3").read_bytes() == b"S0 raw"
-    assert source.cache_note == "Downloaded · 1 file"
-    assert path.parent.name == str(PKG_RAW_ID)
-
-
-def test_gui_package_without_versions_shows_the_error(host, session, qtbot):
-    session.package_versions = []
-    d = host.dialog
-    d.ui.lineEdit_pkgProject.setText(PKG_PROJECT)
-    d.ui.lineEdit_packageName.setText(PKG_NAME)
-    d.fetch_latest()
-    qtbot.waitUntil(lambda: len(host.errors_shown) == 1, timeout=5000)
-    exc = host.errors_shown[0]
-    assert isinstance(exc, GitLabError) and f"No versions of package '{PKG_NAME}'" in str(exc)
-    assert d.isVisible()
-    assert d.ui.label_downloadStatus.property("state") == "error"
-    assert "No versions" in d.ui.plainTextEdit_gitlabLog.toPlainText()
-    assert len(host.ctx.errors) == 1
-
-
-def test_gui_package_fields_required(host):
-    d = host.dialog
-    d.ui.lineEdit_pkgProject.setText("")
-    d.fetch_latest()
-    assert not d.busy() and "package project" in d.ui.label_downloadStatus.text()
 
 
 def test_gui_url_required_before_any_request(host, session):
@@ -391,3 +310,20 @@ def test_gui_thread_close_wait_is_bounded_when_a_request_hangs(host, session, qt
     assert worker.done.wait(5)
     qtbot.wait(100)
     assert d.ui.comboBox_ref.count() == 0  # the late result was dropped
+
+
+def test_gui_prepare_fills_fields_from_settings_profile_and_keyring(qtbot, tmp_path, session, monkeypatch):
+    patch_keyring(monkeypatch, {GITLAB_URL: TOKEN})
+    w = DialogHost(tmp_path, session)
+    qtbot.addWidget(w)
+    w.settings = dataclasses.replace(w.settings, verify_tls=False, ca_bundle="/ca.pem", ci_job_name="build_app")
+    d = w.dialog
+    d.prepare()
+    assert d.ui.lineEdit_gitlabUrl.text() == GITLAB_URL
+    assert d.ui.lineEdit_token.text() == TOKEN
+    assert not d.ui.checkBox_verifyTls.isChecked() and not d.ui.lineEdit_caBundle.isEnabled()
+    assert d.ui.lineEdit_ciProject.text() == PROJECT
+    assert d.ui.label_ciProjectSource.isVisibleTo(d)
+    assert d.ui.comboBox_jobName.currentText() == "build_app"
+    assert d.ui.label_downloadStatus.text() == "Ready"
+    assert not d.ui.pushButton_stopDownload.isEnabled()

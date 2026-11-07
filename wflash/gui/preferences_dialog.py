@@ -14,7 +14,7 @@ from PySide6.QtWidgets import QDialog, QDialogButtonBox, QFileDialog, QMessageBo
 from wflash.core.artifact_cache import ArtifactCache
 from wflash.core.errors import ArtifactError
 from wflash.core.logging_setup import get_logger
-from wflash.core.settings import PACKAGES_SUBDIR, AppSettings, bundled_profiles_dir, default_cache_dir
+from wflash.core.settings import AppSettings, bundled_profiles_dir, default_cache_dir
 from wflash.gui.ui_preferences_dialog import Ui_PreferencesDialog
 
 log = get_logger("ui.preferences")
@@ -63,17 +63,16 @@ class PreferencesDialog(QDialog):
     def _clear_cache(self) -> None:
         root = self._cache_root()
         answer = QMessageBox.question(
-            self, "Clear cache", f"Delete every cached artifact and package in\n{root}?"
+            self, "Clear cache", f"Delete every cached artifact in\n{root}?"
         )
         if answer != QMessageBox.StandardButton.Yes:
             return
         errors: list[ArtifactError] = []
-        for cache_root in (root, root / PACKAGES_SUBDIR):
-            try:
-                ArtifactCache(cache_root).clear()
-            except ArtifactError as exc:
-                log.error("Cannot clear the cache %s: %s", cache_root, exc)
-                errors.append(exc)
+        try:
+            ArtifactCache(root).clear()
+        except ArtifactError as exc:
+            log.error("Cannot clear the cache %s: %s", root, exc)
+            errors.append(exc)
         # Whatever was removed is gone: the loaded firmware may point into it.
         self.cache_cleared = True
         if errors:

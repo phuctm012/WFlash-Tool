@@ -1,4 +1,4 @@
-"""Minimal GitLab REST v4 client: refs → pipelines → jobs → artifacts, and generic packages."""
+"""Minimal GitLab REST v4 client: refs → pipelines → jobs → artifacts."""
 from __future__ import annotations
 
 import fnmatch
@@ -62,20 +62,6 @@ class Job:
     stage: str
     status: str
     finished_at: str
-
-
-@dataclass(frozen=True)
-class PackageVersion:
-    id: int  # package id (one id per version of a generic package)
-    name: str
-    version: str
-    created_at: str
-
-
-def _safe_file_name(name: str) -> str:
-    """A server-supplied file name must never escape the download folder."""
-    base = Path(str(name).replace("\\", "/")).name
-    return base if base not in ("", ".", "..") else "package.bin"
 
 
 def _has_archive(job: dict) -> bool:
@@ -186,64 +172,6 @@ class GitLabClient:
         path = f"/projects/{project_id}/jobs/{job_id}/artifacts"
         log.info("Downloading artifacts of job #%s", job_id)
         return self._stream(path, dest / f"artifacts_{job_id}.zip", "Artifact", progress_cb, cancel)
-
-    def list_package_versions(self, project_id: int, package_name: str, limit: int = 20) -> list[PackageVersion]:
-        """Versions of one generic package, newest first. Raises GitLabError when there is none."""
-        path = f"/projects/{project_id}/packages"
-        params = {
-            "package_type": "generic",
-            "package_name": package_name,
-            "order_by": "created_at",
-            "sort": "desc",
-            "per_page": 100,
-        }
-        versions: list[PackageVersion] = []
-        page = "1"
-        while page and len(versions) < limit:
-            resp = self._get(path, {**params, "page": page})
-            with _parsing(path):
-                data = resp.json()
-                if not isinstance(data, list):
-                    raise TypeError("expected a JSON list")
-                # GitLab matches package_name as a prefix/substring: keep the exact name only.
-                versions += [
-                    PackageVersion(int(p["id"]), p["name"], p["version"], p.get("created_at") or "")
-                    for p in data
-                    if p.get("name") == package_name
-                ]
-            page = resp.headers.get("X-Next-Page", "")
-        if not versions:
-            raise GitLabError(
-                f"No versions of package '{package_name}' found",
-                hint="Check the package project and name in Load from GitLab…",
-            )
-        return versions[:limit]
-
-    def download_package(
-        self,
-        project_id: int,
-        package: PackageVersion,
-        dest: Path,
-        progress_cb: DownloadProgress | None = None,
-        cancel: CancelToken | None = None,
-    ) -> Path:
-        """Download the first file attached to `package` into `dest`; return its path."""
-        files_path = f"/projects/{project_id}/packages/{package.id}/package_files"
-        files = self._get_all(files_path)
-        with _parsing(files_path):
-            names = [f["file_name"] for f in files]
-        if not names:
-            raise GitLabError(
-                f"Version '{package.version}' of package '{package.name}' has no files",
-                hint="Pick another version, or check the package in GitLab (Deploy > Package Registry).",
-            )
-        file_name = names[0]
-        path = (
-            f"/projects/{project_id}/packages/generic/{quote(package.name, safe='')}/"
-            f"{quote(package.version, safe='')}/{quote(file_name, safe='')}"
-        )
-        log.info("Downloading package %s %s (%s)", package.name, package.version, file_name)
-        return self._stream(path, dest / _safe_file_name(file_name), "Package", progress_cb, cancel)
 
     def _stream(
         self,

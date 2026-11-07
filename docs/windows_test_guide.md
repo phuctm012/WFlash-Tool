@@ -11,7 +11,7 @@ Mỗi bước có ghi rõ **có đụng tới ECU/workspace hay không**. Bướ
 | 2 | Ghi thông tin workspace bằng tay | Có | Không | 10 phút |
 | 3 | Spike 01–05 (quan trọng nhất) | Có | **03 đổi tạm path, 04 flash, 05 reset** | 30–45 phút |
 | 4 | Test tự động + chạy app với fake adapter | Không | Không | 10 phút |
-| 5 | GitLab thật (CI Artifact + Package Registry) | Không | Không | 15 phút |
+| 5 | GitLab thật (CI Artifact) | Không | Không | 15 phút |
 | 6 | Build `.exe` | Không | Không | 10 phút |
 | 7 | Đóng gói và gửi kết quả | – | – | 5 phút |
 
@@ -262,7 +262,6 @@ Vẫn dùng `python main.py --adapter fake` (phần GitLab không phụ thuộc 
    - `pattern`: glob khớp tên file `.s3`/`.elf` trong artifact.
 2. **Load from GitLab…** → nhập URL GitLab, token (scope `read_api`). **Verify TLS** để bật. Nếu lỗi SSL, chỉ đường dẫn CA bundle nội bộ (file `.pem`/`.crt`) ở ô CA bundle; chỉ tắt Verify TLS nếu không có CA bundle (app sẽ ghi WARNING).
 3. Tab **CI Artifact**: Load branches/tags → chọn branch → Browse jobs… → tải một artifact. Kiểm tra bảng mapping: dòng nào đỏ, file nào được tự chọn có đúng không.
-4. Tab **Package Registry**: nhập project + tên package → Fetch Latest Version, rồi thử Browse versions… Nếu báo 403, ghi lại; có thể token thiếu quyền hoặc project không bật Package Registry.
 5. Thử lỗi có chủ đích: token sai (mong đợi thông báo 401 rõ ràng), project sai (404).
 6. **Export debug bundle…** sau khi tải xong → lưu vào `test_results\`.
 

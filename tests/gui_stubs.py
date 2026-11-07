@@ -37,11 +37,6 @@ PROJECT = "group/saf85xx-sw"
 PROJECT_ID = 42
 PIPELINE_ID = 100
 JOB_ID = 7
-PKG_PROJECT = "group/saf85xx-packages"
-PKG_PROJECT_ID = 43
-PKG_NAME = "saf85xx-firmware"
-PKG_ZIP_ID = 502  # version 1.4.0: one zip with the usual artifact files
-PKG_RAW_ID = 501  # version 1.3.0: one plain .s3 file (not a zip)
 OLD_APP = r"C:\fake\old\App.s3"
 OLD_CM7_0 = r"C:\fake\old\cm7_0.elf"
 OLD_CM7_1 = r"C:\fake\old\cm7_1.elf"
@@ -125,12 +120,6 @@ class FakeGitLabSession:
         self.connection_error = connection_error
         self.chunk_delay_s = chunk_delay_s
         self.zip_bytes = artifact_zip_bytes()
-        self.package_versions = [
-            {"id": PKG_ZIP_ID, "name": PKG_NAME, "version": "1.4.0", "created_at": "2026-10-04T09:20:00Z"},
-            {"id": 503, "name": PKG_NAME + "-debug", "version": "9.9.9", "created_at": "2026-10-03T08:00:00Z"},
-            {"id": PKG_RAW_ID, "name": PKG_NAME, "version": "1.3.0", "created_at": "2026-10-01T07:00:00Z"},
-        ]
-        self.package_files = {PKG_ZIP_ID: f"{PKG_NAME}-1.4.0.zip", PKG_RAW_ID: "App.s3"}
         self.calls: list[str] = []
         self._lock = threading.Lock()
 
@@ -170,17 +159,6 @@ class FakeGitLabSession:
             )
         if path == f"/projects/{PROJECT_ID}/jobs/{JOB_ID}/artifacts":
             return self._stream(url, self.zip_bytes)
-        if path == f"/projects/{PKG_PROJECT}":
-            return self._response(200, {"id": PKG_PROJECT_ID})
-        if path == f"/projects/{PKG_PROJECT_ID}/packages":
-            name = (params or {}).get("package_name", "")
-            return self._response(200, [p for p in self.package_versions if p["name"].startswith(name)])
-        for package_id, file_name in self.package_files.items():
-            if path == f"/projects/{PKG_PROJECT_ID}/packages/{package_id}/package_files":
-                return self._response(200, [{"id": 1, "file_name": file_name}])
-            version = next((p["version"] for p in self.package_versions if p["id"] == package_id), None)
-            if path == f"/projects/{PKG_PROJECT_ID}/packages/generic/{PKG_NAME}/{version}/{file_name}":
-                return self._stream(url, self.zip_bytes if file_name.endswith(".zip") else b"S0 raw")
         return self._response(404, {"message": "404 Not Found"})
 
     def _stream(self, url: str, data: bytes) -> requests.Response:

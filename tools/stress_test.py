@@ -45,8 +45,6 @@ from tests.gui_stubs import (  # noqa: E402
     OLD_APP,
     OLD_CM7_0,
     OLD_CM7_1,
-    PKG_NAME,
-    PKG_PROJECT,
     SOURCE,
     TOKEN,
     FakeGitLabSession,
@@ -401,30 +399,6 @@ class Stress:
         dialog.reject()
         self.close_window(window, "gitlab")
 
-        # Package Registry: newest version (zip), then an older plain-file version.
-        session = FakeGitLabSession()
-        window = self.new_window(FakeWinIDEAAdapter(), session)
-        dialog = self.open_dialog(window)
-        dialog.ui.tabWidget_source.setCurrentWidget(dialog.ui.tab_packageRegistry)
-        dialog.ui.lineEdit_pkgProject.setText(PKG_PROJECT)
-        dialog.ui.lineEdit_packageName.setText(PKG_NAME)
-        dialog.fetch_latest()
-        ok = self.pump_until(lambda: window.mapping_complete() and not dialog.isVisible(), 10.0)
-        self.check(ok, "gitlab-package: latest version downloaded and mapped")
-        self.check(window.ui.label_sourceTitle.text() == f"Package \u00b7 {PKG_NAME} 1.4.0",
-                   f"gitlab-package: source card names the package: {window.ui.label_sourceTitle.text()!r}")
-        dialog = self.open_dialog(window)
-        dialog.browse_versions()
-        ok = self.pump_until(lambda: not dialog.busy() and dialog.ui.tableWidget_versions.rowCount() == 2, 5.0)
-        self.check(ok, "gitlab-package: two versions listed (prefix match dropped)")
-        if ok:
-            dialog.version_button(1).click()
-            ok = self.pump_until(lambda: not dialog.isVisible() and not window.gitlab_busy(), 10.0)
-            self.check(ok and "1.3.0" in window.ui.label_sourceTitle.text(), "gitlab-package: plain-file version loaded")
-            self.check(not window.mapping_complete(), "gitlab-package: missing symbols leave red rows (no guessing)")
-        self.check(self.dialogs == [], f"gitlab-package: no error dialogs: {self.dialogs}")
-        self.close_window(window, "gitlab-package")
-
         # Double-click on an UNCACHED job while the first download is in flight: refused.
         slow_dc = FakeGitLabSession(chunk_delay_s=0.02)
         window = self.new_window(FakeWinIDEAAdapter(), slow_dc)
@@ -624,7 +598,7 @@ class Stress:
 SECTIONS = {
     "flash": ("full fetch->map->flash, cancel mid-download, resize + log filter while live", Stress.section_flash),
     "rollback": ("every failure branch; workspace paths restored, failed rollback shown", Stress.section_rollback),
-    "gitlab": ("dialog: CI + package, 401/403/404/connection, double-click, Stop, close mid-fetch",
+    "gitlab": ("dialog: CI artifact, 401/403/404/connection, double-click, Stop, close mid-fetch",
                Stress.section_gitlab),
     "races": ("cancel at 0..400 ms, double Flash/Cancel, close mid-download / mid-fetch", Stress.section_races),
     "theme": ("light/dark switched while flashing and with the dialog open", Stress.section_theme),

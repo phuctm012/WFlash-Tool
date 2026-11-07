@@ -19,7 +19,7 @@ class GitLabSpec(_Strict):
 
 
 class SourceSpec(_Strict):
-    """One artifact or package the firmware files come from; it has its own Load button."""
+    """One artifact the firmware files come from; it has its own Load button."""
 
     label: str = Field(min_length=1)
     job_filter: str | None = None

@@ -75,6 +75,17 @@ def test_gui_every_self_ui_reference_exists_in_a_ui_file():
     assert sorted(referenced - known) == []
 
 
+def test_gui_old_widgets_are_gone():
+    names = set(ui_names(GUI / "main_window.ui"))
+    gone = {
+        "groupBox_gitlab", "comboBox_ref", "listWidget_pipelines", "listWidget_jobs",
+        "pushButton_downloadArtifact", "progressBar_artifact", "pushButton_settings",
+        "pushButton_cancelFlash", "splitter_mainVertical", "splitter_upperHorizontal",
+    }
+    assert names & gone == set()
+    assert not (GUI / "settings_dialog.ui").exists() and not (GUI / "gitlab_browser.py").exists()
+
+
 def test_gui_generated_modules_import(qapp):
     from PySide6.QtWidgets import QDialog, QMainWindow
 
@@ -100,20 +111,8 @@ def test_gui_generated_modules_import(qapp):
     gitlab_ui = Ui_GitlabDialog()
     gitlab_ui.setupUi(gitlab)
     assert gitlab_ui.tableWidget_jobs.columnCount() == 6
-    assert gitlab_ui.tableWidget_versions.columnCount() == 3
-    assert gitlab_ui.tabWidget_source.count() == 2
+    assert gitlab_ui.tabWidget_source.count() == 1
     assert gitlab_ui.checkBox_verifyTls.isChecked()
     window.deleteLater()
     preferences.deleteLater()
     gitlab.deleteLater()
-
-
-def test_gui_old_widgets_are_gone():
-    names = set(ui_names(GUI / "main_window.ui"))
-    gone = {
-        "groupBox_gitlab", "comboBox_ref", "listWidget_pipelines", "listWidget_jobs",
-        "pushButton_downloadArtifact", "progressBar_artifact", "pushButton_settings",
-        "pushButton_cancelFlash", "splitter_mainVertical", "splitter_upperHorizontal",
-    }
-    assert names & gone == set()
-    assert not (GUI / "settings_dialog.ui").exists() and not (GUI / "gitlab_browser.py").exists()

@@ -1,4 +1,4 @@
-"""Find and download firmware for Load from GitLab: CI job artifacts and generic packages.
+"""Find and download firmware for Load from GitLab: CI job artifacts.
 
 Plain blocking calls (no Qt): the GUI runs them on a worker thread and passes the
 worker's CancelToken and a byte-progress callback. Everything that is downloaded goes
@@ -7,7 +7,6 @@ through an ArtifactCache, and the result says where it came from (FirmwareSource
 from __future__ import annotations
 
 import tempfile
-import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -15,7 +14,7 @@ from wflash.core.artifact_cache import ArtifactCache
 from wflash.core.cancel import CancelToken
 from wflash.core.errors import GitLabError
 from wflash.core.firmware_source import FirmwareSource, files_note, short_timestamp
-from wflash.core.gitlab_client import DownloadProgress, GitLabClient, PackageVersion
+from wflash.core.gitlab_client import DownloadProgress, GitLabClient
 from wflash.core.logging_setup import get_logger
 
 log = get_logger("gitlab.fetch")
@@ -131,41 +130,5 @@ def fetch_ci_artifact(
         detail=f"{project} · {job.ref} · pipeline #{job.pipeline_id}",
         cache_note=files_note(from_cache, count_files(path)),
         commit=job.commit,
-    )
-    return path, source
-
-
-def latest_package(client: GitLabClient, project_id: int, package_name: str) -> PackageVersion:
-    return client.list_package_versions(project_id, package_name, limit=1)[0]
-
-
-def fetch_package(
-    client: GitLabClient,
-    project: str,
-    project_id: int,
-    package: PackageVersion,
-    cache: ArtifactCache,
-    progress: DownloadProgress | None = None,
-    cancel: CancelToken | None = None,
-) -> tuple[Path, FirmwareSource]:
-    """First file of a package version: a zip is extracted, anything else is cached as-is."""
-    path = cache.get(project_id, package.id)
-    from_cache = path is not None
-    if path is None:
-        with tempfile.TemporaryDirectory(prefix="wflash_pkg_") as tmp:
-            file_path = client.download_package(project_id, package, Path(tmp), progress, cancel)
-            _check(cancel)
-            if zipfile.is_zipfile(file_path):
-                path = cache.store_zip(project_id, package.id, file_path)
-            else:
-                path = cache.store_file(project_id, package.id, file_path)
-    else:
-        log.info("Using cached package %s %s: %s", package.name, package.version, path)
-    source = FirmwareSource(
-        kind="package",
-        project=project,
-        title=f"Package · {package.name} {package.version}",
-        detail=f"{project} · {short_timestamp(package.created_at)}",
-        cache_note=files_note(from_cache, count_files(path)),
     )
     return path, source

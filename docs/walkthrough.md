@@ -1149,3 +1149,17 @@ User xác nhận `.s3` và ELF nằm ở hai artifact khác nhau. Trước đây
 
 - RED rồi GREEN theo từng phần. `pytest -q`: 385 passed; `pytest -k thread -q`: 42 passed; `tools/stress_test.py`: `CHECKPOINTS=371 FAILED=0 QT_THREADING_WARNINGS=0`, `STRESS_RESULT=PASS`.
 - Chụp ảnh với style native macOS trong vòng lặp Qt thật: hai dòng nguồn, cảnh báo commit và ba checkbox hiện đủ chữ. Chưa thử với GitLab thật.
+
+## Phase 2.9: Bỏ Package Registry
+
+User cho biết chỉ cần CI artifact, nên xóa toàn bộ phần tải từ Package Registry. Popup giữ một tab CI Artifact để ít thay đổi nhất. File `settings.json` cũ có `package_project`/`package_name` vẫn nạp được vì khóa lạ bị bỏ qua. Thư mục `<cache>/packages` cũ, nếu có, không còn được dọn; nó không ảnh hưởng gì.
+
+### Thay đổi
+
+- **`wflash/gui/gitlab_dialog.ui`**, **`ui_gitlab_dialog.py`** (sinh lại), **`gitlab_dialog.py`**: bỏ tab và logic package.
+- **`wflash/core/gitlab_client.py`**, **`firmware_fetch.py`**, **`artifact_cache.py`**, **`firmware_source.py`**, **`settings.py`**, **`wflash/gui/preferences_dialog.py`**: bỏ code package.
+- **`tests`**, **`tools/stress_test.py`**, **`README.md`**, **`docs/windows_test_guide.md`**: bỏ phần package; test hỗn hợp được giữ lại cho CI.
+
+### Đã kiểm tra
+
+- `pytest -q`: 364 passed; `pytest -k thread -q`: 42 passed; `tools/stress_test.py`: `CHECKPOINTS=359 FAILED=0 QT_THREADING_WARNINGS=0`, `STRESS_RESULT=PASS`; smoke `--adapter fake` exit 0. Chưa thử với GitLab thật.

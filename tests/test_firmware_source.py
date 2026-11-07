@@ -2,9 +2,9 @@ from wflash.core.firmware_source import FirmwareSource, files_note, short_timest
 
 
 def test_to_dict_has_every_field():
-    source = FirmwareSource("package", "group/pkgs", "Package · fw 1.4.0", "group/pkgs · 2026-10-04 09:20", "Downloaded · 1 file")
+    source = FirmwareSource("ci", "group/pkgs", "Package · fw 1.4.0", "group/pkgs · 2026-10-04 09:20", "Downloaded · 1 file")
     assert source.to_dict() == {
-        "kind": "package",
+        "kind": "ci",
         "project": "group/pkgs",
         "title": "Package · fw 1.4.0",
         "detail": "group/pkgs · 2026-10-04 09:20",

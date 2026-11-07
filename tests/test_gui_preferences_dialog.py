@@ -10,7 +10,7 @@ pytestmark = pytest.mark.gui
 
 
 def make(qtbot, **kwargs):
-    settings = AppSettings(last_profile="keep.yaml", gitlab_url="https://gl", package_name="fw", **kwargs)
+    settings = AppSettings(last_profile="keep.yaml", gitlab_url="https://gl", **kwargs)
     dialog = PreferencesDialog(settings)
     qtbot.addWidget(dialog)
     return dialog
@@ -30,6 +30,28 @@ def test_gui_preferences_has_no_gitlab_fields(qtbot):
     assert not {"lineEdit_gitlabUrl", "lineEdit_token", "lineEdit_caBundle"} & names
 
 
+def test_gui_missing_profiles_folder_blocks_accept(qtbot, tmp_path):
+    dialog = make(qtbot)
+    dialog.ui.lineEdit_profilesDir.setText(str(tmp_path / "missing"))
+    dialog.ok_button().click()
+    assert dialog.result() != QDialog.DialogCode.Accepted
+    assert "Profiles folder not found" in dialog.ui.label_error.text()
+
+
+def test_gui_clear_cache_failure_is_shown(qtbot, tmp_path, monkeypatch):
+    dialog = make(qtbot, cache_dir=str(tmp_path / "cache"))
+    monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.StandardButton.Yes)
+
+    def boom(self):
+        raise ArtifactError("Could not clear 2 cached artifact(s)", hint="Close programs holding files.")
+
+    monkeypatch.setattr(ArtifactCache, "clear", boom)
+    dialog.ui.pushButton_clearCache.click()
+    assert "Could not clear 2" in dialog.ui.label_error.text()
+    assert "Close programs" in dialog.ui.label_error.text()
+    assert dialog.cache_cleared  # a partial clear may still have removed the loaded files
+
+
 def test_gui_accept_returns_new_settings_and_keeps_the_rest(qtbot, tmp_path):
     dialog = make(qtbot)
     dialog.ui.lineEdit_cacheDir.setText(f" {tmp_path / 'cache'} ")
@@ -45,22 +67,13 @@ def test_gui_accept_returns_new_settings_and_keeps_the_rest(qtbot, tmp_path):
     assert result.max_cached_jobs == 5
     assert result.verbose is True and result.dark_mode is True
     # Fields edited elsewhere are carried over untouched.
-    assert (result.last_profile, result.gitlab_url, result.package_name) == ("keep.yaml", "https://gl", "fw")
+    assert (result.last_profile, result.gitlab_url) == ("keep.yaml", "https://gl")
 
 
-def test_gui_missing_profiles_folder_blocks_accept(qtbot, tmp_path):
-    dialog = make(qtbot)
-    dialog.ui.lineEdit_profilesDir.setText(str(tmp_path / "missing"))
-    dialog.ok_button().click()
-    assert dialog.result() != QDialog.DialogCode.Accepted
-    assert "Profiles folder not found" in dialog.ui.label_error.text()
-
-
-def test_gui_clear_cache_clears_artifacts_and_packages_after_confirmation(qtbot, tmp_path, monkeypatch):
+def test_gui_clear_cache_clears_artifacts_after_confirmation(qtbot, tmp_path, monkeypatch):
     root = tmp_path / "cache"
-    for base in (root, root / "packages"):
-        (base / "42" / "7" / "files").mkdir(parents=True)
-        (base / "42" / "7" / ".complete").write_text("x")
+    (root / "42" / "7" / "files").mkdir(parents=True)
+    (root / "42" / "7" / ".complete").write_text("x")
     dialog = make(qtbot, cache_dir=str(root))
     monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.StandardButton.No)
     dialog.ui.pushButton_clearCache.click()
@@ -68,20 +81,5 @@ def test_gui_clear_cache_clears_artifacts_and_packages_after_confirmation(qtbot,
     monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.StandardButton.Yes)
     dialog.ui.pushButton_clearCache.click()
     assert ArtifactCache(root).entries() == []
-    assert ArtifactCache(root / "packages").entries() == []
     assert root.exists()  # the root itself is never deleted
     assert dialog.cache_cleared
-
-
-def test_gui_clear_cache_failure_is_shown(qtbot, tmp_path, monkeypatch):
-    dialog = make(qtbot, cache_dir=str(tmp_path / "cache"))
-    monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.StandardButton.Yes)
-
-    def boom(self):
-        raise ArtifactError("Could not clear 2 cached artifact(s)", hint="Close programs holding files.")
-
-    monkeypatch.setattr(ArtifactCache, "clear", boom)
-    dialog.ui.pushButton_clearCache.click()
-    assert "Could not clear 2" in dialog.ui.label_error.text()
-    assert "Close programs" in dialog.ui.label_error.text()
-    assert dialog.cache_cleared  # a partial clear may still have removed the loaded files

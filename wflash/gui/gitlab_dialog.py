@@ -1,4 +1,4 @@
-"""Load from GitLab popup (layout in gitlab_dialog.ui): CI artifact and Package Registry tabs.
+"""Load from GitLab popup (layout in gitlab_dialog.ui): find a CI job and download its artifact.
 
 The dialog finds and downloads firmware, then emits `firmwareReady(path, source)` and
 closes; the main window builds the mapping from it. Every GitLab call runs on the main
@@ -38,12 +38,9 @@ from wflash.core.firmware_fetch import (
     JobRow,
     browse_jobs,
     fetch_ci_artifact,
-    fetch_package,
     find_latest_job,
-    latest_package,
 )
-from wflash.core.firmware_source import short_timestamp
-from wflash.core.gitlab_client import GitLabClient, PackageVersion
+from wflash.core.gitlab_client import GitLabClient
 from wflash.core.logging_setup import get_logger, redact, register_secret
 from wflash.core.settings import AppSettings, get_token, set_token
 from wflash.gui.style import repolish
@@ -58,8 +55,6 @@ ClientFactory = Callable[[AppSettings], GitLabClient]
 WORKER_PREFIX = "gitlab-"
 DIALOG_CLOSE_TIMEOUT_S = 10.0
 JOB_DOWNLOAD_COLUMN = 5
-VERSION_DOWNLOAD_COLUMN = 2
-VERSIONS_TO_LIST = 20
 
 _tls_warning_logged = False  # "Verify TLS" off is logged once per session
 
@@ -119,25 +114,19 @@ class GitlabDialog(QDialog):
         self._token_saved_for: tuple[str, str] = ("", "")  # (url, token) known to be in the keyring
         self._job_rows: list[JobRow] = []
         self._jobs_project: tuple[str, int] | None = None  # project the job table was listed from
-        self._versions: list[PackageVersion] = []
-        self._versions_project: tuple[str, int] | None = None
         self._downloading_button: QPushButton | None = None
 
         self.ui.plainTextEdit_gitlabLog.setFont(QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont))
-        for table, stretch in ((self.ui.tableWidget_jobs, 1), (self.ui.tableWidget_versions, 0)):
-            header = table.horizontalHeader()
-            for column in range(table.columnCount()):
-                mode = QHeaderView.ResizeMode.Stretch if column == stretch else QHeaderView.ResizeMode.ResizeToContents
-                header.setSectionResizeMode(column, mode)
+        header = self.ui.tableWidget_jobs.horizontalHeader()
+        for column in range(self.ui.tableWidget_jobs.columnCount()):
+            mode = QHeaderView.ResizeMode.Stretch if column == 1 else QHeaderView.ResizeMode.ResizeToContents
+            header.setSectionResizeMode(column, mode)
         self._reset_progress()
 
         self.ui.pushButton_loadRefs.clicked.connect(self.load_refs)
         self.ui.pushButton_browseJobs.clicked.connect(self.browse_jobs)
         self.ui.pushButton_downloadSelected.clicked.connect(self.download_selected)
         self.ui.tableWidget_jobs.cellDoubleClicked.connect(self._on_job_double_clicked)
-        self.ui.pushButton_fetchLatest.clicked.connect(self.fetch_latest)
-        self.ui.pushButton_browseVersions.clicked.connect(self.browse_versions)
-        self.ui.tableWidget_versions.cellDoubleClicked.connect(self._on_version_double_clicked)
         self.ui.pushButton_stopDownload.clicked.connect(self.stop)
         self.ui.pushButton_cancel.clicked.connect(self.reject)
         self.ui.pushButton_browseCa.clicked.connect(self._browse_ca)
@@ -161,8 +150,6 @@ class GitlabDialog(QDialog):
         self.ui.checkBox_verifyTls.setChecked(settings.verify_tls)
         self.ui.lineEdit_caBundle.setText(settings.ca_bundle)
         self._on_verify_toggled(settings.verify_tls)
-        self.ui.lineEdit_pkgProject.setText(settings.package_project)
-        self.ui.lineEdit_packageName.setText(settings.package_name)
         key = self._profile_key_now()
         if key != self._profile_key:
             # Another profile: its project and jobs are different, start the CI tab afresh.
@@ -232,11 +219,6 @@ class GitlabDialog(QDialog):
             self.ui.pushButton_downloadSelected,
             self.ui.pushButton_browseJobs,
             self.ui.tableWidget_jobs,
-            self.ui.lineEdit_pkgProject,
-            self.ui.lineEdit_packageName,
-            self.ui.pushButton_fetchLatest,
-            self.ui.pushButton_browseVersions,
-            self.ui.tableWidget_versions,
         ):
             widget.setEnabled(not busy)
         self.ui.pushButton_stopDownload.setEnabled(busy)
@@ -302,8 +284,6 @@ class GitlabDialog(QDialog):
         settings.verify_tls = self.ui.checkBox_verifyTls.isChecked()
         if self._source_label is None:  # a source's job name must not leak into the other source
             settings.ci_job_name = self._job_name()
-        settings.package_project = self.ui.lineEdit_pkgProject.text().strip()
-        settings.package_name = self.ui.lineEdit_packageName.text().strip()
         self._store_ci_project()
         self._host._save_settings()
 
@@ -525,18 +505,9 @@ class GitlabDialog(QDialog):
             for index, row in enumerate(self._job_rows):
                 button = self.ui.tableWidget_jobs.cellWidget(index, JOB_DOWNLOAD_COLUMN)
                 button.setText("Cached" if cache.has(project_id, row.job_id) else "Download")
-        if self._versions_project is not None:
-            cache = ArtifactCache(settings.resolved_package_cache_dir())
-            _, project_id = self._versions_project
-            for index, version in enumerate(self._versions):
-                button = self.ui.tableWidget_versions.cellWidget(index, VERSION_DOWNLOAD_COLUMN)
-                button.setText("Cached" if cache.has(project_id, version.id) else "Download")
 
     def job_button(self, index: int) -> QPushButton:
         return self.ui.tableWidget_jobs.cellWidget(index, JOB_DOWNLOAD_COLUMN)
-
-    def version_button(self, index: int) -> QPushButton:
-        return self.ui.tableWidget_versions.cellWidget(index, VERSION_DOWNLOAD_COLUMN)
 
     def _on_job_double_clicked(self, row: int, _column: int) -> None:
         self._download_job_row(row)
@@ -607,92 +578,3 @@ class GitlabDialog(QDialog):
         self._note(logging.INFO, f"Firmware ready: {source.title} ({source.cache_note}) at {path}")
         self.firmwareReady.emit(path, source)
         self.accept()
-
-    # -- Package Registry tab ------------------------------------------------------------
-    def _package_fields(self) -> tuple[str, str] | None:
-        project = self.ui.lineEdit_pkgProject.text().strip()
-        name = self.ui.lineEdit_packageName.text().strip()
-        if not project or not name:
-            self._fail_input("Enter the package project and the package name first.")
-            return None
-        return project, name
-
-    def fetch_latest(self, *_args) -> None:
-        if self.busy() or not self._commit_connection():
-            return
-        fields = self._package_fields()
-        if fields is None:
-            return
-        project, name = fields
-        factory, settings = self._host._client_factory, self._snapshot()
-        cache_root, max_jobs = settings.resolved_package_cache_dir(), settings.max_cached_jobs
-
-        def job(ctx: WorkerContext):
-            client = factory(settings)
-            project_id = client.get_project_id(project)
-            version = latest_package(client, project_id, name)
-            ctx.progress(None, f"Latest version: {version.version}")
-            cache = ArtifactCache(cache_root, max_jobs)
-            return fetch_package(client, project, project_id, version, cache, byte_progress(ctx), ctx.cancel)
-
-        self._note(logging.INFO, f"Fetching the latest version of package {name} from {project}")
-        self._busy_progress("Looking for the latest version…")
-        self._start("download", job, self._on_download_succeeded, progress=True)
-
-    def browse_versions(self, *_args) -> None:
-        if self.busy() or not self._commit_connection():
-            return
-        fields = self._package_fields()
-        if fields is None:
-            return
-        project, name = fields
-        factory, settings = self._host._client_factory, self._snapshot()
-
-        def job(ctx: WorkerContext):
-            client = factory(settings)
-            project_id = client.get_project_id(project)
-            return project, project_id, client.list_package_versions(project_id, name, limit=VERSIONS_TO_LIST)
-
-        self._note(logging.INFO, f"Listing versions of package {name}")
-        self._busy_progress("Loading versions…")
-        self._start("versions", job, self._on_versions_loaded)
-
-    def _on_versions_loaded(self, key: str, result) -> None:
-        if self._stale(key):
-            return
-        project, project_id, versions = result
-        self._versions = versions
-        self._versions_project = (project, project_id)
-        table = self.ui.tableWidget_versions
-        table.clearSelection()
-        table.setRowCount(len(versions))
-        for index, version in enumerate(versions):
-            table.setItem(index, 0, QTableWidgetItem(version.version))
-            table.setItem(index, 1, QTableWidgetItem(short_timestamp(version.created_at)))
-            button = QPushButton()
-            button.clicked.connect(partial(self._download_version_row, index))  # GUI-thread signal
-            table.setCellWidget(index, VERSION_DOWNLOAD_COLUMN, button)
-        self._refresh_download_buttons()
-        self._note(logging.INFO, f"Found {len(versions)} version(s)")
-        self._set_status("Ready")
-
-    def _on_version_double_clicked(self, row: int, _column: int) -> None:
-        self._download_version_row(row)
-
-    def _download_version_row(self, index: int, *_args) -> None:
-        if self.busy() or not 0 <= index < len(self._versions) or not self._commit_connection():
-            return
-        version = self._versions[index]
-        project, project_id = self._versions_project
-        factory, settings = self._host._client_factory, self._snapshot()
-        cache_root, max_jobs = settings.resolved_package_cache_dir(), settings.max_cached_jobs
-
-        def job(ctx: WorkerContext):
-            client = factory(settings)
-            cache = ArtifactCache(cache_root, max_jobs)
-            return fetch_package(client, project, project_id, version, cache, byte_progress(ctx), ctx.cancel)
-
-        self._mark_downloading(self.version_button(index))
-        self._note(logging.INFO, f"Downloading package {version.name} {version.version}")
-        self._busy_progress("Starting download…")
-        self._start("download", job, self._on_download_succeeded, progress=True)
