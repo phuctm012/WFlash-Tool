@@ -90,8 +90,6 @@ def test_from_env(monkeypatch):
 
 def test_create_adapter():
     assert isinstance(create_adapter("fake"), FakeWinIDEAAdapter)
-    with pytest.raises(WinIDEAError):
-        create_adapter("real")
     with pytest.raises(ValueError):
         create_adapter("other")
 

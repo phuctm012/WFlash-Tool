@@ -3,9 +3,7 @@
 Tool desktop (Python + PySide6) để flash ECU **NXP SAF85xx** qua **winIDEA 9.21** (`isystem.connect`):
 chọn artifact từ GitLab CI, tự map file `.s3`/`.elf` vào workspace winIDEA đang mở, download vào external flash Winbond, reset + halt.
 
-> Trạng thái: GUI, GitLab, cache, mapping, workflow (kèm rollback) và log đã chạy với **fake adapter**.
-> Adapter winIDEA thật (Plan 2) sẽ được viết sau khi có kết quả spike (`spike/README.md`).
-> Toàn bộ các bước cần thử trên Windows và cách gửi kết quả: `docs/windows_test_guide.md`.
+> Trạng thái: adapter winIDEA thật đã viết theo kết quả spike (`docs/winidea_api_notes.md`) nhưng **chưa chạy thử trọn luồng trên ECU**. Các bước thử trên Windows và cách gửi kết quả: `docs/windows_test_guide.md`, mục "Vòng 7".
 
 ## Chạy từ source
 
@@ -21,10 +19,10 @@ Windows với venv (Python cùng bitness với winIDEA, thường là 64-bit):
 
     py -3 -m venv %USERPROFILE%\.venvs\wflash
     %USERPROFILE%\.venvs\wflash\Scripts\python -m pip install -e ".[dev]"
-    %USERPROFILE%\.venvs\wflash\Scripts\python -m wflash            (mặc định --adapter real: chưa dùng được, xem lưu ý dưới)
+    %USERPROFILE%\.venvs\wflash\Scripts\python -m wflash            (mặc định --adapter real)
     %USERPROFILE%\.venvs\wflash\Scripts\python -m wflash --adapter fake
 
-> **Lưu ý:** adapter winIDEA thật **chưa có** (Plan 2, viết sau spike), nên chạy `python -m wflash` không tham số (mặc định `--adapter real`) hiện sẽ báo lỗi. Tạm thời dùng `python -m wflash --adapter fake`. Với bản `WFlash.exe` đã build, tạo shortcut với tham số `--adapter fake` (Target: `...\WFlash.exe --adapter fake`).
+> **Lưu ý khi flash thật:** chỉ mở một winIDEA, với đúng workspace đã chọn; nếu khác, tool báo lỗi và không flash. Tùy chọn mass erase theo cấu hình workspace. Cancel bị khóa từ lúc bắt đầu lập trình (khoảng 100 s), vì dừng giữa lúc xóa có thể để lại ECU trống. Không có winIDEA thì dùng `--adapter fake`.
 
 `isystem.connect` **không** cài từ PyPI: cài từ thư mục cài đặt winIDEA 9.21 (xem `spike/README.md`) để version khớp với winIDEA.
 
@@ -37,14 +35,14 @@ Tham số: `--adapter real|fake`, `--verbose` (log mọi lời gọi winIDEA), `
 
 Fake adapter giả lập lỗi qua biến môi trường `WFLASH_FAKE_FAIL` (nối bằng dấu phẩy):
 `list_instances` (không có instance), `connect`, `connection_lost`, `read_programs`, `read_applications`,
-`set_path` (đổi path bị từ chối — cả lúc rollback, nên GUI hiện cảnh báo ROLLBACK FAILED), `download` (lỗi ở 50%), `reset`.
+`set_path` (đổi path bị từ chối — cả lúc rollback, nên GUI hiện cảnh báo ROLLBACK FAILED), `download` (lỗi ở 50%), `reset`, `verify` (so mẫu flash lỗi), `no_cancel` (download không hủy được, giống adapter thật).
 `WFLASH_FAKE_DOWNLOAD_S=10` đổi thời gian download giả lập.
 
 ## Cấu hình
 
 1. **Load from GitLab…** (popup, mở từ vùng *Setting*): GitLab URL, Personal Access Token (scope `read_api`, lưu trong Windows Credential Manager / keychain, không bao giờ ghi ra file), ô **Verify TLS certificate** (mặc định bật; chỉ tắt khi ở mạng tin cậy — app ghi một dòng WARNING mỗi phiên), CA bundle nếu GitLab dùng chứng chỉ nội bộ.
 2. **Preferences…**: thư mục cache + số bản tải giữ lại + nút **Clear cache** (xóa cả artifact CI lẫn package), thư mục profile, verbose, **Dark mode** (áp dụng ngay và được lưu lại).
-3. **Profile** (`profiles/*.yaml`): project GitLab, filter tên job, tên entry download và tên Application trong winIDEA, pattern file. Xem `profiles/saf85xx_example.yaml`.
+3. **Profile** (`profiles/*.yaml`): project GitLab, filter tên job, pattern file, và tên đích trong winIDEA. `winidea_entry` là tên file của dòng đang tick trong Download Files của thiết bị flash; `winidea_app` là `<Application>/<tên file symbol>`. File trong artifact phải trùng tên với file đang cấu hình. Xem `profiles/suz05_m7_ffi.yaml`.
 
 ## Giao diện
 

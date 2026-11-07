@@ -78,10 +78,7 @@ def create_adapter(kind: str) -> WinIDEAAdapter:
 
         return FakeWinIDEAAdapter.from_env()
     if kind == "real":
-        raise WinIDEAError(
-            "The real winIDEA adapter is not available in this build yet.",
-            hint="Run the spike scripts (spike/README.md) and send the results. Meanwhile start WFlash with --adapter fake.",
-        )
+        return RealWinIDEAAdapter()
     raise ValueError(f"Unknown adapter kind: {kind}")
 
 

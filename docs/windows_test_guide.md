@@ -468,3 +468,16 @@ C:\Data\_Devtools\Winidea408\Python\python.exe 13_device_options.py
 ```
 
 Gửi lại `results\13_device_options_*.txt`.
+
+## Vòng 7: thử WFlash thật
+
+⚠️ Bước 3 trở đi **ghi vào flash**. Nếu ECU không chạy, khôi phục bằng Debug → Download bấm tay rồi gửi log.
+
+1. Lấy bản mới. Mở một winIDEA duy nhất với workspace `R_04_01_01`. `python -m pip install -e ".[dev]"`, rồi `python main.py --verbose`.
+2. Chọn profile `SUZ05_M7_FFI`, Load from GitLab, tải artifact. Kiểm tra bảng mapping và chọn instance. Thử **cùng firmware đang có trên ECU trước**.
+3. Bấm Flash. Kiểm tra: Cancel bị khóa khi bước Downloading bắt đầu; Output của winIDEA có đúng 1 `ERASING`; xong thì target dừng.
+4. Tắt bật nguồn ECU, kiểm tra firmware. Kiểm tra trong winIDEA: dòng `.s3` và ELF `App_M7` trỏ tới file trong cache, dòng CAL và ELF khác giữ nguyên.
+5. Không đóng app, bấm Flash lần nữa với tick **Verify samples** (thêm khoảng 3 phút). Mong đợi xong không lỗi.
+6. Tải artifact **firmware khác**, Flash, tắt bật nguồn, kiểm tra ECU đúng là chạy firmware mới. Đây là bước đầu tiên chứng minh firmware mới thật sự được ghi.
+7. Thử lỗi: chọn sai tên file trong bảng mapping (mong đợi báo lỗi, không flash, path giữ nguyên).
+8. Export debug bundle, gửi lại cùng Output của winIDEA.

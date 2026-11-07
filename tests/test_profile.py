@@ -87,3 +87,11 @@ def test_list_profiles_sorted(tmp_path):
 
 def test_list_profiles_missing_dir(tmp_path):
     assert list_profiles(tmp_path / "missing") == []
+
+
+def test_suz05_profile_targets_only_the_ffi_row_and_the_m7_elf():
+    from pathlib import Path
+
+    profile = load_profile(Path(__file__).parents[1] / "profiles" / "suz05_m7_ffi.yaml")
+    assert [p.winidea_entry for p in profile.programs] == ["RAD_SUZ05_FFI.s3"]
+    assert [a.winidea_app for a in profile.applications] == ["App_M7/Radar_SUZ05_Gen7.elf"]

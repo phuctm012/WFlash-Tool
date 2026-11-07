@@ -387,3 +387,11 @@ def test_a_cancel_raised_by_the_progress_callback_cannot_stop_programming_or_ver
     assert not any("Progress callback failed" in r.getMessage() for r in caplog.records)
     _prepare_flash(world, tmp_path)
     connected.verify_flash(cancelled)
+
+
+from wflash.core.winidea_adapter import create_adapter
+
+
+def test_create_adapter_real_builds_without_importing_isystem(monkeypatch):
+    monkeypatch.setitem(sys.modules, "isystem.connect", None)
+    assert isinstance(create_adapter("real"), RealWinIDEAAdapter)

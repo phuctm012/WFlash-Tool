@@ -1,0 +1,20 @@
+# SUZ05: chỉ thay file .s3 của Winbond và ELF của App_M7.
+# File CAL (.sre), App_BBE và App_A53 giữ nguyên như trong workspace.
+# winidea_entry là tên file của dòng đang tick trong Hardware > Winbond > Configure > Download Files.
+# winidea_app là "<Application>/<tên file symbol>". File trong artifact phải trùng tên với file này.
+# Mass erase và các tùy chọn khác theo cấu hình workspace.
+name: SUZ05_M7_FFI
+gitlab:
+  project: group/saf85xx-sw     # đổi thành project thật, hoặc sửa trong Load from GitLab
+  job_filter: "*"
+programs:
+  - winidea_entry: "RAD_SUZ05_FFI.s3"
+    pattern: "**/RAD_SUZ05_FFI.s3"
+applications:
+  - winidea_app: "App_M7/Radar_SUZ05_Gen7.elf"
+    pattern: "**/Radar_SUZ05_Gen7.elf"
+post_flash:
+  reset: true
+  run: false
+timeouts:
+  download_s: 600

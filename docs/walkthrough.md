@@ -1116,3 +1116,18 @@ Với adapter thật, Cancel bị khóa từ bước Downloading, vì dừng gi�
 ### Đã kiểm tra
 
 - RED: 5 test mới lỗi. GREEN: `pytest -q`: 364 passed; `pytest -k thread -q`: 42 passed; `tools/stress_test.py`: `CHECKPOINTS=361 FAILED=0 QT_THREADING_WARNINGS=0`, `STRESS_RESULT=PASS`.
+
+## Phase 2.7: Bật adapter thật, profile SUZ05, hướng dẫn Vòng 7
+
+`create_adapter("real")` giờ trả về `RealWinIDEAAdapter`. Profile `suz05_m7_ffi.yaml` chỉ nhắm dòng `RAD_SUZ05_FFI.s3` và ELF của `App_M7`. Đây vẫn chưa phải chạy thật: mọi kiểm tra đều trên module giả, nên không khẳng định gì về phần cứng cho tới khi có kết quả Vòng 7, nhất là bước flash một firmware khác.
+
+### Thay đổi
+
+- **`wflash/core/winidea_adapter.py`**: bật adapter thật.
+- **`profiles/suz05_m7_ffi.yaml`** (mới). Giá trị `gitlab.project` là mẫu, user cần đổi.
+- **`README.md`**, **`docs/winidea_api_notes.md`**, **`docs/windows_test_guide.md`**: trạng thái, cách viết profile, Vòng 7.
+- **`tests/test_real_adapter.py`**, **`tests/test_profile.py`**, **`tests/test_fake_adapter.py`**: test mới; bỏ phần kiểm tra lỗi cũ của `create_adapter("real")`.
+
+### Đã kiểm tra
+
+- RED: 2 test mới lỗi. GREEN: `pytest -q`: 366 passed; `pytest -k thread -q`: 42 passed; `tools/stress_test.py`: `CHECKPOINTS=361 FAILED=0 QT_THREADING_WARNINGS=0`, `STRESS_RESULT=PASS`; smoke `--adapter fake` và `--adapter real` (macOS, không có `isystem`) đều exit 0. Chưa chạy với winIDEA thật.
