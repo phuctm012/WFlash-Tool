@@ -1,27 +1,25 @@
-# SUZ05: chỉ thay file .s3 của Winbond và ELF của App_M7.
-# File CAL (.sre), App_BBE và App_A53 giữ nguyên như trong workspace.
-# winidea_entry là tên file của dòng đang tick trong Hardware > Winbond > Configure > Download Files.
-# winidea_app là "<Application>/<tên file symbol>". File trong artifact phải trùng tên với file này.
-# .s3 và ELF nằm ở hai artifact khác nhau, nên có hai nguồn, mỗi nguồn một nút Load.
-# Mọi job build* đều có ELF, mọi job create_ffi* đều có .s3; chỉ job thành công mới hiện ra.
-# Mass erase và các tùy chọn khác theo cấu hình workspace.
+# SUZ05: firmware theo commit của source repo và cấu hình build.
+# Thứ tự trong programs là thứ tự flash, phải trùng thứ tự các dòng trong Download Files.
+# winidea_entry là tên file của dòng trong Download Files; CAL được khớp theo pattern,
+# tìm trong thư mục chứa file .xjrf. winidea_app là "<Application>/<tên file symbol>".
+# BM và FBL chỉ flash khi bật Advanced Debug. Mass erase và các tùy chọn khác theo workspace.
 name: SUZ05_M7_FFI
 gitlab:
   project: alm/projects_group/e-ad_group/e-ad_radar_cust_suz05_group/SUZ05_APP_Application_Software-Impl
-  job_filter: "*"
-sources:
-  ffi: {label: "FFI (.s3)", job_filter: "create_ffi*"}
-  m7: {label: "M7 (.elf)", job_filter: "build*"}
+builds:
+  - {name: stingray_3p5mb,         ffi_job: create_ffi_stingray_3p5mb,         elf_job: build,                             bm_job: build_STINGRAY_3P5MB}
+  - {name: stingray_3p5mb_no_HTSM, ffi_job: create_ffi_stingray_3p5mb_no_HTSM, elf_job: build,                             bm_job: build_STINGRAY_3P5MB}
+  - {name: stingray_uds27_bypass,  ffi_job: create_ffi_stingray_uds27_bypass,  elf_job: build_STINGRAY_3P5MB_UDS27_BYPASS, bm_job: build_STINGRAY_3P5MB}
+  - {name: strx_3p5mb_no_HTSM,     ffi_job: create_ffi_strx_3p5mb_no_HTSM,     elf_job: build_STRX_3P5MB,                  bm_job: build_STRX_3P5MB}
 programs:
-  - winidea_entry: "RAD_SUZ05_FFI.s3"
-    source: ffi
-    pattern: "**/RAD_SUZ05_FFI.s3"
+  - {role: ffi, winidea_entry: RAD_SUZ05_FFI.s3, pattern: "**/RAD_SUZ05_FFI.s3"}
+  - {role: cal, pattern: "*_CAL_T008_*.sre"}
+  - {role: bm,  winidea_entry: FBL_M7_LIP_RfeClock_Image.bin, pattern: "out/bin/FBL_M7_LIP_RfeClock_Image.bin", offset: 0x0}
+  - {role: fbl, winidea_entry: Radar_SUZ05_Gen7_FBL.bin, pattern: "out/bin/Radar_SUZ05_Gen7_FBL.bin", offset: 0xF1000}
 applications:
-  - winidea_app: "App_M7/Radar_SUZ05_Gen7.elf"
-    source: m7
-    pattern: "**/Radar_SUZ05_Gen7.elf"
-post_flash:
-  reset: true
-  run: false
-timeouts:
-  download_s: 600
+  - {role: elf, winidea_app: App_M7/Radar_SUZ05_Gen7.elf,     pattern: "**/Radar_SUZ05_Gen7.elf"}
+  - {role: bm,  winidea_app: App_M7/Radar_SUZ05_Gen7_BM.elf,  pattern: "out/bin/Radar_SUZ05_Gen7_BM.elf"}
+  - {role: fbl, winidea_app: App_M7/Radar_SUZ05_Gen7_FBL.elf, pattern: "out/bin/Radar_SUZ05_Gen7_FBL.elf"}
+debug_sources:
+  bm:  {project: alm/projects_group/e-ad_group/e-ad_radar_cust_suz05_group/SUZ05_BM_Boot_Manager-Impl}
+  fbl: {project: alm/projects_group/e-ad_group/e-ad_radar_cust_suz05_group/SUZ05_FBL_Flash_Boot_Loader-Impl, job: build}

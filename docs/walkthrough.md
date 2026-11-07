@@ -1294,3 +1294,15 @@ Module mới gọi `git` qua `subprocess`, không dùng Qt, để đọc branch,
 ### Đã kiểm tra
 
 - RED rồi GREEN với `pytest tests/test_source_repo.py`. Chưa chạy trên Windows.
+
+## Phase 3.4: Profile có cấu hình build, vai trò và nguồn debug
+
+Profile SUZ05 giờ khai báo 4 cấu hình build (cặp job FFI, ELF và job BM tương ứng), vai trò từng file, offset của BM và FBL, và project riêng của BM, FBL. Thứ tự trong `programs` là thứ tự flash. Lưu ý: giao diện chưa dùng phần này (Task 9), nên trong lúc phát triển profile SUZ05 chưa dùng được với nút Load cũ; nhánh này chưa merge nên không ảnh hưởng `main`.
+
+### Thay đổi
+
+- **`wflash/core/profile.py`**, **`wflash/core/file_matcher.py`**, **`profiles/suz05_m7_ffi.yaml`**, **`tests/test_profile.py`**.
+
+### Đã kiểm tra
+
+- RED rồi GREEN với `pytest tests/test_profile.py`; `pytest -q`.

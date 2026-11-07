@@ -60,13 +60,13 @@ def _row(kind: Kind, target: str, pattern: str, root: Path, files: list[Path]) -
 
 def build_mapping(profile: Profile, root: Path) -> list[MappingRow]:
     files = _files(root)
-    rows = [_row("program", s.winidea_entry, s.pattern, root, files) for s in profile.programs]
+    rows = [_row("program", s.winidea_entry, s.pattern, root, files) for s in profile.programs if s.winidea_entry]
     rows += [_row("application", s.winidea_app, s.pattern, root, files) for s in profile.applications]
     return rows
 
 
 def _targets(profile: Profile) -> list[tuple[Kind, str, str, str | None]]:
-    return [("program", s.winidea_entry, s.pattern, s.source) for s in profile.programs] + [
+    return [("program", s.winidea_entry, s.pattern, s.source) for s in profile.programs if s.winidea_entry] + [
         ("application", s.winidea_app, s.pattern, s.source) for s in profile.applications
     ]
 
