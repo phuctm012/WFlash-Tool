@@ -91,6 +91,9 @@ MAX_ESTIMATED_PERCENT = 95
 PROGRESS_TICK_S = 1.0
 HALT_WAIT_S = 5.0
 HALT_POLL_S = 0.2
+MONITOR_ERROR_TEXT = "error loading monitor"
+# Observed on the user's ECU: only a power cycle clears it, a reset from winIDEA does not.
+POWER_CYCLE_HINT = "Turn the ECU power off and on, then flash again; a reset from winIDEA does not clear this."
 BITNESS_HINT = (
     "Install isystem.connect from the winIDEA installation, and use Python with the same bitness "
     "as winIDEA. Meanwhile start WFlash with --adapter fake."
@@ -350,9 +353,11 @@ class RealWinIDEAAdapter:
         try:
             ic.CSessionCtrl(cmgr).begin_program()
         except Exception as exc:
+            advice = POWER_CYCLE_HINT + " " if MONITOR_ERROR_TEXT in str(exc).lower() else ""
             raise FlashError(
                 f"Programming failed: {exc}",
-                hint="The external flash may be erased or partly written. Flash again, or use Debug > Download in winIDEA.",
+                hint=advice
+                + "The external flash may be erased or partly written. Flash again, or use Debug > Download in winIDEA.",
             ) from exc
         finally:
             done.set()
@@ -415,7 +420,11 @@ class RealWinIDEAAdapter:
             try:
                 umi.read(0, address, len(expected), data)
             except Exception as exc:
-                raise WinIDEAError(f"Reading the flash failed at 0x{address:06X}: {exc}; {umi.getLastError()}") from exc
+                detail = f"{exc}; {umi.getLastError()}"
+                hint = "Programming finished, but the check could not read the flash."
+                if MONITOR_ERROR_TEXT in detail.lower():
+                    hint += f" {POWER_CYCLE_HINT}"
+                raise WinIDEAError(f"Reading the flash failed at 0x{address:06X}: {detail}", hint=hint) from exc
             actual = bytes(b if isinstance(b, int) else ord(b) for b in data)
             if actual != expected:
                 offset = next(k for k, (a, b) in enumerate(zip(actual, expected)) if a != b)

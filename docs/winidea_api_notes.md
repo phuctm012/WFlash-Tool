@@ -345,7 +345,18 @@ PROGRAMMING         0 bytes
 No core which could program flash is stopped
 ```
 
-Same code 39 as `umi.read` in the failed 09 run. Unknown: whether `begin_program()` **raises** on this. If it returns normally, WFlash would report success after a failed program; this must be observed. Whether a CPU reset clears it is also not yet observed.
+Same code 39 as `umi.read` in the failed 09 run. User report: **only a power cycle of the ECU clears it; a reset from winIDEA does not.** So WFlash shows that advice and does not reset or retry.
+
+Seen in WFlash during the verify: `Reading the flash failed at 0x000000: CUMIController::read failed! Error code unknown to isystem.connect facade: 39  [CUMIController.cpp, 551]; 001 - Operation failed! [fpcErrCode=0x39] [extErrCode=0x0000] [Error loading monitor]`.
+
+Still unknown: whether `begin_program()` **raises** on this. If it returns normally, WFlash would report success after a failed program; this must be observed.
+
+### First runs through WFlash (Vòng 7, user logs, 2026-11-07)
+
+Both with the real GitLab artifacts and the adapter's path changes; Output of each: one `ERASING`, `PROGRAMMING ... (79 sectors)`, `OK`, then `Running Reset`, `EMULATION STARTED`. Both load the files from the WFlash cache, so the paths written by `setOption` are what winIDEA programs.
+
+- Flash 1: `.s3` job 11606126, ELF job 11606119.
+- Flash 2, a different firmware with Verify samples: `.s3` job 11593258, ELF job 11593251. Chunk 01 size differs from flash 1 (`0x0B'1382` against `0x0B'2EC2`), then 37 `Running Reading` lines, one per sample, before the reset.
 
 ### Matching SDK location
 

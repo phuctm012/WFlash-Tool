@@ -1163,3 +1163,17 @@ User cho biết chỉ cần CI artifact, nên xóa toàn bộ phần tải từ 
 ### Đã kiểm tra
 
 - `pytest -q`: 364 passed; `pytest -k thread -q`: 42 passed; `tools/stress_test.py`: `CHECKPOINTS=359 FAILED=0 QT_THREADING_WARNINGS=0`, `STRESS_RESULT=PASS`; smoke `--adapter fake` exit 0. Chưa thử với GitLab thật.
+
+## Phase 2.10: Gợi ý khi gặp "Error loading monitor"
+
+Hai lần flash thật qua WFlash đều chạy đúng: một pha ERASING, 79 sector, nạp từ cache của WFlash, lần hai là firmware khác và có so mẫu. User cho biết lỗi "Error loading monitor" chỉ hết khi tắt bật nguồn ECU, còn reset từ winIDEA thì không. Vì vậy bỏ đề xuất reset rồi thử lại, và chỉ hiện gợi ý đúng. Khi lỗi xảy ra lúc so mẫu, gợi ý nói rõ phần ghi flash đã xong, vì gợi ý mặc định "Make sure winIDEA is running" dễ gây hiểu nhầm.
+
+### Thay đổi
+
+- **`wflash/core/winidea_adapter.py`**: gợi ý tắt bật nguồn cho `begin_program` và `verify_flash`; lỗi đọc khi so mẫu luôn nói phần ghi đã xong.
+- **`tests/fake_isystem.py`**, **`tests/test_real_adapter.py`**: 3 test.
+- **`docs/winidea_api_notes.md`**: kết quả chạy thật.
+
+### Đã kiểm tra
+
+- RED rồi GREEN với `pytest tests/test_real_adapter.py`; `pytest -q`, `pytest -k thread -q`, `tools/stress_test.py`. Chưa kiểm chứng `begin_program` có ném lỗi khi gặp lỗi này không.

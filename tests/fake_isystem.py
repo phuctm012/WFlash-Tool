@@ -55,6 +55,7 @@ class World:
         self.running = False
         self.flash: dict[int, int] = {}
         self.read_error: Exception | None = None
+        self.umi_last_error = "001 - Operation failed!"
         self.calls: list[str] = []
 
 
@@ -197,7 +198,7 @@ def build_module(world: World) -> types.ModuleType:
                 data[i] = world.flash.get(address + i, 0xFF)
 
         def getLastError(self):
-            return "001 - Operation failed!"
+            return world.umi_last_error
 
         def write(self, *_args):
             raise AssertionError("umi.write must never be called")

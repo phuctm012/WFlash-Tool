@@ -395,3 +395,34 @@ from wflash.core.winidea_adapter import create_adapter
 def test_create_adapter_real_builds_without_importing_isystem(monkeypatch):
     monkeypatch.setitem(sys.modules, "isystem.connect", None)
     assert isinstance(create_adapter("real"), RealWinIDEAAdapter)
+
+
+MONITOR_ERROR = "001 - Operation failed! [fpcErrCode=0x39] [extErrCode=0x0000] [Error loading monitor]"
+
+
+def test_programming_monitor_failure_advises_a_power_cycle(connected, world):
+    world.begin_program_error = OSError("Device 'Program' feature: 'Error loading monitor'")
+    with pytest.raises(FlashError) as err:
+        connected.download(lambda p, m: None, CancelToken(), 600)
+    assert "power off and on" in err.value.hint
+    assert "does not clear" in err.value.hint
+
+
+def test_verify_monitor_failure_says_the_flash_finished_and_advises_a_power_cycle(connected, world, tmp_path):
+    _prepare_flash(world, tmp_path)
+    world.read_error = OSError("CUMIController::read failed! Error code unknown to isystem.connect facade: 39")
+    world.umi_last_error = MONITOR_ERROR
+    with pytest.raises(WinIDEAError) as err:
+        connected.verify_flash(lambda p, m: None)
+    assert "Error loading monitor" in str(err.value)
+    assert "power off and on" in err.value.hint
+    assert "programming finished" in err.value.hint.lower()
+
+
+def test_other_verify_read_failure_still_says_the_flash_finished(connected, world, tmp_path):
+    _prepare_flash(world, tmp_path)
+    world.read_error = OSError("probe lost")
+    with pytest.raises(WinIDEAError) as err:
+        connected.verify_flash(lambda p, m: None)
+    assert "programming finished" in err.value.hint.lower()
+    assert "power off and on" not in err.value.hint
