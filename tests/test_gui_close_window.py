@@ -242,3 +242,14 @@ def test_gui_thread_close_after_confirmed_cancel_logs_warning_not_error(make, qt
     assert [r for r in caplog.records if r.levelno >= logging.ERROR] == []
     assert any("Cancelled" in e for e in w.ctx.errors)
     assert make.shown == []
+
+
+def test_gui_thread_close_while_locked_warns_and_stays_open_on_no(make, qtbot):
+    w = make.factory(FakeWinIDEAAdapter(download_seconds=1.0, cancellable=False))
+    w.start_flash()
+    qtbot.waitUntil(w.flash_locked, timeout=3000)
+    make.answer = QMessageBox.StandardButton.No
+    w.close()
+    assert "cannot be interrupted" in make.questions[0]
+    assert not w._closing and w.flash_active()
+    qtbot.waitUntil(lambda: not w.flash_active(), timeout=5000)

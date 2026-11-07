@@ -316,6 +316,16 @@
                </property>
               </widget>
              </item>
+             <item>
+              <widget class="QCheckBox" name="checkBox_verifyFlash">
+               <property name="toolTip">
+                <string>Read samples of the flash back and compare them with the files. Adds about 3 minutes.</string>
+               </property>
+               <property name="text">
+                <string>Verify samples</string>
+               </property>
+              </widget>
+             </item>
             </layout>
            </item>
           </layout>

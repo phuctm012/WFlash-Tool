@@ -196,7 +196,7 @@ def test_lost_connection_is_reported_as_such(connected, world):
 from wflash.core import winidea_adapter
 from wflash.core.cancel import CancelToken
 from wflash.core.debug_bundle import DebugContext
-from wflash.core.errors import FlashError
+from wflash.core.errors import CancelledError, FlashError
 from wflash.core.file_matcher import MappingRow
 from wflash.core.flash_workflow import FlashRequest, FlashWorkflow
 
@@ -371,3 +371,19 @@ def test_verify_flash_with_a_missing_file_fails(connected, world, tmp_path):
     (tmp_path / "RAD_SUZ05_FFI.s3").unlink()
     with pytest.raises(FlashError):
         connected.verify_flash(lambda p, m: None)
+
+
+def test_a_cancel_raised_by_the_progress_callback_cannot_stop_programming_or_verify(connected, world, tmp_path, monkeypatch, caplog):
+    # WorkerContext.progress raises CancelledError once the token is set, e.g. Cancel just before the lock.
+    monkeypatch.setattr(winidea_adapter, "PROGRESS_TICK_S", 0.01)
+    world.begin_program_hook = lambda: __import__("time").sleep(0.05)
+
+    def cancelled(_p, _m):
+        raise CancelledError("cancelled")
+
+    with caplog.at_level(logging.WARNING):
+        connected.download(cancelled, CancelToken(), 600)
+    assert world.calls.count("begin_program") == 1
+    assert not any("Progress callback failed" in r.getMessage() for r in caplog.records)
+    _prepare_flash(world, tmp_path)
+    connected.verify_flash(cancelled)

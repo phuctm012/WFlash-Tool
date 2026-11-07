@@ -235,7 +235,23 @@ class Stress:
         return dialog if started else None
 
     # -- sections ---------------------------------------------------------------------
+    def check_locked_flash(self, label: str) -> None:
+        """Like the real adapter: Cancel is locked once programming starts and the run still completes."""
+        window = self.new_window(FakeWinIDEAAdapter(download_seconds=0.5, cancellable=False))
+        if self.load_artifact_via_gitlab(window, label):
+            window.start_flash()
+            self.check(self.wait_step(window, Step.DOWNLOAD.value, 5.0), f"{label}: downloading")
+            self.pump(0.05)
+            self.check(window.flash_locked(), f"{label}: locked while programming")
+            self.check(not window.ui.pushButton_flash.isEnabled(), f"{label}: Cancel disabled while programming")
+            window.cancel_flash()
+            self.check(self.wait_step(window, Step.DONE.value, 10.0), f"{label}: reached Done despite Cancel")
+            self.check(self.wait_flash_idle(window), f"{label}: worker released")
+            self.check(not window.flash_locked(), f"{label}: unlocked afterwards")
+        self.close_window(window, label)
+
     def section_flash(self) -> None:
+        self.check_locked_flash("flash[locked]")
         for i in range(self.iterations):
             label = f"flash[{i}]"
             adapter = FakeWinIDEAAdapter(download_seconds=0.3)

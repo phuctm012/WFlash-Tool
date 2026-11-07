@@ -59,6 +59,7 @@ class FlashMixin:
     def _init_flash(self) -> None:
         self._flash_key: str | None = None
         self._flash_cancel_requested = False
+        self._flash_locked = False
         self._flash_error_during_close: BaseException | None = None
         self._instances_key: str | None = None
         self._estimator: ProgressEstimator | None = None
@@ -78,6 +79,10 @@ class FlashMixin:
     # -- state ------------------------------------------------------------------------
     def flash_active(self) -> bool:
         return self._workers.is_running(self._flash_key)
+
+    def flash_locked(self) -> bool:
+        """Programming has started and cannot be stopped safely; Cancel stays disabled."""
+        return self._flash_locked
 
     def selected_instance(self) -> dict | None:
         data = self.ui.comboBox_instance.currentData()
@@ -118,7 +123,9 @@ class FlashMixin:
         )
         self._set_flash_button(flashing)
         # While flashing the same button cancels; after one cancel it waits for the rollback.
-        self.ui.pushButton_flash.setEnabled(can_flash or (flashing and not self._flash_cancel_requested))
+        self.ui.pushButton_flash.setEnabled(
+            can_flash or (flashing and not self._flash_cancel_requested and not self._flash_locked)
+        )
         for widget in (
             self.ui.comboBox_profile,
             self.ui.pushButton_reloadProfiles,
@@ -127,6 +134,7 @@ class FlashMixin:
             self.ui.comboBox_instance,
             self.ui.pushButton_refreshInstances,
             self.ui.checkBox_reset,
+            self.ui.checkBox_verifyFlash,
             self.ui.pushButton_exportBundle,
         ):
             widget.setEnabled(not flashing)
@@ -207,6 +215,7 @@ class FlashMixin:
             reset=self.ui.checkBox_reset.isChecked(),
             run=self.ui.checkBox_reset.isChecked() and self.ui.checkBox_run.isChecked(),
             timeout_s=self.profile.timeouts.download_s,
+            verify=self.ui.checkBox_verifyFlash.isChecked(),
         )
         adapter, debug_ctx = self.adapter, self.ctx
 
@@ -217,6 +226,7 @@ class FlashMixin:
             FlashWorkflow(adapter, debug_ctx, on_step=on_step, on_progress=wctx.progress).run(request, wctx.cancel)
 
         self._flash_cancel_requested = False
+        self._flash_locked = False
         self._flash_total_bytes = program_bytes(request.mapping)
         self._estimator = ProgressEstimator(time.monotonic())
         self.ui.label_rollbackWarning.setVisible(False)
@@ -238,7 +248,7 @@ class FlashMixin:
         self._update_flash_controls()
 
     def cancel_flash(self, *_args) -> None:
-        if not self.flash_active() or self._flash_cancel_requested:
+        if not self.flash_active() or self._flash_cancel_requested or self._flash_locked:
             return
         # Guard first (threading rule 4), then the token the workflow checks inside download().
         self._flash_cancel_requested = True
@@ -250,9 +260,14 @@ class FlashMixin:
     def _on_flash_step(self, text: str) -> None:
         if self._closing:
             return
-        if text == Step.DOWNLOAD.value and self._estimator is not None:
-            self._estimator.start(self._flash_total_bytes, time.monotonic())
-            self.ui.label_flashStats.setText(self._estimator.running_text())
+        if text == Step.DOWNLOAD.value:
+            if self._estimator is not None:
+                self._estimator.start(self._flash_total_bytes, time.monotonic())
+                self.ui.label_flashStats.setText(self._estimator.running_text())
+            if not self.adapter.download_cancellable:
+                self._flash_locked = True
+                log.info("Programming started; Cancel is locked until it finishes")
+                self._update_flash_controls()
         if self._flash_cancel_requested and text != Step.ROLLBACK.value:
             return  # keep "Cancelling" visible until the workflow reports the rollback
         self._set_step(text)
@@ -313,6 +328,7 @@ class FlashMixin:
     def _on_flash_finished(self, key: str) -> None:
         if key == self._flash_key:
             self._flash_key = None
+        self._flash_locked = False
         if self._closing:
             return
         self._update_flash_controls()

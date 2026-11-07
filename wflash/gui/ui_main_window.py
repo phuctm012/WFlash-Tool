@@ -204,6 +204,11 @@ class Ui_MainWindow(object):
 
         self.horizontalLayout_afterFlash.addWidget(self.checkBox_run)
 
+        self.checkBox_verifyFlash = QCheckBox(self.frame_settingPanel)
+        self.checkBox_verifyFlash.setObjectName(u"checkBox_verifyFlash")
+
+        self.horizontalLayout_afterFlash.addWidget(self.checkBox_verifyFlash)
+
 
         self.gridLayout_setting.addLayout(self.horizontalLayout_afterFlash, 4, 1, 1, 1)
 
@@ -364,6 +369,10 @@ class Ui_MainWindow(object):
         self.label_afterFlash.setText(QCoreApplication.translate("MainWindow", u"After flash", None))
         self.checkBox_reset.setText(QCoreApplication.translate("MainWindow", u"Reset target", None))
         self.checkBox_run.setText(QCoreApplication.translate("MainWindow", u"Run after reset", None))
+#if QT_CONFIG(tooltip)
+        self.checkBox_verifyFlash.setToolTip(QCoreApplication.translate("MainWindow", u"Read samples of the flash back and compare them with the files. Adds about 3 minutes.", None))
+#endif // QT_CONFIG(tooltip)
+        self.checkBox_verifyFlash.setText(QCoreApplication.translate("MainWindow", u"Verify samples", None))
         self.pushButton_preferences.setText(QCoreApplication.translate("MainWindow", u"Preferences\u2026", None))
         ___qtablewidgetitem = self.tableWidget_mapping.horizontalHeaderItem(0)
         ___qtablewidgetitem.setText(QCoreApplication.translate("MainWindow", u"#", None))

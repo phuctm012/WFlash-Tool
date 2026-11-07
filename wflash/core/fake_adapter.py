@@ -10,6 +10,7 @@ WFLASH_FAKE_FAIL="download,reset"):
   read_programs, read_applications, set_path, reset - raise WinIDEAError
   download         - FlashError half way through (progress stops below 100)
   verify           - verify_flash() raises FlashError
+  no_cancel        - download ignores cancel, like the real adapter
 """
 from __future__ import annotations
 
@@ -26,19 +27,18 @@ from wflash.core.winidea_adapter import FileEntry, InstanceInfo, ProgressCallbac
 calls_log = logging.getLogger(CALLS_LOGGER)
 INSTANCE_ID = "fake-1"
 # Ops whose injection is handled by the method itself rather than in _call.
-_NON_RAISING = {"download", "list_instances", "connection_lost", "verify"}
+_NON_RAISING = {"download", "list_instances", "connection_lost", "verify", "no_cancel"}
 WORKSPACE = r"C:\fake\SAF85xx\SAF85xx.xjrf"
 
 
 class FakeWinIDEAAdapter:
-    download_cancellable = True
-
     def __init__(
         self,
         programs: dict[str, str] | None = None,
         applications: dict[str, str] | None = None,
         download_seconds: float = 3.0,
         fail_on: Iterable[str] = (),
+        cancellable: bool = True,
     ) -> None:
         self.programs = dict(programs if programs is not None else {"App": r"C:\fake\old\App.s3"})
         self.applications = dict(
@@ -48,6 +48,7 @@ class FakeWinIDEAAdapter:
         )
         self.download_seconds = download_seconds
         self.fail_on = set(fail_on)
+        self.download_cancellable = cancellable
         self.connected_to: str | None = None
         self.target_state = "unknown"
         self.calls: list[str] = []
@@ -56,7 +57,7 @@ class FakeWinIDEAAdapter:
     def from_env(cls) -> "FakeWinIDEAAdapter":
         fail = [f.strip() for f in os.environ.get("WFLASH_FAKE_FAIL", "").split(",") if f.strip()]
         seconds = float(os.environ.get("WFLASH_FAKE_DOWNLOAD_S", "3"))
-        return cls(download_seconds=seconds, fail_on=fail)
+        return cls(download_seconds=seconds, fail_on=fail, cancellable="no_cancel" not in fail)
 
     def _call(self, op: str, detail: str = "") -> None:
         self.calls.append(op)
@@ -120,8 +121,11 @@ class FakeWinIDEAAdapter:
         steps = 20
         start = time.monotonic()
         for i in range(1, steps + 1):
-            if cancel.wait(self.download_seconds / steps):
-                cancel.raise_if_cancelled()
+            if self.download_cancellable:
+                if cancel.wait(self.download_seconds / steps):
+                    cancel.raise_if_cancelled()
+            else:
+                time.sleep(self.download_seconds / steps)
             if time.monotonic() - start > timeout_s:
                 raise FlashError(f"Download timed out after {timeout_s}s")
             if "download" in self.fail_on and i == steps // 2:

@@ -1098,3 +1098,21 @@ Bước tùy chọn giữa download và reset, theo quyết định của user. 
 ### Đã kiểm tra
 
 - RED rồi GREEN; `pytest -k "not gui" -q`. Chưa chạy với winIDEA thật.
+
+## Phase 2.6: Khóa Cancel khi đang lập trình, ô Verify samples, hỏi lại khi đóng
+
+Với adapter thật, Cancel bị khóa từ bước Downloading, vì dừng giữa lúc xóa chip có thể để lại ECU trống. Fake adapter mặc định vẫn hủy được, nên nhánh rollback khi hủy vẫn được test; thêm chế độ `cancellable=False` (`WFLASH_FAKE_FAIL=no_cancel`) giống adapter thật. Đóng cửa sổ khi đang khóa sẽ hỏi lại, cảnh báo ECU có thể bị trống; "Quit anyway" đi theo đường chờ có giới hạn sẵn có, nên `begin_program` treo không làm app kẹt mãi. Lúc thực hiện phát hiện thêm: `WorkerContext.progress` ném `CancelledError` khi đã có lệnh hủy, nên adapter thật phải bỏ qua lỗi này trong cả `download` và `verify_flash`, nếu không một lần bấm Cancel ngay trước khi khóa sẽ làm dừng phần so mẫu dù flash đã xong.
+
+### Thay đổi
+
+- **`wflash/gui/flash_mixin.py`**: `flash_locked()`, khóa Cancel, truyền `verify`.
+- **`wflash/gui/main_window.py`**: câu hỏi khi đóng.
+- **`wflash/gui/main_window.ui`**, **`ui_main_window.py`** (sinh lại): `checkBox_verifyFlash`.
+- **`wflash/core/fake_adapter.py`**: `cancellable`, `no_cancel`.
+- **`wflash/core/winidea_adapter.py`**: bỏ qua `CancelledError` từ callback tiến độ.
+- **`tools/stress_test.py`**: `check_locked_flash`.
+- **`tests/test_gui_flash.py`**, **`tests/test_gui_close_window.py`**, **`tests/test_real_adapter.py`**: test mới.
+
+### Đã kiểm tra
+
+- RED: 5 test mới lỗi. GREEN: `pytest -q`: 364 passed; `pytest -k thread -q`: 42 passed; `tools/stress_test.py`: `CHECKPOINTS=361 FAILED=0 QT_THREADING_WARNINGS=0`, `STRESS_RESULT=PASS`.

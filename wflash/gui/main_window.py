@@ -187,11 +187,13 @@ class MainWindow(MappingTableMixin, FlashMixin, LogPanelMixin, QMainWindow):
             event.ignore()  # a nested close() from inside the wait's event pumping
             return
         if self.flash_active() and not self._closing:
-            answer = QMessageBox.question(
-                self,
-                "WFlash",
-                "A flash is in progress. Cancel it (the previous workspace paths will be restored) and quit?",
+            text = (
+                "The flash is being programmed and cannot be interrupted. Quitting now could leave "
+                "the ECU with erased flash. Quit anyway?"
+                if self.flash_locked()
+                else "A flash is in progress. Cancel it (the previous workspace paths will be restored) and quit?"
             )
+            answer = QMessageBox.question(self, "WFlash", text)
             if answer != QMessageBox.StandardButton.Yes:
                 event.ignore()
                 return

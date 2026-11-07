@@ -9,7 +9,7 @@ from pathlib import Path, PureWindowsPath
 from typing import Callable, Protocol
 
 from wflash.core.cancel import CancelToken
-from wflash.core.errors import FlashError, MappingError, WinIDEAError
+from wflash.core.errors import CancelledError, FlashError, MappingError, WinIDEAError
 from wflash.core.logging_setup import CALLS_LOGGER, get_logger
 from wflash.core.srec import is_srec_file, parse_srec, sample_ranges
 
@@ -342,6 +342,8 @@ class RealWinIDEAAdapter:
                 percent = min(MAX_ESTIMATED_PERCENT, int(elapsed * 100 / EXPECTED_PROGRAM_S))
                 try:
                     progress(percent, "Programming external flash (estimated)")
+                except CancelledError:
+                    pass  # WorkerContext.progress raises once cancelled; programming cannot stop
                 except Exception:
                     log.warning("Progress callback failed", exc_info=True)
 
@@ -425,4 +427,7 @@ class RealWinIDEAAdapter:
                     f"flash 0x{actual[offset]:02X}, file 0x{expected[offset]:02X}",
                     hint="Flash again. If it keeps failing, use Debug > Download in winIDEA and check the log.",
                 )
-            progress(done * 100 // len(samples), "Verifying flash samples")
+            try:
+                progress(done * 100 // len(samples), "Verifying flash samples")
+            except CancelledError:
+                pass  # a Cancel pressed just before the lock; the flash is already done, finish the check

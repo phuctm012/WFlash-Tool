@@ -248,3 +248,36 @@ def test_gui_program_bytes_counts_only_mapped_program_files(qtbot, tmp_path):
     rows = w.mapping_rows()
     rows[0].selected.unlink()
     assert program_bytes(rows) == 0
+
+
+def test_gui_thread_cancel_is_locked_while_programming_when_it_cannot_be_stopped(qtbot, tmp_path):
+    w = make_host(qtbot, tmp_path, FakeWinIDEAAdapter(download_seconds=0.5, cancellable=False))
+    w.start_flash()
+    qtbot.waitUntil(w.flash_locked, timeout=3000)
+    assert w.ui.pushButton_flash.text() == "Cancel"
+    assert not w.ui.pushButton_flash.isEnabled()
+    w.cancel_flash()  # ignored while locked
+    assert w.current_step() != "Cancelling"
+    qtbot.waitUntil(lambda: not w.flash_active(), timeout=5000)
+    assert w.current_step() == Step.DONE.value
+    assert not w.flash_locked()
+
+
+def test_gui_thread_cancellable_adapter_is_not_locked(qtbot, tmp_path):
+    w = make_host(qtbot, tmp_path, FakeWinIDEAAdapter(download_seconds=0.5))
+    w.start_flash()
+    qtbot.waitUntil(lambda: w.current_step() == Step.DOWNLOAD.value, timeout=3000)
+    assert not w.flash_locked()
+    assert w.ui.pushButton_flash.isEnabled()
+    w.cancel_flash()
+    qtbot.waitUntil(lambda: not w.flash_active(), timeout=5000)
+
+
+def test_gui_thread_verify_checkbox_is_off_by_default_and_reaches_the_workflow(qtbot, tmp_path):
+    adapter = FakeWinIDEAAdapter(download_seconds=0.01)
+    w = make_host(qtbot, tmp_path, adapter)
+    assert not w.ui.checkBox_verifyFlash.isChecked()
+    w.ui.checkBox_verifyFlash.setChecked(True)
+    w.start_flash()
+    qtbot.waitUntil(lambda: not w.flash_active(), timeout=5000)
+    assert "verify" in adapter.calls
