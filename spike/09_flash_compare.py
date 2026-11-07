@@ -6,6 +6,7 @@ dữ liệu của file đầu còn nguyên không, đặc biệt các đoạn n�
 
 Mặc định chỉ so 256 byte đầu và cuối mỗi đoạn; thêm --full để so toàn bộ.
 """
+import time
 from pathlib import Path
 
 from _common import Report, base_args, connect, try_call
@@ -13,6 +14,7 @@ from _common import Report, base_args, connect, try_call
 DEVICES = "/iOPEN/UMIConfig.Devices.Devices"
 SAMPLE = 256
 READ_SIZE = 0x1000
+PROGRESS_S = 5
 ADDRESS_BYTES = {"1": 2, "2": 3, "3": 4}
 
 
@@ -47,12 +49,19 @@ def compare(report, umi, index, make_vector, address, expected, label):
     """Read the device over [address, address+len(expected)) and report the differences."""
     wrong = erased = 0
     first = None
+    t0 = last = time.monotonic()
+    report.line(f"{label}: reading 0x{len(expected):X} bytes from 0x{address:06X}")
     for start in range(0, len(expected), READ_SIZE):
         chunk = bytes(expected[start:start + READ_SIZE])
         # read() fills the vector in place and raises "Vector size is too small!" unless it is presized.
         data = make_vector(len(chunk))
         umi.read(index, address + start, len(chunk), data)
         actual = bytes(b if isinstance(b, int) else ord(b) for b in data)
+        now = time.monotonic()
+        if now - last >= PROGRESS_S:
+            last = now
+            done = start + len(chunk)
+            report.line(f"    ... {done} / {len(expected)} bytes, {now - t0:.0f}s, {done / (now - t0):.0f} B/s")
         if len(actual) != len(chunk):
             report.line(f"{label}: read returned {len(actual)} bytes, asked {len(chunk)}")
             return
@@ -63,7 +72,7 @@ def compare(report, umi, index, make_vector, address, expected, label):
                 if first is None:
                     first = (address + start + offset, got, want)
     verdict = "MATCH" if wrong == 0 else "DIFFERENT"
-    report.line(f"{label} 0x{address:06X} +0x{len(expected):X}: {verdict} wrong={wrong} wrong_and_0xFF={erased}")
+    report.line(f"{label} 0x{address:06X} +0x{len(expected):X}: {verdict} wrong={wrong} wrong_and_0xFF={erased} ({time.monotonic() - t0:.1f}s)")
     if first is not None:
         report.line(f"    first difference at 0x{first[0]:06X}: flash=0x{first[1]:02X} file=0x{first[2]:02X}")
 

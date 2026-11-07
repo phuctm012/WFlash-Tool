@@ -904,3 +904,17 @@ Lần chạy 09 đầu tiên trên máy thật báo `Vector size is too small!` 
 ### Đã kiểm tra
 
 - Module giả sửa lại để báo lỗi giống máy thật khi vector quá nhỏ: bản cũ tái hiện đúng lỗi, bản mới so được và báo đúng `MATCH`/`DIFFERENT`. Chưa chạy lại trên winIDEA thật.
+
+## Phase 1.50: ECU đã khôi phục; Program bằng tay khác umi.write
+
+User khôi phục được ECU bằng *Hardware → Winbond → Program*, không đổi file, 2 dòng vẫn tick, và xác nhận chỉ có 1 lần erase. Như vậy `umi.write(index, mode)` không tương đương nút Program khi có nhiều dòng tick; đây là giả định sai đã dẫn tới sự cố. Cảnh báo tránh dùng menu Program trong hướng dẫn được gỡ. Spike 09 `--full` trông như bị treo ở đoạn đầu 1,4 MB vì không in gì khi đang đọc; chưa biết là treo thật hay đọc chậm, nên thêm tiến độ và tốc độ đọc.
+
+### Thay đổi
+
+- **`spike/09_flash_compare.py`**: in dòng bắt đầu đọc, tiến độ mỗi 5 s kèm tốc độ, và thời gian mỗi đoạn.
+- **`docs/windows_test_guide.md`**: viết lại Vòng 4.
+- **`docs/winidea_api_notes.md`**: mục "Manual Program differs from umi.write".
+
+### Đã kiểm tra
+
+- Chạy 09 với module giả, đọc chậm giả lập: in tiến độ, vẫn báo đúng `MATCH`/`DIFFERENT`. Chưa chạy lại trên winIDEA thật.

@@ -436,6 +436,14 @@ Lần chạy `08_umi_program.py` đầu tiên dừng ở `no device found -> sto
 
 ## Vòng 4 (đã thay đổi sau sự cố ngày 2026-11-07)
 
-> ⛔ **Không chạy `08_umi_program.py` và không bấm *Hardware → Winbond → Program* khi đang tick từ 2 file trở lên.** Lần chạy `08` với 2 file đang tick có 2 pha ERASING, và user báo chip bị xóa hết, ECU không chạy được. Menu Program có thể cũng hoạt động như vậy, chưa kiểm chứng. Các hướng dẫn bấm Program và chạy `08` ở những vòng trên không còn áp dụng.
+> ⛔ **Không chạy `08_umi_program.py` với từ 2 file đang tick** (script đã tự từ chối). Lần chạy đó có 2 pha ERASING, và user báo chip bị xóa hết, ECU không chạy được.
+>
+> *Hardware → Winbond → Program* bấm tay với 2 file đang tick đã khôi phục được ECU, chỉ có 1 lần erase (user xác nhận). Cách bấm tay là cách flash an toàn đã biết. Bản cảnh báo trước đó về menu này quá thận trọng.
 
-Trước khi flash khôi phục, nếu có thể, chạy `python 09_flash_compare.py` (chỉ đọc) để lưu bằng chứng. Sau đó khôi phục ECU bằng đúng cách flash vẫn dùng hằng ngày. Các bước tiếp theo sẽ được gửi sau khi có kết quả.
+So flash với file (chỉ đọc), trước tiên ở chế độ lấy mẫu để đo tốc độ đọc:
+
+```bat
+python 09_flash_compare.py
+```
+
+Script in tiến độ và tốc độ đọc. Chỉ thêm `--full` khi tốc độ đủ nhanh: cần đọc khoảng 4,5 MB.

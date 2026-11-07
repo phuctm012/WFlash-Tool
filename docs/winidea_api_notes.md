@@ -250,6 +250,14 @@ After `debug.reset()` here, `isStopped -> False`, unlike round 1 (`True`). The s
 
 `umi.read(0, address, size, ic.ByteVector())` raises `ValueError: Vector size is too small!  [CUMIController.cpp, 136]`, `__size__: 0`. The type `ByteVector` is accepted; both `ByteVector` and `VectorBYTE` exist in the module. Spike 09's S-record parser found 20 segments in the `.s3` at the same addresses as the 20 chunks in the Output view, and the CAL at `0x7F0000`.
 
+### Manual Program differs from umi.write
+
+User report, 2026-11-07: *Hardware → Winbond W25Q64JW SPI → Program* with the same two rows enabled and the same files erased **once** before programming, and restored a working ECU. The Output was not kept. `umi.write(0, wProgDevice)` showed **two** erase phases. So the API call is **not** equivalent to the menu item when more than one row is enabled.
+
+Which API call does what the menu does is unknown. Candidates, none verified: `CLoaderController.download()` / `CSessionCtrl.begin_program()` with `ProgramAtDownload='true'`, or the menu command itself (`ide.getMenuStructure`, `ide.serviceCall`).
+
+`umi.read` with `--full` ran for an unknown time on the 1.4 MB first segment without output and looked stuck. Read speed is not measured yet.
+
 ### Matching SDK location
 
 `C:\Data\_Devtools\Winidea408\Python\Lib\site-packages\isystem_connect-9.21.408.1.dist-info`: winIDEA ships its own Python with `isystem.connect` 9.21.408.1. There is no wheel to install. All spike runs so far used 9.26.11.
