@@ -2,7 +2,7 @@
 
 **This file is the authority for every real `isystem.connect` call in `wflash/core/winidea_adapter.py`.** A call that is not recorded here is a guess and must carry `# UNVERIFIED:` in the code. See `CLAUDE.md`, "Rule zero".
 
-Status: **spike round 3 (07, 08) ran on 2026-11-07; see "Round 3 findings". Path writes and `CUMIController.write` are still not verified.** Spike round 2 ran on 2026-10-10 (06 + 03; see "Round 2 findings" below). **Spike round 1 ran on 2026-10-06** (spike 01–05, results in the user's `results.7z`). Connect, reading symbol-file paths, debug download, reset and run are observed. **Writing any path, and reading the external-flash (.s3) file list, are NOT verified yet** — see "Open questions". Round 2 is `spike/06_probe_umi.py` plus a corrected `03_set_paths.py` run.
+Status: **spike round 3 ran on 2026-11-07; see "Round 3 findings" and "Round 3 program run". Path writes and `CUMIController.write` have run. Whether the flash content is correct after the program is NOT verified (spike 09).** Spike round 2 ran on 2026-10-10 (06 + 03; see "Round 2 findings" below). **Spike round 1 ran on 2026-10-06** (spike 01–05, results in the user's `results.7z`). Connect, reading symbol-file paths, debug download, reset and run are observed. **Writing any path, and reading the external-flash (.s3) file list, are NOT verified yet** — see "Open questions". Round 2 is `spike/06_probe_umi.py` plus a corrected `03_set_paths.py` run.
 
 Everything below is pasted or condensed from the probe output; nothing is paraphrased from documentation.
 
@@ -143,7 +143,7 @@ Count, offset and enabled fields of each row: not known yet (spike 07). Writing:
 
 ### HAZARD: getOptionJSON on a large tree
 
-`ide.getOptionJSON("/IDE/System.Debug.Applications")` returned a huge string in which every scalar is `"IDArray container not supported: ..."`, and **every call after it failed** with `AttributeError: ICONNECT_E_ROUTING: can not access winIDEA. Check if it is still up and running.` (`error code: -2147221487`), then `ConnectionMgr() should be connected to winIDEA for this operation!`. winIDEA stopped answering (probably hung or crashed). **The adapter must never call `getOptionJSON` on a list/tree.** Read single scalar options only.
+`ide.getOptionJSON("/IDE/System.Debug.Applications")` returned a huge string in which every scalar is `"IDArray container not supported: ..."`, and **every call after it failed** with `AttributeError: ICONNECT_E_ROUTING: can not access winIDEA. Check if it is still up and running.` (`error code: -2147221487`), then `ConnectionMgr() should be connected to winIDEA for this operation!`. The user confirmed winIDEA itself did **not** hang or close during that run, so the connection broke while winIDEA stayed up; the cause is unknown. **The adapter must never call `getOptionJSON` on a list/tree.** Read single scalar options only.
 
 `ICONNECT_E_ROUTING` is also the exception shape for "connection lost": `AttributeError` (not `ValueError`), message starts with `ICONNECT_E_ROUTING`.
 
@@ -186,7 +186,7 @@ Not found under these names: `DeviceName`, `Type`, `Interface`, `Parallel`, `Mas
 
 ### Device identity
 
-`CStorageDeviceFactory.getDeviceNames(cmgr, ic.StrVector())` returns `None` and leaves the vector **empty** on this workspace. The cause is probably the empty `Name`, not proven. `CStorageDeviceFactory.DEVICES_OPT_URL` is `'/iOPEN/Data.UMI.Devices.Devices'`, a different root from the working `UMIConfig` one. `getDeviceIndex` returns the index or -1 (docstring); not yet called on this workspace with a real name.
+At 11:24 `CStorageDeviceFactory.getDeviceNames(cmgr, ic.StrVector())` returned `None` and left the vector **empty**. At 11:37 the same call on the same workspace filled it with `['Winbond W25Q64JW SPI']` (see "Round 3 program run"). So the empty `Name` was **not** the cause; the cause of the empty list is unknown. `CStorageDeviceFactory.DEVICES_OPT_URL` is `'/iOPEN/Data.UMI.Devices.Devices'`, a different root from the working `UMIConfig` one. `getDeviceIndex` returns the index or -1 (docstring); not yet called on this workspace with a real name.
 
 ### Program API
 
@@ -203,6 +203,56 @@ Not found under these names: `DeviceName`, `Type`, `Interface`, `Parallel`, `Mas
 ### Spike 08 did not write
 
 The first 08 run stopped at `no device found -> stop` because of the empty device list, **before `umi.write`**, so nothing was programmed. The script now falls back to `--device-index` (default 0) and refuses unless that entry is enabled and its `Device` equals `--expect-device` (default `W25Q64JW`).
+
+## Round 3 program run (2026-11-07)
+
+### Writing paths works
+
+`ide.setOption(url, new)` returned `None`, `getOptionStr` read the new value back, and restoring worked, for both lists (03):
+
+| URL | Old | Read back | After restore |
+|---|---|---|---|
+| `/iOPEN/UMIConfig.Devices.Devices[0].DownloadFiles[0].Path` | `'Radar_SUZ05_Gen7.s3'` | `'C:\\Data\\tmp\\wflash_test.s3'` | old value |
+| `/IDE/System.Debug.Applications[0].SymbolFiles.File[0].Path` | `'../../../debug/cyber_security/artifacts (14)/out/bin/Radar_SUZ05_Gen7.elf'` | `'C:\\Data\\tmp\\wflash_test.elf'` | old value |
+
+The value is stored verbatim (absolute stays absolute). Relative paths resolve against the workspace dir (the Output view shows them absolute). Row 1 was not the row written.
+
+### Device identity
+
+`getDeviceNames` -> `['Winbond W25Q64JW SPI']`. `umi.getDeviceIndex('Winbond W25Q64JW SPI') -> 0`. A wrong name raises `AttributeError: No device with provided name <name> exists.  [CUMIController.cpp, 496]` (`'W25Q64JW'` and `''` both raise). `getDynamicOptionSize("/iOPEN/UMIConfig.Devices.Devices") -> 1`. `IConnectUMI.wProgDevice = 0`.
+
+### umi.write(0, IConnectUMI.wProgDevice)
+
+Returned `None` after **117.4 s**, blocking, with no exception. Rows at the time: row 0 not enabled; row 1 enabled, offset `0x0`, `../../../debug/LED_R5/BENCH_ONLY_UDS27_BYPASS_FFI_STINGRAY_3P5MB_NO_HTSM_d8ba77b5/out/FFI/RAD_SUZ05_FFI.s3`; row 2 enabled, offset `0x0`, `20260623_142557_2018688_CAL_T008_v0_0.sre`.
+
+Output view of that run (`08_winidea_output.txt`, condensed):
+
+```
+Running  Emulation Initialization ... Loading <3 ELFs> ... EMULATION STARTED
+Running  Erasing       ERASING Winbond W25Q64JW SPI
+LOADING  .../RAD_SUZ05_FFI.s3   (20 chunks, Offset 0x0 .. 0x7F7000)
+Running  Programming   PROGRAMMING Winbond W25Q64JW SPI (79 sectors)
+Running  Erasing       ERASING Winbond W25Q64JW SPI
+LOADING  .../20260623_142557_2018688_CAL_T008_v0_0.sre   Offset=0x7F'0000, Size=0x2018
+Running  Programming   PROGRAMMING Winbond W25Q64JW SPI (1 sectors)
+Running  Reset         EMULATION END - Without cleanup ... EMULATION STARTED
+```
+
+- Each enabled row gets its own erase + program pass, in row order.
+- The sector counts fit a **64 KB sector** exactly: the 20 chunks touch 79 blocks of 64 KB (148 of 32 KB, 1120 of 4 KB), and the CAL touches 1 of 64 KB (3 of 4 KB).
+- The CAL's block `0x7F0000` also holds four `.s3` chunks: `0x7F2FC0`, `0x7F31C0`, `0x7F6000`, `0x7F7000`.
+- **Unknown:** how much the second erase covers. If it is a mass erase, the whole `.s3` is gone. If it erases block `0x7F0000` without preserving it, those four chunks are gone. If winIDEA preserves the rest, nothing is lost. The log cannot tell these apart. `spike/09_flash_compare.py` reads the flash back and compares it with the files.
+
+After `debug.reset()` here, `isStopped -> False`, unlike round 1 (`True`). The status was read immediately, and `toString` was not printed, so the state is unknown. "Reset and halt" needs re-checking.
+
+### Matching SDK location
+
+`C:\Data\_Devtools\Winidea408\Python\Lib\site-packages\isystem_connect-9.21.408.1.dist-info`: winIDEA ships its own Python with `isystem.connect` 9.21.408.1. There is no wheel to install. All spike runs so far used 9.26.11.
+
+### Scope decided by the user (2026-11-07)
+
+- Replace only **row 1** of the Winbond Download Files (the `.s3`). Row 2 (CAL `.sre`) stays as it is.
+- Replace only the **`App_M7`** symbol file. `App_BBE` and `App_A53` stay as they are.
 
 ## Open questions
 

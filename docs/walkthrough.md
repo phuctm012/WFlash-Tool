@@ -861,3 +861,20 @@ Spike 07 cho biết danh sách file của Winbond có 3 dòng, đếm được b
 
 - Đọc `07_umi_details_20261107_112142.txt` và `08_umi_program_20261107_112400.txt`.
 - Chạy 08 với một module `isystem.connect` giả: đúng model thì gọi `write(0, wProgDevice)`; sai model thì dừng; không gõ `YES` thì không ghi. Chưa chạy với winIDEA thật.
+
+## Phase 1.47: Program Winbond qua API đã chạy, câu hỏi về pha ERASING thứ hai
+
+User chạy 03 và 08 trên ECU thật. Ghi path `.s3` và `.elf` đều chạy, đọc lại đúng và khôi phục đúng. `CUMIController.write(0, wProgDevice)` trả về sau 117,4 s, không lỗi. User thấy trong Output có một lần ERASING nữa sau khi flash xong `.s3`. Log cho thấy mỗi dòng đang tick có một lượt erase + program riêng, theo thứ tự dòng. Số sector khớp chính xác với sector 64 KB (79 cho `.s3`, 1 cho CAL). Vì vậy CAL nằm chung sector `0x7F0000` với 4 đoạn cuối của `.s3`. Log không cho biết pha erase thứ hai xóa bao nhiêu, nên chưa thể nói flash có đúng không. Thêm spike 09 đọc lại flash và so với file, thay vì đoán.
+
+Hai ghi chú trước đây bị sửa lại theo dữ liệu mới. `getDeviceNames` lần này trả về `Winbond W25Q64JW SPI` nên `Name` rỗng không phải nguyên nhân của danh sách trống lần trước; nguyên nhân chưa rõ. User xác nhận winIDEA không treo khi chạy 06, nên sau `getOptionJSON` chỉ có kết nối bị mất. Phạm vi do user chốt: chỉ thay dòng 1 (`.s3`), giữ nguyên dòng 2 (CAL), và chỉ đổi ELF của `App_M7`.
+
+### Thay đổi
+
+- **`spike/09_flash_compare.py`** (mới): phân tích S-record của các dòng đang tick, đọc flash bằng `umi.read`, báo số byte khác và số byte khác mà flash là `0xFF` theo từng đoạn.
+- **`docs/winidea_api_notes.md`**: mục "Round 3 program run"; sửa ghi chú về `getDeviceNames` và `getOptionJSON`.
+- **`spike/README.md`**, **`docs/windows_test_guide.md`**: thêm 09 và mục "Vòng 4".
+
+### Đã kiểm tra
+
+- Tính số sector từ 20 chunk trong log: 64 KB cho 79 và 1, khớp log; 32 KB cho 148 và 1; 4 KB cho 1120 và 3.
+- Chạy 09 với module `isystem.connect` giả và file `.s3` tự tạo: đoạn còn nguyên báo `MATCH`, đoạn bị xóa báo `DIFFERENT wrong=16 wrong_and_0xFF=16`. `umi.read` thật và kiểu vector thật chưa được kiểm chứng.
