@@ -332,6 +332,21 @@ Status right after: `status: 49`, `isStopped: 1`, `isMustInit: 0`, `isStopReason
 
 No checkbox for "Mass erase before download": it follows the workspace configuration, as Approach A requires. Plan: `docs/superpowers/plans/2026-11-07-wflash-real-adapter.md`.
 
+### Intermittent "Error loading monitor" when programming (user report, 2026-11-07)
+
+Happens now and then, with manual flashing too:
+
+```
+UMI_ERROR           Code = 15 (Read error)
+If the error persist, try to perform CPU reset before flash operation.
+UMI ERROR           OW.Pre  Code = 39 / 0. Error loading monitor
+Failed              Device 'Program' feature: 'Error loading monitor'
+PROGRAMMING         0 bytes
+No core which could program flash is stopped
+```
+
+Same code 39 as `umi.read` in the failed 09 run. Unknown: whether `begin_program()` **raises** on this. If it returns normally, WFlash would report success after a failed program; this must be observed. Whether a CPU reset clears it is also not yet observed.
+
 ### Matching SDK location
 
 `C:\Data\_Devtools\Winidea408\Python\Lib\site-packages\isystem_connect-9.21.408.1.dist-info`: winIDEA ships its own Python with `isystem.connect` 9.21.408.1. There is no wheel to install. `C:\Data\_Devtools\Winidea408\Python\python.exe` reports Python `3.13.12 (MSC v.1944 64 bit)` and `ic.getModuleVersion() -> 9.21.408.1`. All spike runs so far used 9.26.11.
