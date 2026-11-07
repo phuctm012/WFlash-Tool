@@ -993,3 +993,15 @@ Spike 04 trên ECU thật: 99 s, Output có một pha ERASING và 79 sector, gi�
 ### Đã kiểm tra
 
 - Đọc `v5_04_output.txt`, `04_download_20261107_124313.txt`, `09_flash_compare_20261107_124630.txt`. Chỉ đổi tài liệu.
+
+## Phase 1.57: begin_program cũng đạt
+
+Spike 12: 98,8 s, một pha ERASING, 79 sector, SoC vẫn `ATTACHED`, target dừng và giữ nguyên sau 2 s; 09 cho 37/37 mẫu `MATCH`; ECU chạy sau khi bật lại nguồn. Chọn `begin_program` làm lệnh flash cho adapter thật, vì `download()` đã deprecated. Hàm chạy chặn, không có callback tiến độ, nên Plan 2 phải quyết định lại cách làm Cancel.
+
+### Thay đổi
+
+- **`docs/winidea_api_notes.md`**: mục kết quả `begin_program`.
+
+### Đã kiểm tra
+
+- Đọc `v5_12_output.txt`, `12_begin_program_20261107_125053.txt`, `09_flash_compare_20261107_125753.txt` (37 `MATCH`, 0 `DIFFERENT`, 0 lỗi). Chỉ đổi tài liệu.

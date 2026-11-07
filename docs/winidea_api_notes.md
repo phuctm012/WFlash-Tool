@@ -313,7 +313,15 @@ Status right after: `status: 49`, `isStopped: 1`, `isMustInit: 0`, `isStopReason
 
 09 afterwards: 37 of 37 samples MATCH. The user reports the ECU worked after power cycling. Limit: the files were the same ones already in flash, so MATCH alone does not prove new content is written; the erase and program lines in the Output do show a write ran. A flash of a **different** firmware through the API is not tested yet.
 
-The user also reports `begin_program` (spike 12) left the ECU working; its logs are still to come.
+### CSessionCtrl.begin_program() matches too (12, 2026-11-07 12:50)
+
+`ic.CSessionCtrl(cmgr).begin_program()` returned `None` after **98.8 s**, blocking, with no progress callback. Output: the same sequence as the GUI, with one `ERASING` and `PROGRAMMING ... (79 sectors)`, `OK`, `PROGRAMMING 0 bytes`.
+
+`session.get_status().SoCs()[0].status_string() -> 'ATTACHED'` before and after. After: `status: 49`, `isStopped: 1`, `isMustInit: 0`, `isStopReasonStep: 1`, `execAddress: 873315762`, unchanged 2 s later. So the target is stopped after it with no separate reset. Before it, the session was already attached and stopped (`status: 17`, `isStopReasonExplicit: 1`); starting from a running or detached target was not observed.
+
+09 afterwards: 37 of 37 samples MATCH, no errors. The user reports the ECU worked after power cycling. The same limit applies: this was the same firmware already in flash.
+
+**Recommended program call: `begin_program`.** It is the documented replacement for the deprecated `download()`, and the observed result is the same.
 
 ### Matching SDK location
 
