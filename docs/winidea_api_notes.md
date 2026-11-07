@@ -279,6 +279,12 @@ Nothing was compared, so this run neither confirms nor rules out the chip erase.
 
 `ide.invoke(funcUrl, inParams)` calls a named winIDEA service function, for example `'/IDE/Divide'`. An error in the function does not raise: check `ResultB` and `ResultS` in the result. `invoke_T` raises instead. No list of function names is known, so the menu's Program cannot be called yet. `ide.getMenuStructure()` raises `TypeError: missing 1 required positional argument: 'optionUrl'`, and it has no docstring. `CUMIController.flush(deviceIndex)`: "Programs the device from the intermediate cache". `verify` compares the device with the cache. None of these was called. Docstrings name examples (`test_write.py`, `test_flush.py`, `test_begin_program.py`...); spike 11 looks for them on disk.
 
+### umi.read works: baseline after a manual Program (09, 2026-11-07 12:27)
+
+`umi.read(0, address, size, ic.ByteVector(size))` succeeded for all 37 samples (up to 256 bytes at the start and end of each segment) of the two enabled files: **all MATCH**, including the `.s3` chunks in block `0x7F0000` that the CAL shares, and the CAL itself. Sampled only, so this is not proof for the whole image. It shows that after the menu Program both files coexist in flash.
+
+Every read took about **4.3-4.4 s whether it was 11 or 256 bytes**, so the cost is per call, not per byte (probably the monitor load, not proven). `--full` makes about 1120 calls of 4 KB, which would take about 80 minutes; that fits the earlier "stuck" look. Why the earlier `--full` run ended with `Error loading monitor` while this run succeeded is unknown. The effect of `read` on running firmware is still unmeasured.
+
 ### Matching SDK location
 
 `C:\Data\_Devtools\Winidea408\Python\Lib\site-packages\isystem_connect-9.21.408.1.dist-info`: winIDEA ships its own Python with `isystem.connect` 9.21.408.1. There is no wheel to install. All spike runs so far used 9.26.11.

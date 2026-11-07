@@ -956,3 +956,15 @@ Spike 10 không tác động lên target. Nó ghi lại được hằng số `IC
 ### Đã kiểm tra
 
 - Chạy 11 trên macOS với thư mục giả: chép `test_flush.py` (theo tên) và `mine.py` (theo từ khóa), bỏ qua `other.py`; liệt kê `sdk_python.pdf`, bỏ qua `readme.pdf`. Chưa chạy trên Windows.
+
+## Phase 1.54: 09 lấy mẫu chạy được: Program tay giữ đủ hai file
+
+Sau khi Program bằng tay, 09 bản lấy mẫu đọc được flash và mọi mẫu đều `MATCH`, kể cả các đoạn `.s3` nằm chung sector `0x7F0000` với CAL. Đây là mốc chuẩn cho một lần flash đúng, dù chỉ là lấy mẫu. Mỗi lần đọc mất khoảng 4,4 s bất kể kích thước, nên `--full` với khối 4 KB sẽ mất khoảng 80 phút; điều này hợp với việc nó trông như bị treo.
+
+### Thay đổi
+
+- **`docs/winidea_api_notes.md`**, **`docs/windows_test_guide.md`**: ghi kết quả và thời gian đọc.
+
+### Đã kiểm tra
+
+- Đọc `09_flash_compare_20261107_122743.txt`: toàn bộ mẫu `MATCH`, không có lỗi. Chỉ đổi tài liệu.
