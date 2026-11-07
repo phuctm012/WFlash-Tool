@@ -1,0 +1,375 @@
+import json
+import zipfile
+from pathlib import Path
+from types import SimpleNamespace
+
+import pytest
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QApplication, QDialog, QMessageBox
+
+from tests.gui_stubs import (
+    GITLAB_URL,
+    OLD_APP,
+    SOURCE,
+    TOKEN,
+    FakeGitLabSession,
+    SessionClientFactory,
+    make_artifact_tree,
+    patch_keyring,
+    write_profiles,
+)
+from wflash import APP_AUTHOR, __version__
+from wflash.core.errors import GitLabError, WinIDEAError
+from wflash.core.fake_adapter import FakeWinIDEAAdapter
+from wflash.core.firmware_source import FirmwareSource
+from wflash.core.flash_workflow import Step
+from wflash.core.settings import AppSettings
+from wflash.gui import main_window as main_window_module
+from wflash.gui.flash_mixin import FlashMixin
+from wflash.gui.log_panel import LogPanelMixin
+from wflash.gui.main_window import MainWindow
+from wflash.gui.mapping_table import NO_FIRMWARE_TITLE, MappingTableMixin
+from wflash.gui.style import apply_theme
+from wflash.gui.theme import THEMES, current_theme_name
+
+pytestmark = pytest.mark.gui
+
+
+@pytest.fixture
+def env(qtbot, tmp_path, monkeypatch):
+    shown = []
+    monkeypatch.setattr(QMessageBox, "critical", lambda parent, title, text: shown.append((title, text)))
+    patch_keyring(monkeypatch)
+    profiles = write_profiles(tmp_path / "profiles")
+    settings = AppSettings(gitlab_url=GITLAB_URL, profiles_dir=str(profiles), cache_dir=str(tmp_path / "cache"))
+    adapter = FakeWinIDEAAdapter(download_seconds=0.2)
+    session = FakeGitLabSession()
+    window = MainWindow(
+        settings,
+        adapter,
+        client_factory=SessionClientFactory(session),
+        settings_path=tmp_path / "settings.json",
+    )
+    qtbot.addWidget(window)
+    qtbot.waitUntil(lambda: window.ui.comboBox_instance.count() == 1, timeout=3000)
+    yield SimpleNamespace(window=window, adapter=adapter, session=session, shown=shown, tmp=tmp_path)
+    apply_theme(QApplication.instance(), False)
+    QApplication.instance().setStyleSheet("")
+
+
+class FakePreferences:
+    """Stands in for PreferencesDialog: accepts with the settings given to `result`."""
+
+    result = None
+    cache_cleared = False
+
+    def __init__(self, settings, parent):
+        self._settings = settings
+
+    def exec(self):
+        return QDialog.DialogCode.Accepted
+
+    def result_settings(self):
+        return FakePreferences.result(self._settings)
+
+
+def test_gui_main_window_is_composed_from_three_mixins():
+    for mixin in (MappingTableMixin, FlashMixin, LogPanelMixin):
+        assert issubclass(MainWindow, mixin)
+    assert not hasattr(main_window_module, "GitlabBrowserMixin")
+
+
+def test_gui_profile_loaded_on_start(env):
+    w = env.window
+    assert w.profile.name == "SAF85xx_Radar"
+    assert json.loads((env.tmp / "settings.json").read_text())["last_profile"] == "saf.yaml"
+    assert w.ui.pushButton_loadFromGitlab.isEnabled()
+    assert not w.ui.pushButton_flash.isEnabled()
+    assert w.ui.checkBox_reset.isChecked() and not w.ui.checkBox_run.isChecked()
+    assert w.ui.label_sourceTitle.text() == NO_FIRMWARE_TITLE
+
+
+def test_gui_title_and_status_bar_show_version_and_author(env):
+    w = env.window
+    assert w.windowTitle() == f"WFlash v{__version__}"
+    assert w.label_version.text() == f"Version: v{__version__}"
+    assert w.label_author.text() == f"Author: {APP_AUTHOR}"
+
+
+def test_gui_full_chain_gitlab_dialog_to_flash(env, qtbot):
+    w = env.window
+    qtbot.mouseClick(w.ui.pushButton_loadFromGitlab, Qt.MouseButton.LeftButton)
+    dialog = w._gitlab_dialog
+    assert dialog.isVisible() and dialog.isModal()
+    dialog.load_refs()
+    qtbot.waitUntil(lambda: not dialog.busy(), timeout=3000)
+    dialog.browse_jobs()
+    qtbot.waitUntil(lambda: dialog.ui.tableWidget_jobs.rowCount() == 1, timeout=3000)
+    qtbot.waitUntil(lambda: not dialog.busy(), timeout=3000)
+    qtbot.mouseClick(dialog.job_button(0), Qt.MouseButton.LeftButton)
+    qtbot.waitUntil(w.mapping_complete, timeout=5000)
+    assert not dialog.isVisible()
+    assert w.ui.label_sourceTitle.text().endswith("job #7 build_app")
+    qtbot.waitUntil(w.ui.pushButton_flash.isEnabled, timeout=3000)
+    qtbot.mouseClick(w.ui.pushButton_flash, Qt.MouseButton.LeftButton)
+    assert not w.ui.pushButton_preferences.isEnabled() and not w.ui.pushButton_loadFromGitlab.isEnabled()
+    w.open_gitlab_dialog()  # refused while flashing
+    assert not dialog.isVisible()
+    qtbot.waitUntil(lambda: w.current_step() == Step.DONE.value, timeout=5000)
+    qtbot.waitUntil(lambda: w.ui.pushButton_flash.text() == "Flash", timeout=3000)
+    assert env.adapter.programs["App"].endswith("App.s3") and env.adapter.programs["App"] != OLD_APP
+    assert env.adapter.target_state == "halted"
+    assert env.shown == []
+    assert "Flash completed successfully" in w.log_visible_text()
+
+
+def test_gui_ambiguous_mapping_blocks_flash(env):
+    root = make_artifact_tree(env.tmp / "art")
+    (root / "out" / "y_cm7_0.elf").write_bytes(b"x")
+    env.window.on_firmware_ready(root, SOURCE)
+    assert not env.window.ui.pushButton_flash.isEnabled()
+
+
+def test_gui_failure_shows_hint_and_bundle_has_rollback_and_source(env, qtbot):
+    env.adapter.fail_on = {"download"}
+    w = env.window
+    w.on_firmware_ready(make_artifact_tree(env.tmp / "art"), SOURCE)
+    w.start_flash()
+    qtbot.waitUntil(lambda: bool(env.shown), timeout=5000)
+    title, text = env.shown[0]
+    assert title == "WFlash error"
+    assert "Fake failure" in text and "Export debug bundle" not in text
+    qtbot.waitUntil(w.ui.pushButton_flash.isEnabled, timeout=3000)
+    assert env.adapter.programs["App"] == OLD_APP
+    bundle = w.export_bundle(env.tmp / "bundle")
+    with zipfile.ZipFile(bundle) as zf:
+        assert "Fake failure" in zf.read("errors.txt").decode()
+        assert "after_rollback" in zf.read("workspace_snapshots.json").decode()
+        assert json.loads(zf.read("source.json"))["title"] == SOURCE.title
+
+
+def test_gui_rollback_failure_uses_its_own_title(env, qtbot):
+    class RestoreFails(FakeWinIDEAAdapter):
+        def set_program_path(self, name, path):
+            if path == OLD_APP:
+                raise WinIDEAError("restore App failed")
+            super().set_program_path(name, path)
+
+    w = env.window
+    w.adapter = RestoreFails(download_seconds=0.1, fail_on={"download"})
+    w.on_firmware_ready(make_artifact_tree(env.tmp / "art"), SOURCE)
+    w.start_flash()
+    qtbot.waitUntil(lambda: bool(env.shown), timeout=5000)
+    assert env.shown[0][0] == "WFlash — rollback failed"
+    assert "ROLLBACK FAILED" in env.shown[0][1]
+    assert w.ui.label_rollbackWarning.isVisibleTo(w)
+
+
+def test_gui_bad_profile_shows_error_and_disables_load(qtbot, tmp_path, monkeypatch):
+    shown = []
+    monkeypatch.setattr(QMessageBox, "critical", lambda parent, title, text: shown.append(text))
+    profiles = tmp_path / "profiles"
+    profiles.mkdir()
+    (profiles / "bad.yaml").write_text("name: [unclosed", encoding="utf-8")
+    w = MainWindow(AppSettings(profiles_dir=str(profiles)), FakeWinIDEAAdapter(), settings_path=tmp_path / "s.json")
+    qtbot.addWidget(w)
+    assert w.profile is None
+    assert shown and "Invalid YAML" in shown[0]
+    assert not w.ui.pushButton_loadFromGitlab.isEnabled()
+    w.open_gitlab_dialog()
+    assert not w._gitlab_dialog.isVisible()
+
+
+def test_gui_preferences_saved_without_any_token(env, monkeypatch, qtbot):
+    from dataclasses import replace
+
+    FakePreferences.result = staticmethod(lambda s: replace(s, verbose=True, max_cached_jobs=3))
+    monkeypatch.setattr(main_window_module, "PreferencesDialog", FakePreferences)
+    w = env.window
+    w.open_preferences()
+    assert w.settings.verbose is True and w.settings.max_cached_jobs == 3
+    saved = json.loads((env.tmp / "settings.json").read_text())
+    assert saved["verbose"] is True and saved["gitlab_url"] == GITLAB_URL
+    assert TOKEN not in (env.tmp / "settings.json").read_text()
+    main_window_module.log.info("echo %s", TOKEN)
+    qtbot.waitUntil(lambda: "echo ***" in w.log_visible_text(), timeout=1000)
+    assert TOKEN not in w.log_visible_text()
+
+
+def test_gui_dark_mode_applies_immediately_and_is_saved(env, monkeypatch, qtbot):
+    from dataclasses import replace
+
+    w = env.window
+    w.on_firmware_ready(make_artifact_tree(env.tmp / "art", {"x_cm7_0.elf": b"3"}), SOURCE)
+    FakePreferences.result = staticmethod(lambda s: replace(s, dark_mode=True))
+    monkeypatch.setattr(main_window_module, "PreferencesDialog", FakePreferences)
+    w.open_preferences()
+    assert current_theme_name() == "dark"
+    assert THEMES["dark"]["primary"] in QApplication.instance().styleSheet()
+    assert json.loads((env.tmp / "settings.json").read_text())["dark_mode"] is True
+    assert "Theme: dark" in w.log_visible_text()
+    FakePreferences.result = staticmethod(lambda s: replace(s, dark_mode=False))
+    w.open_preferences()
+    assert current_theme_name() == "light"
+    assert THEMES["light"]["primary"] in QApplication.instance().styleSheet()
+
+
+def test_gui_preferences_cache_cleared_unloads_the_firmware(env, monkeypatch):
+    class ClearingPreferences(FakePreferences):
+        cache_cleared = True
+
+        def exec(self):
+            return QDialog.DialogCode.Rejected
+
+    w = env.window
+    w.on_firmware_ready(make_artifact_tree(env.tmp / "art"), SOURCE)
+    monkeypatch.setattr(main_window_module, "PreferencesDialog", ClearingPreferences)
+    w.open_preferences()
+    assert w.mapping_rows() == [] and w.ui.label_sourceTitle.text() == NO_FIRMWARE_TITLE
+
+
+def test_gui_show_error_redacts_unregistered_token(env):
+    token = "glpat-" + "Ab3dEf6hIj9kLm2nOp5q"
+    env.shown.clear()
+    env.window.show_error(GitLabError(f"401 for {token}", hint=f"retry with {token}"))
+    title, text = env.shown[0]
+    assert "***" in text and token not in text
+
+
+def test_gui_profile_path_recorded_even_when_profile_is_broken(qtbot, tmp_path, monkeypatch):
+    monkeypatch.setattr(QMessageBox, "critical", lambda *a, **k: None)
+    profiles = tmp_path / "profiles"
+    profiles.mkdir()
+    bad = profiles / "bad.yaml"
+    bad.write_text("name: [unclosed", encoding="utf-8")
+    w = MainWindow(AppSettings(profiles_dir=str(profiles)), FakeWinIDEAAdapter(), settings_path=tmp_path / "s.json")
+    qtbot.addWidget(w)
+    assert w.profile is None
+    assert w.ctx.profile_path == bad
+
+
+MULTI_SOURCE_PROFILE = """
+name: TwoSources
+gitlab: {project: group/app}
+sources:
+  ffi: {label: "FFI (.s3)", job_filter: "build_ffi*"}
+  m7: {label: "M7 (.elf)"}
+programs:
+  - {winidea_entry: "App", source: ffi, pattern: "**/App.s3"}
+applications:
+  - {winidea_app: "CM7_0", source: m7, pattern: "**/x_cm7_0.elf"}
+"""
+
+
+def source_of(name, commit=""):
+    return FirmwareSource("ci", "group/app", f"CI artifact · {name}", "detail", "Cached · 1 file", commit=commit)
+
+
+def select_multi_source(env):
+    w = env.window
+    (Path(w.settings.profiles_dir) / "two.yaml").write_text(MULTI_SOURCE_PROFILE, encoding="utf-8")
+    w.reload_profiles()
+    w.ui.comboBox_profile.setCurrentIndex(w.ui.comboBox_profile.findText("two"))
+    assert w.profile.name == "TwoSources"
+    return w
+
+
+def load_source(env, w, source_id, tree, commit="abc12345", name=None):
+    """Click that source's Load button and deliver what the dialog would deliver."""
+    w.source_load_button(source_id).click()
+    dialog = w._gitlab_dialog
+    assert dialog.isVisible()
+    path = make_artifact_tree(env.tmp / f"art_{source_id}_{commit}", tree)
+    dialog.firmwareReady.emit(path, source_of(name or source_id, commit))
+    dialog.reject()
+    return path
+
+
+def test_gui_profile_without_sources_keeps_the_single_load_button(env):
+    w = env.window
+    assert w.ui.pushButton_loadFromGitlab.isVisibleTo(w)
+    assert w.source_load_buttons() == []
+
+
+def test_gui_sources_replace_the_single_button_with_one_per_source(env):
+    w = select_multi_source(env)
+    assert not w.ui.pushButton_loadFromGitlab.isVisibleTo(w)
+    assert [b.isVisibleTo(w) for b in w.source_load_buttons()] == [True, True]
+    assert "not loaded" in w.source_summary("ffi").text().lower()
+
+
+def test_gui_flash_needs_every_source_and_each_row_only_sees_its_own_artifact(env, qtbot):
+    w = select_multi_source(env)
+    ffi = load_source(env, w, "ffi", {"out/App.s3": b"F", "out/x_cm7_0.elf": b"wrong"})
+    rows = w.mapping_rows()
+    assert [(r.target, r.ok) for r in rows] == [("App", True), ("CM7_0", False)]
+    assert w.mapping_combo(1).count() == 1  # only the "select file" entry: not the ELF of the FFI artifact
+    assert not w.mapping_complete()
+    m7 = load_source(env, w, "m7", {"bin/x_cm7_0.elf": b"M", "bin/App.s3": b"wrong"})
+    assert w.mapping_rows()[0].selected == ffi / "out" / "App.s3"
+    assert w.mapping_rows()[1].selected == m7 / "bin" / "x_cm7_0.elf"
+    qtbot.waitUntil(w.ui.pushButton_flash.isEnabled, timeout=3000)
+    assert set(w.ctx.source) == {"ffi", "m7"}
+    assert "ffi" in w.source_summary("ffi").text()
+
+
+def test_gui_reloading_one_source_keeps_the_other_and_its_manual_choice(env):
+    w = select_multi_source(env)
+    load_source(env, w, "ffi", {"out/App.s3": b"F"})
+    m7 = load_source(env, w, "m7", {"a/x_cm7_0.elf": b"1", "b/x_cm7_0.elf": b"2"})
+    assert not w.mapping_rows()[1].ok  # two matches: the user chooses
+    combo = w.mapping_combo(1)
+    combo.setCurrentIndex(combo.findText("b/x_cm7_0.elf"))
+    assert w.mapping_rows()[1].selected == m7 / "b" / "x_cm7_0.elf"
+    ffi2 = load_source(env, w, "ffi", {"new/App.s3": b"G"}, commit="abc12346", name="second")
+    assert w.mapping_rows()[0].selected == ffi2 / "new" / "App.s3"
+    assert w.mapping_rows()[1].selected == m7 / "b" / "x_cm7_0.elf"
+
+
+def test_gui_dialog_uses_the_filter_and_names_the_source(env):
+    w = select_multi_source(env)
+    w.source_load_button("ffi").click()
+    dialog = w._gitlab_dialog
+    assert dialog.current_job_filter() == "build_ffi*"
+    assert "FFI (.s3)" in dialog.windowTitle()
+    dialog.reject()
+    w.source_load_button("m7").click()
+    assert dialog.current_job_filter() == "*"
+    assert "M7 (.elf)" in dialog.windowTitle()
+    dialog.reject()
+
+
+def test_gui_different_commits_warn_but_do_not_block(env, qtbot):
+    w = select_multi_source(env)
+    load_source(env, w, "ffi", {"out/App.s3": b"F"}, commit="aaaaaaaa1")
+    assert not w.ui.label_commitWarning.isVisibleTo(w)
+    load_source(env, w, "m7", {"bin/x_cm7_0.elf": b"M"}, commit="bbbbbbbb2")
+    assert w.ui.label_commitWarning.isVisibleTo(w)
+    assert "aaaaaaaa" in w.ui.label_commitWarning.text() and "bbbbbbbb" in w.ui.label_commitWarning.text()
+    qtbot.waitUntil(w.ui.pushButton_flash.isEnabled, timeout=3000)
+    load_source(env, w, "ffi", {"out/App.s3": b"G"}, commit="bbbbbbbb2")
+    assert not w.ui.label_commitWarning.isVisibleTo(w)
+
+
+def test_gui_missing_commit_does_not_warn(env):
+    w = select_multi_source(env)
+    load_source(env, w, "ffi", {"out/App.s3": b"F"}, commit="aaaaaaaa1")
+    load_source(env, w, "m7", {"bin/x_cm7_0.elf": b"M"}, commit="")
+    assert not w.ui.label_commitWarning.isVisibleTo(w)
+
+
+def test_gui_source_buttons_are_disabled_while_flashing(env, qtbot):
+    w = select_multi_source(env)
+    load_source(env, w, "ffi", {"out/App.s3": b"F"})
+    load_source(env, w, "m7", {"bin/x_cm7_0.elf": b"M"})
+    qtbot.waitUntil(w.ui.pushButton_flash.isEnabled, timeout=3000)
+    w.start_flash()
+    assert not any(b.isEnabled() for b in w.source_load_buttons())
+    qtbot.waitUntil(lambda: w.current_step() == Step.DONE.value, timeout=5000)
+    qtbot.waitUntil(lambda: not w.flash_active(), timeout=3000)
+    assert all(b.isEnabled() for b in w.source_load_buttons())
+
+
+def test_gui_error_popup_shows_only_the_message_and_the_hint(env):
+    env.window.show_error(WinIDEAError("Short message.", hint="Do this."))
+    assert env.shown[-1][1] == "Short message.\n\nDo this."

@@ -2868,6 +2868,8 @@ git commit -m "feat(core): add flash workflow with rollback and step reporting" 
 
 ---
 
+> **Superseded:** Tasks 12–20 below were replaced by `docs/superpowers/plans/2026-10-04-wflash-gui.md` (Plan 1b, Designer-first + mixin per CLAUDE.md). Kept for history only — do not execute them.
+
 ### Task 12: GUI log panel
 
 **Files:**

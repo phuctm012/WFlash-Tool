@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>PreferencesDialog</class>
+ <widget class="QDialog" name="PreferencesDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>600</width>
+    <height>260</height>
+   </rect>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>560</width>
+    <height>0</height>
+   </size>
+  </property>
+  <property name="windowTitle">
+   <string>Preferences</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout_preferences">
+   <item>
+    <layout class="QFormLayout" name="formLayout_preferences">
+     <item row="0" column="0">
+      <widget class="QLabel" name="label_cacheDir">
+       <property name="text">
+        <string>Cache folder:</string>
+       </property>
+       <property name="buddy">
+        <cstring>lineEdit_cacheDir</cstring>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <layout class="QHBoxLayout" name="horizontalLayout_cacheDir">
+       <item>
+        <widget class="QLineEdit" name="lineEdit_cacheDir"/>
+       </item>
+       <item>
+        <widget class="QPushButton" name="pushButton_browseCacheDir">
+         <property name="text">
+          <string>Browse…</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="pushButton_clearCache">
+         <property name="text">
+          <string>Clear cache</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item row="1" column="0">
+      <widget class="QLabel" name="label_maxCachedJobs">
+       <property name="text">
+        <string>Cached downloads to keep:</string>
+       </property>
+       <property name="buddy">
+        <cstring>spinBox_maxCachedJobs</cstring>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1">
+      <widget class="QSpinBox" name="spinBox_maxCachedJobs">
+       <property name="minimum">
+        <number>1</number>
+       </property>
+       <property name="maximum">
+        <number>100</number>
+       </property>
+       <property name="value">
+        <number>10</number>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="0">
+      <widget class="QLabel" name="label_profilesDir">
+       <property name="text">
+        <string>Profiles folder:</string>
+       </property>
+       <property name="buddy">
+        <cstring>lineEdit_profilesDir</cstring>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="1">
+      <layout class="QHBoxLayout" name="horizontalLayout_profilesDir">
+       <item>
+        <widget class="QLineEdit" name="lineEdit_profilesDir"/>
+       </item>
+       <item>
+        <widget class="QPushButton" name="pushButton_browseProfilesDir">
+         <property name="text">
+          <string>Browse…</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item row="3" column="1">
+      <widget class="QCheckBox" name="checkBox_verbose">
+       <property name="text">
+        <string>Verbose winIDEA call logging</string>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="1">
+      <widget class="QCheckBox" name="checkBox_darkMode">
+       <property name="text">
+        <string>Dark mode</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QLabel" name="label_error">
+     <property name="text">
+      <string/>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <spacer name="verticalSpacer_preferences">
+     <property name="orientation">
+      <enum>Qt::Orientation::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>0</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item>
+    <widget class="QDialogButtonBox" name="buttonBox_preferences">
+     <property name="standardButtons">
+      <set>QDialogButtonBox::StandardButton::Cancel|QDialogButtonBox::StandardButton::Ok</set>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
