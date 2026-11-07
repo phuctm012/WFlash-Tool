@@ -1347,3 +1347,17 @@ Trước khi đổi bất cứ thứ gì, `make_plan` kiểm tra đủ dòng, th
 ### Đã kiểm tra
 
 - RED rồi GREEN với `pytest tests/test_flash_plan.py`; `pytest -q`.
+
+## Phase 3.8: Verify với các file chồng nhau
+
+BM và FBL ghi đè lên một phần FFI, nên so mẫu theo từng file sẽ báo lỗi sai. Verify giờ đọc cả file `.bin` theo offset, và chỉ so phần của mỗi file còn nằm trên flash sau khi các dòng sau ghi đè.
+
+### Thay đổi
+
+- **`wflash/core/srec.py`**: `read_image`, `visible_segments`, `is_image_file`.
+- **`wflash/core/winidea_adapter.py`**: `verify_flash` dùng các hàm trên.
+- **`tests/test_srec.py`**, **`tests/test_real_adapter.py`**.
+
+### Đã kiểm tra
+
+- RED rồi GREEN; `pytest -q`. Hành vi ghi chồng thật của winIDEA còn chờ phần B của Vòng 8.

@@ -11,7 +11,7 @@ from typing import Callable, Protocol
 from wflash.core.cancel import CancelToken
 from wflash.core.errors import CancelledError, FlashError, MappingError, WinIDEAError
 from wflash.core.logging_setup import CALLS_LOGGER, get_logger
-from wflash.core.srec import is_srec_file, parse_srec, sample_ranges
+from wflash.core.srec import is_image_file, read_image, sample_ranges, visible_segments
 
 log = get_logger("winidea")
 calls_log = logging.getLogger(CALLS_LOGGER)
@@ -442,18 +442,19 @@ class RealWinIDEAAdapter:
         ic, cmgr, ide = self._session()
         umi = ic.CUMIController(cmgr)
         workspace_dir = ide.getPath(ic.CIDEController.WORKSPACE_DIR)
-        samples = []
+        images: list[list[tuple[int, bytes]]] = []
+        names: list[str] = []
         try:
             for i in range(ide.getDynamicOptionSize(DOWNLOAD_FILES)):
                 if self._read(f"{DOWNLOAD_FILES}[{i}].Enabled") != "true":
                     continue
                 stored = self._read(f"{DOWNLOAD_FILES}[{i}].Path")
-                if not is_srec_file(stored):
-                    log.warning("Verify skips %s: not an S-record file", stored)
+                if not is_image_file(stored):
+                    log.warning("Verify skips %s: unknown file type", stored)
                     continue
                 offset = int(self._read(f"{DOWNLOAD_FILES}[{i}].Offset"), 16)
-                segments = parse_srec(Path(workspace_dir) / stored)
-                samples += [(address + offset, data, stored) for address, data in sample_ranges(segments)]
+                images.append(read_image(Path(workspace_dir) / stored, offset))
+                names.append(stored)
         except OSError as exc:
             log.error("Cannot read a flashed file for the verify: %s", exc)
             raise FlashError("Cannot read a flashed file for the check.") from exc
@@ -461,6 +462,12 @@ class RealWinIDEAAdapter:
             raise
         except Exception as exc:
             raise self._fail("preparing the verify", exc) from exc
+        # Rows are written in order, so a later row covers an earlier one; compare what stays on the flash.
+        samples = [
+            (address, data, name)
+            for name, segments in zip(names, visible_segments(images))
+            for address, data in sample_ranges(segments)
+        ]
         for done, (address, expected, stored) in enumerate(samples, start=1):
             data = ic.ByteVector(len(expected))  # read() raises unless the vector is already sized
             calls_log.debug("CUMIController.read 0x%06X %d", address, len(expected))
