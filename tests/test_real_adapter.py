@@ -191,3 +191,129 @@ def test_lost_connection_is_reported_as_such(connected, world):
     with pytest.raises(WinIDEAError) as err:
         connected.read_programs()
     assert "lost" in str(err.value)
+
+
+from wflash.core import winidea_adapter
+from wflash.core.cancel import CancelToken
+from wflash.core.debug_bundle import DebugContext
+from wflash.core.errors import FlashError
+from wflash.core.file_matcher import MappingRow
+from wflash.core.flash_workflow import FlashRequest, FlashWorkflow
+
+
+def test_download_calls_begin_program_once(connected, world):
+    connected.download(lambda p, m: None, CancelToken(), 600)
+    assert world.calls.count("begin_program") == 1
+
+
+def test_download_ignores_cancel_because_it_cannot_be_stopped_safely(connected, world):
+    token = CancelToken()
+    token.cancel()
+    connected.download(lambda p, m: None, token, 600)
+    assert world.calls.count("begin_program") == 1
+
+
+def test_download_reports_estimated_progress_below_100(connected, world, monkeypatch):
+    monkeypatch.setattr(winidea_adapter, "PROGRESS_TICK_S", 0.01)
+    monkeypatch.setattr(winidea_adapter, "EXPECTED_PROGRAM_S", 0.02)
+    world.begin_program_hook = lambda: __import__("time").sleep(0.1)
+    seen = []
+    connected.download(lambda p, m: seen.append((p, m)), CancelToken(), 600)
+    assert seen and all(0 <= p <= winidea_adapter.MAX_ESTIMATED_PERCENT for p, _m in seen)
+    assert "estimated" in seen[0][1]
+
+
+def test_download_survives_a_failing_progress_callback(connected, world, monkeypatch):
+    monkeypatch.setattr(winidea_adapter, "PROGRESS_TICK_S", 0.01)
+    world.begin_program_hook = lambda: __import__("time").sleep(0.05)
+
+    def boom(_p, _m):
+        raise RuntimeError("signal source deleted")
+
+    connected.download(boom, CancelToken(), 600)
+    assert world.calls.count("begin_program") == 1
+
+
+def test_download_past_the_timeout_warns_and_keeps_waiting(connected, world, monkeypatch, caplog):
+    monkeypatch.setattr(winidea_adapter, "PROGRESS_TICK_S", 0.01)
+    world.begin_program_hook = lambda: __import__("time").sleep(0.05)
+    with caplog.at_level(logging.WARNING):
+        connected.download(lambda p, m: None, CancelToken(), 0)
+    assert any("cannot be stopped" in r.getMessage() for r in caplog.records)
+
+
+def test_download_failure_warns_that_the_flash_may_be_erased(connected, world):
+    world.begin_program_error = OSError("probe lost")
+    with pytest.raises(FlashError) as err:
+        connected.download(lambda p, m: None, CancelToken(), 600)
+    assert "erased" in err.value.hint
+    assert isinstance(err.value.__cause__, OSError)
+
+
+def test_reset_halts_and_confirms_with_is_stopped(connected, world):
+    connected.reset(run=False)
+    assert world.calls[-1] == "reset"
+
+
+def test_reset_with_run_runs(connected, world):
+    connected.reset(run=True)
+    assert world.calls[-2:] == ["reset", "run"]
+
+
+def test_reset_fails_when_the_target_does_not_stop(connected, world, monkeypatch):
+    monkeypatch.setattr(winidea_adapter, "HALT_WAIT_S", 0.05)
+    monkeypatch.setattr(winidea_adapter, "HALT_POLL_S", 0.01)
+    world.stopped_after_reset = False
+    with pytest.raises(WinIDEAError) as err:
+        connected.reset(run=False)
+    assert "flash finished" in err.value.hint
+
+
+def _rows(tmp_path):
+    s3 = tmp_path / "RAD_SUZ05_FFI.s3"
+    elf = tmp_path / "Radar_SUZ05_Gen7.elf"
+    s3.write_text("S0\n")
+    elf.write_text("x")
+    return [
+        MappingRow(kind="program", target="RAD_SUZ05_FFI.s3", pattern="**/RAD_SUZ05_FFI.s3", selected=s3),
+        MappingRow(kind="application", target="App_M7/Radar_SUZ05_Gen7.elf", pattern="**/Radar_SUZ05_Gen7.elf", selected=elf),
+    ]
+
+
+def test_workflow_changes_only_the_two_paths_then_programs_once(adapter, world, tmp_path):
+    before = dict(world.options)
+    rows = _rows(tmp_path)
+    FlashWorkflow(adapter, DebugContext()).run(FlashRequest("5315", rows), CancelToken())
+    changed = {k for k in world.options if world.options[k] != before[k]}
+    assert changed == {ROW1, ELF}
+    assert world.options[ROW1] == str(rows[0].selected.resolve())
+    assert world.calls.count("begin_program") == 1
+    assert world.calls[-1] == "reset"
+
+
+def test_workflow_rolls_back_both_paths_when_programming_fails(adapter, world, tmp_path):
+    before = dict(world.options)
+    world.begin_program_error = OSError("probe lost")
+    with pytest.raises(FlashError):
+        FlashWorkflow(adapter, DebugContext()).run(FlashRequest("5315", _rows(tmp_path)), CancelToken())
+    assert world.options == before
+
+
+def test_workflow_stops_before_programming_when_the_profile_names_a_missing_row(adapter, world, tmp_path):
+    rows = _rows(tmp_path)
+    rows[0] = MappingRow(kind="program", target="Nope.s3", pattern="*", selected=rows[0].selected)
+    with pytest.raises(MappingError):
+        FlashWorkflow(adapter, DebugContext()).run(FlashRequest("5315", rows), CancelToken())
+    assert "begin_program" not in world.calls
+
+
+def test_workflow_stops_before_programming_when_the_file_is_named_differently(adapter, world, tmp_path):
+    before = dict(world.options)
+    other = tmp_path / "Other.s3"
+    other.write_text("S0\n")
+    rows = _rows(tmp_path)
+    rows[0] = MappingRow(kind="program", target="RAD_SUZ05_FFI.s3", pattern="*", selected=other)
+    with pytest.raises(MappingError):
+        FlashWorkflow(adapter, DebugContext()).run(FlashRequest("5315", rows), CancelToken())
+    assert "begin_program" not in world.calls
+    assert world.options == before

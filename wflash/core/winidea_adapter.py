@@ -89,6 +89,11 @@ DEVICES = "/iOPEN/UMIConfig.Devices.Devices"
 DEVICE = f"{DEVICES}[0]"
 DOWNLOAD_FILES = f"{DEVICE}.DownloadFiles"
 APPLICATIONS = "/IDE/System.Debug.Applications"
+EXPECTED_PROGRAM_S = 100  # observed 98.8 s and 99.0 s; only for the estimated progress
+MAX_ESTIMATED_PERCENT = 95
+PROGRESS_TICK_S = 1.0
+HALT_WAIT_S = 5.0
+HALT_POLL_S = 0.2
 BITNESS_HINT = (
     "Install isystem.connect from the winIDEA installation, and use Python with the same bitness "
     "as winIDEA. Meanwhile start WFlash with --adapter fake."
@@ -316,3 +321,65 @@ class RealWinIDEAAdapter:
             raise WinIDEAError(f"No single symbol file is named {name!r}")
         i, j = where
         self._write_path(f"{APPLICATIONS}[{i}].SymbolFiles.File[{j}].Path", name, path)
+
+    def download(self, progress: ProgressCallback, cancel: CancelToken, timeout_s: int) -> None:
+        """Program through the session, as Debug > Download does: one erase, then all enabled rows.
+
+        begin_program() blocks and reports nothing, so `progress` is an estimate from elapsed time.
+        `cancel` and the timeout cannot apply: stopping mid-erase could leave the ECU empty.
+        """
+        ic, cmgr, _ide = self._session()
+        done = threading.Event()
+        started = time.monotonic()
+
+        def report_estimate() -> None:
+            warned = False
+            while not done.wait(PROGRESS_TICK_S):
+                elapsed = time.monotonic() - started
+                if elapsed > timeout_s and not warned:
+                    warned = True
+                    log.warning("Programming has taken over %d s; it cannot be stopped safely, still waiting", timeout_s)
+                percent = min(MAX_ESTIMATED_PERCENT, int(elapsed * 100 / EXPECTED_PROGRAM_S))
+                try:
+                    progress(percent, "Programming external flash (estimated)")
+                except Exception:
+                    log.warning("Progress callback failed", exc_info=True)
+
+        reporter = threading.Thread(target=report_estimate, name="wflash-program-progress", daemon=True)
+        reporter.start()
+        calls_log.debug("CSessionCtrl.begin_program")
+        try:
+            ic.CSessionCtrl(cmgr).begin_program()
+        except Exception as exc:
+            raise FlashError(
+                f"Programming failed: {exc}",
+                hint="The external flash may be erased or partly written. Flash again, or use Debug > Download in winIDEA.",
+            ) from exc
+        finally:
+            done.set()
+            reporter.join()
+        log.info("Programming finished in %.1f s", time.monotonic() - started)
+
+    def reset(self, run: bool) -> None:
+        ic, cmgr, _ide = self._session()
+        try:
+            debug = ic.CDebugFacade(cmgr)
+            calls_log.debug("CDebugFacade.reset")
+            debug.reset()
+            if run:
+                calls_log.debug("CDebugFacade.run")
+                debug.run()
+                return
+            # isStopped, not isHalted: after reset winIDEA reports isStopped=1 and isHalted=0.
+            deadline = time.monotonic() + HALT_WAIT_S
+            while not debug.getCPUStatus().isStopped():
+                if time.monotonic() >= deadline:
+                    raise WinIDEAError(
+                        f"The target did not stop within {HALT_WAIT_S:.0f} s after reset",
+                        hint="The flash finished, but the target is not halted. Check its state in winIDEA.",
+                    )
+                time.sleep(HALT_POLL_S)
+        except WinIDEAError:
+            raise
+        except Exception as exc:
+            raise self._fail("resetting the target", exc) from exc

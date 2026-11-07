@@ -1071,3 +1071,16 @@ Dòng Download Files và file symbol không có tên riêng, nên adapter đặt
 ### Đã kiểm tra
 
 - RED rồi GREEN với `pytest tests/test_real_adapter.py`. Đọc `Applications[i]` tới khi hết danh sách chưa được kiểm chứng trên máy thật, có ghi `# UNVERIFIED`.
+
+## Phase 2.4: Adapter thật: lập trình bằng begin_program và reset
+
+`begin_program()` chạy chặn khoảng 100 s, không báo tiến độ và không dừng an toàn được, nên tiến độ chỉ là ước lượng theo thời gian (tối đa 95%), còn cancel và timeout không ngắt nó: quá hạn chỉ ghi cảnh báo. Lỗi lập trình nhắc rằng flash có thể đã bị xóa. Sau reset, target được xác nhận bằng `isStopped`, vì spike cho thấy `isHalted` vẫn là 0 khi target đã dừng, và có lần đọc ngay sau reset chưa thấy dừng.
+
+### Thay đổi
+
+- **`wflash/core/winidea_adapter.py`**: `download`, `reset`.
+- **`tests/test_real_adapter.py`**: test adapter và test `FlashWorkflow` chạy trên adapter thật với module giả (chỉ đổi 2 path, gọi `begin_program` một lần, khôi phục cả 2 path khi lỗi, không flash nếu sai tên).
+
+### Đã kiểm tra
+
+- RED rồi GREEN; `pytest -k "not gui" -q`. Chưa chạy với winIDEA thật.
