@@ -1281,3 +1281,16 @@ Trước khi viết phần flash mới, cần biết API có ghi được dấu 
 ### Đã kiểm tra
 
 - Chạy 14 và 15 với module giả: đọc in đúng, đảo rồi khôi phục đúng, token không xuất hiện trong file kết quả. Chưa chạy trên máy thật.
+
+## Phase 3.3: Đọc source repo và checkout
+
+Module mới gọi `git` qua `subprocess`, không dùng Qt, để đọc branch, commit, thay đổi chưa commit, liệt kê branch và commit, fetch, checkout. Checkout từ chối khi có thay đổi chưa commit và không bao giờ dùng `--force`, `stash`, `reset`, `clean`. `GIT_TERMINAL_PROMPT=0` để git không treo chờ nhập mật khẩu.
+
+### Thay đổi
+
+- **`wflash/core/source_repo.py`** (mới), **`wflash/core/errors.py`**: `SourceRepoError`.
+- **`tests/test_source_repo.py`** (mới): chạy trên git repo tạm thật.
+
+### Đã kiểm tra
+
+- RED rồi GREEN với `pytest tests/test_source_repo.py`. Chưa chạy trên Windows.
