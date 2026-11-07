@@ -891,3 +891,16 @@ User báo sau khi chạy `08_umi_program.py` với 2 file đang tick (`RAD_SUZ05
 ### Đã kiểm tra
 
 - Chạy 08 với module giả : 2 dòng tick và 0 dòng tick đều dừng trước khi ghi, 1 dòng tick mới gọi `write`. Chưa chạy với winIDEA thật. ECU chưa được khôi phục tại thời điểm ghi.
+
+## Phase 1.49: Sửa spike 09: umi.read cần vector có sẵn kích thước
+
+Lần chạy 09 đầu tiên trên máy thật báo `Vector size is too small!` ở mọi đoạn, nên chưa so được gì. Không có gì bị ghi. Script truyền vector rỗng, còn module giả trước đây chấp nhận vector rỗng nên không phát hiện được. Phần phân tích file thì đúng: 20 đoạn của `.s3` trùng địa chỉ với 20 chunk trong Output.
+
+### Thay đổi
+
+- **`spike/09_flash_compare.py`**: tạo vector đúng kích thước trước khi gọi `read`.
+- **`docs/winidea_api_notes.md`**: ghi yêu cầu của `umi.read`.
+
+### Đã kiểm tra
+
+- Module giả sửa lại để báo lỗi giống máy thật khi vector quá nhỏ: bản cũ tái hiện đúng lỗi, bản mới so được và báo đúng `MATCH`/`DIFFERENT`. Chưa chạy lại trên winIDEA thật.

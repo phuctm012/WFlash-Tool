@@ -49,9 +49,10 @@ def compare(report, umi, index, make_vector, address, expected, label):
     first = None
     for start in range(0, len(expected), READ_SIZE):
         chunk = bytes(expected[start:start + READ_SIZE])
-        data = make_vector()
+        # read() fills the vector in place and raises "Vector size is too small!" unless it is presized.
+        data = make_vector(len(chunk))
         umi.read(index, address + start, len(chunk), data)
-        actual = bytes(data)
+        actual = bytes(b if isinstance(b, int) else ord(b) for b in data)
         if len(actual) != len(chunk):
             report.line(f"{label}: read returned {len(actual)} bytes, asked {len(chunk)}")
             return

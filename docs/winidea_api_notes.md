@@ -246,6 +246,10 @@ Running  Reset         EMULATION END - Without cleanup ... EMULATION STARTED
 
 After `debug.reset()` here, `isStopped -> False`, unlike round 1 (`True`). The status was read immediately, and `toString` was not printed, so the state is unknown. "Reset and halt" needs re-checking.
 
+### umi.read needs a presized vector
+
+`umi.read(0, address, size, ic.ByteVector())` raises `ValueError: Vector size is too small!  [CUMIController.cpp, 136]`, `__size__: 0`. The type `ByteVector` is accepted; both `ByteVector` and `VectorBYTE` exist in the module. Spike 09's S-record parser found 20 segments in the `.s3` at the same addresses as the 20 chunks in the Output view, and the CAL at `0x7F0000`.
+
 ### Matching SDK location
 
 `C:\Data\_Devtools\Winidea408\Python\Lib\site-packages\isystem_connect-9.21.408.1.dist-info`: winIDEA ships its own Python with `isystem.connect` 9.21.408.1. There is no wheel to install. All spike runs so far used 9.26.11.
