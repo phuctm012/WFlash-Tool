@@ -1335,3 +1335,15 @@ Firmware tải theo commit nằm trong thư mục có tên cho biết đang debu
 ### Đã kiểm tra
 
 - RED rồi GREEN; `pytest -q`.
+
+## Phase 3.7: Kiểm tra workspace và lập kế hoạch flash
+
+Trước khi đổi bất cứ thứ gì, `make_plan` kiểm tra đủ dòng, thứ tự FFI → CAL → BM → FBL, offset của BM và FBL, không có dòng lạ đang tick, và CAL có sẵn. Nó trả về danh sách thay đổi path và dấu tick. Đây là logic thuần, chưa gọi winIDEA, nên test được đầy đủ trên macOS. Tắt Advanced Debug thì BM và FBL bị bỏ tick và giữ nguyên path.
+
+### Thay đổi
+
+- **`wflash/core/flash_plan.py`**, **`tests/test_flash_plan.py`** (mới).
+
+### Đã kiểm tra
+
+- RED rồi GREEN với `pytest tests/test_flash_plan.py`; `pytest -q`.
