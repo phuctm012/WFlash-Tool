@@ -8,9 +8,10 @@ from __future__ import annotations
 
 import tempfile
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePath
+from typing import Iterable
 
-from wflash.core.artifact_cache import ArtifactCache
+from wflash.core.artifact_cache import ArtifactCache, NamedArtifactCache
 from wflash.core.cancel import CancelToken
 from wflash.core.errors import GitLabError
 from wflash.core.firmware_source import FirmwareSource, files_note, short_timestamp
@@ -166,6 +167,38 @@ def fetch_ci_artifact(
         title=f"CI artifact · job #{job.job_id} {job.job_name}",
         detail=f"{project} · {job.ref} · pipeline #{job.pipeline_id}",
         cache_note=files_note(from_cache, count_files(path)),
+        commit=job.commit,
+    )
+    return path, source
+
+
+def fetch_named_artifact(
+    client: GitLabClient,
+    project: str,
+    project_id: int,
+    job: JobRow,
+    cache: NamedArtifactCache,
+    rel: PurePath,
+    progress: DownloadProgress | None = None,
+    cancel: CancelToken | None = None,
+    keep: Iterable[PurePath] = (),
+) -> tuple[Path, FirmwareSource]:
+    """Extracted artifact of `job` in a folder named after what it is, from the cache when it is there."""
+    path = cache.get(rel)
+    from_cache = path is not None
+    if path is None:
+        with tempfile.TemporaryDirectory(prefix="wflash_dl_") as tmp:
+            zip_path = client.download_artifacts(project_id, job.job_id, Path(tmp), progress, cancel)
+            _check(cancel)
+            path = cache.store_zip(rel, zip_path, keep=keep)
+    else:
+        log.info("Using cached artifact of job #%s: %s", job.job_id, path)
+    source = FirmwareSource(
+        kind="ci",
+        project=project,
+        title=f"CI artifact · job #{job.job_id} {job.job_name}",
+        detail=f"{project} · {job.ref} · pipeline #{job.pipeline_id}",
+        cache_note=files_note(from_cache, count_files(path) - 1),  # without the marker
         commit=job.commit,
     )
     return path, source

@@ -4,7 +4,7 @@ import zipfile
 
 import pytest
 
-from wflash.core.artifact_cache import ArtifactCache
+from wflash.core.artifact_cache import ArtifactCache, NamedArtifactCache, build_cache_path, debug_cache_path, safe_segment
 from wflash.core.errors import ArtifactError
 
 
@@ -159,3 +159,57 @@ def test_has_does_not_touch_the_marker(tmp_path):
     assert marker.stat().st_mtime == 1000
 
 
+def named_zip(tmp_path):
+    path = tmp_path.parent / f"{tmp_path.name}_named.zip"
+    make_zip(path, {"out/a.s3": b"S0"})
+    return path
+
+
+def test_safe_segment_replaces_characters_windows_refuses():
+    assert safe_segment("feature/rfe:clock") == "feature_rfe_clock"
+    assert safe_segment("..") == "_"
+
+
+def test_build_cache_path_uses_branch_commit_and_build():
+    assert build_cache_path("Release/1", "8ebd595dabc", "strx", "FFI").as_posix() == "Release_1/8ebd595d_strx/FFI"
+    assert build_cache_path("", "8ebd595dabc", "strx", "ELF").as_posix() == "detached/8ebd595d_strx/ELF"
+
+
+def test_build_cache_path_shortens_a_very_long_branch():
+    path = build_cache_path("x" * 300, "8ebd595d", "b", "FFI")
+    assert len(path.parts[0]) <= 60
+    assert path != build_cache_path("x" * 301, "8ebd595d", "b", "FFI")
+
+
+def test_named_cache_stores_and_finds_an_entry(tmp_path):
+    cache = NamedArtifactCache(tmp_path)
+    rel = build_cache_path("main", "abcdef12", "b", "FFI")
+    path = cache.store_zip(rel, named_zip(tmp_path))
+    assert path == tmp_path / rel and cache.get(rel) == path
+
+
+def test_named_cache_prunes_the_oldest_but_keeps_what_is_asked(tmp_path):
+    cache = NamedArtifactCache(tmp_path, max_entries=1)
+    first = build_cache_path("main", "11111111", "b", "FFI")
+    second = build_cache_path("main", "22222222", "b", "FFI")
+    cache.store_zip(first, named_zip(tmp_path))
+    cache.store_zip(second, named_zip(tmp_path), keep=[first])
+    assert cache.has(first) and cache.has(second)
+    old = (tmp_path / first / ".complete").stat().st_mtime - 100
+    os.utime(tmp_path / first / ".complete", (old, old))
+    cache.prune()
+    assert not cache.has(first) and cache.has(second)
+
+
+def test_named_cache_clear_removes_entries_and_the_old_layout_only(tmp_path):
+    cache = NamedArtifactCache(tmp_path)
+    cache.store_zip(build_cache_path("main", "11111111", "b", "FFI"), named_zip(tmp_path))
+    (tmp_path / "42" / "7" / "files").mkdir(parents=True)
+    (tmp_path / "42" / "7" / ".complete").write_text("x")
+    (tmp_path / "keep.txt").write_text("not ours")
+    cache.clear()
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["keep.txt"]
+
+
+def test_debug_cache_path_keeps_each_role_apart():
+    assert debug_cache_path("bm", "feature/x", "41c7a0deffff", "build_STRX").as_posix() == "BM/feature_x/41c7a0de_build_STRX"

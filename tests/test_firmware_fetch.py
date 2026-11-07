@@ -187,3 +187,21 @@ def test_find_build_jobs_names_a_job_that_has_not_run():
     with pytest.raises(GitLabError) as err:
         find_build_jobs(client, 42, "abcdef1234", "ffi", "elf")
     assert "ffi" in str(err.value) and "manual" in str(err.value)
+
+
+def test_fetch_named_artifact_downloads_then_reuses_the_cache(tmp_path):
+    from pathlib import PurePath
+
+    from wflash.core.artifact_cache import NamedArtifactCache
+    from wflash.core.firmware_fetch import fetch_named_artifact
+
+    cache = NamedArtifactCache(tmp_path / "cache")
+    job = JobRow(100, 7, "build_app", "main", "success", "w", "abcdef12")
+    rel = PurePath("main/abcdef12_b/ELF")
+    path, source = fetch_named_artifact(StubClient(), "g/p", 42, job, cache, rel)
+    assert path == tmp_path / "cache" / rel and (path / "out" / "App.s3").is_file()
+    assert source.commit == "abcdef12" and source.cache_note.startswith("Downloaded")
+    client = StubClient()
+    _path, again = fetch_named_artifact(client, "g/p", 42, job, cache, rel)
+    assert again.cache_note.startswith("Cached")
+    assert not any(c[0] == "artifacts" for c in client.calls)

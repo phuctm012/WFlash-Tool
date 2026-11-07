@@ -1320,3 +1320,18 @@ Profile SUZ05 giờ khai báo 4 cấu hình build (cặp job FFI, ELF và job BM
 ### Đã kiểm tra
 
 - RED rồi GREEN với hai file test trên. Chưa chạy với GitLab thật.
+
+## Phase 3.6: Cache theo branch, commit và cấu hình
+
+Firmware tải theo commit nằm trong thư mục có tên cho biết đang debug gì: `<branch>\<commit8>_<build>\FFI`, và `BM\<ref>\<commit8>_<job>` cho BM, FBL. Ký tự Windows không cho phép được đổi thành `_`, tên quá dài được rút gọn kèm hash. Giải nén vào thư mục tạm rồi mới đổi tên. Clear cache dọn cả layout mới và layout cũ, và không đụng tới file khác trong thư mục cache. Popup GitLab vẫn dùng layout cũ.
+
+### Thay đổi
+
+- **`wflash/core/artifact_cache.py`**: `safe_segment`, `build_cache_path`, `debug_cache_path`, `NamedArtifactCache`.
+- **`wflash/core/firmware_fetch.py`**: `fetch_named_artifact`.
+- **`wflash/gui/preferences_dialog.py`**: Clear cache dùng cache mới.
+- **`tests/test_artifact_cache.py`**, **`tests/test_firmware_fetch.py`**.
+
+### Đã kiểm tra
+
+- RED rồi GREEN; `pytest -q`.
