@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WFlash ready to flash</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+.btn{height:30px;padding:0 12px;border:1px solid #d7dde5;border-radius:6px;background:#ffffff;color:#1a1a1a;font:inherit;font-size:12.5px;white-space:nowrap}
+.field{height:30px;box-sizing:border-box;padding:0 8px;border:1px solid #d7dde5;border-radius:6px;background:#ffffff;color:#1a1a1a;font:inherit;font-size:12.5px;min-width:0}
+.lab{font-size:12.5px;color:#1a1a1a}
+.sub{font-size:11.5px;color:#5a6472;line-height:1.4}
+.ok{font-size:11.5px;color:#2c6e47;line-height:1.4}
+.th{padding:7px 8px;font-size:12px;font-weight:600;color:#0f6b63;text-align:left;background:#e7f3f1;border-bottom:2px solid #1f9488}
+.td{padding:6px 8px;font-size:12px;color:#1a1a1a;border-bottom:1px solid #e9edf2;white-space:nowrap}
+.mono{font-family:Consolas,Menlo,monospace;font-size:11.5px}
+.tag{display:inline-block;padding:1px 6px;border-radius:4px;background:#e3eceb;color:#1a1a1a;font-size:11px}
+</style>
+</helmet>
+<div style="width:1280px;height:980px;box-sizing:border-box;padding:10px;display:flex;flex-direction:column;gap:8px;background:#f2f6f6;color:#1a1a1a;font-family:'Segoe UI',system-ui,sans-serif">
+  <div style="display:flex;gap:10px;align-items:stretch">
+    <button class="btn" style="width:90px;height:70px;background:#0f6b63;border-color:#0f6b63;color:#ffffff;font-size:15px;font-weight:600;border-radius:10px">Flash</button>
+    <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:8px">
+      <div style="display:flex;gap:10px;align-items:center">
+        <div style="flex:1;height:18px;border-radius:9px;background:#e3eceb"></div>
+        <span class="sub">ETA: -- | Speed: --</span>
+      </div>
+      <strong style="font-size:12.5px">Step: Idle</strong>
+    </div>
+  </div>
+
+  <div style="flex:1;display:flex;gap:8px;min-height:0">
+    <section style="width:372px;flex:none;box-sizing:border-box;background:#ffffff;border:1px solid #d7dde5;border-radius:8px;display:flex;flex-direction:column">
+      <h2 style="margin:0;padding:7px 12px;font-size:13px;color:#0f6b63;border-bottom:2px solid #1f9488">Setting</h2>
+      <div style="padding:10px 12px;display:flex;flex-direction:column;gap:9px">
+        <div style="display:grid;grid-template-columns:76px minmax(0,1fr) auto;gap:6px;align-items:center">
+          <label class="lab" for="profile">Profile</label>
+          <select id="profile" class="field"><option>suz05_m7_ffi</option></select>
+          <button class="btn">Reload</button>
+          <label class="lab" for="repo">Source repo</label>
+          <input id="repo" class="field" value="C:\work\SUZ05_APP_Application_Software-Impl">
+          <button class="btn">Browse</button>
+        </div>
+        <div style="margin-left:82px;display:flex;align-items:center;gap:8px">
+          <div style="flex:1;display:flex;flex-direction:column;gap:1px">
+            <span class="sub">Branch: <strong style="color:#1a1a1a">Release_DD_05_03_01</strong></span>
+            <span class="sub">Commit: <strong style="color:#1a1a1a">8ebd595d</strong> · no local changes</span>
+          </div>
+          <button class="btn" style="height:26px;font-size:11.5px">Checkout…</button>
+        </div>
+
+        <div style="background:#e7f3f1;border-radius:8px;padding:9px 10px;display:flex;flex-direction:column;gap:7px">
+          <strong style="font-size:12px;color:#0f6b63">Application</strong>
+          <div style="display:grid;grid-template-columns:64px minmax(0,1fr);gap:6px;align-items:center">
+            <label class="lab" for="config">Build</label>
+            <select id="config" class="field"><option>stingray_3p5mb_no_HTSM</option></select>
+          </div>
+          <button class="btn" style="background:#0f6b63;border-color:#0f6b63;color:#ffffff">Load firmware for 8ebd595d</button>
+          <span class="ok">FFI: create_ffi_stingray_3p5mb_no_HTSM · 8ebd595d</span>
+          <span class="ok" style="margin-top:-6px">ELF: build · 8ebd595d</span>
+          <button class="btn" style="align-self:flex-start;height:26px;font-size:11.5px">Choose job in GitLab…</button>
+        </div>
+
+        <div style="background:#e7f3f1;border-radius:8px;padding:9px 10px;display:flex;flex-direction:column;gap:7px">
+          <label class="lab" style="display:flex;gap:7px;align-items:center;font-weight:600;color:#0f6b63"><input type="checkbox" checked="checked">Advanced Debug</label>
+          <div style="display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:6px;align-items:center">
+            <strong style="font-size:12px">BM</strong>
+            <span class="sub">build_STINGRAY_3P5MB · develop · 41c7a0de</span>
+            <button class="btn" style="height:26px;font-size:11.5px">Load…</button>
+            <strong style="font-size:12px">FBL</strong>
+            <span class="sub">build · develop · 9f20b1c3</span>
+            <button class="btn" style="height:26px;font-size:11.5px">Load…</button>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:76px minmax(0,1fr) auto;gap:6px;align-items:center">
+          <label class="lab" for="inst">winIDEA</label>
+          <select id="inst" class="field"><option>SUZ_7G5_M7.xjrf (5315)</option></select>
+          <button class="btn">Refresh</button>
+        </div>
+        <div style="display:grid;grid-template-columns:76px minmax(0,1fr);gap:4px 6px">
+          <span class="lab">After flash</span>
+          <div style="display:flex;gap:14px"><label class="lab" style="display:flex;gap:5px;align-items:center"><input type="checkbox" checked="checked">Reset target</label><label class="lab" style="display:flex;gap:5px;align-items:center"><input type="checkbox">Run after reset</label></div>
+          <span></span>
+          <label class="lab" style="display:flex;gap:5px;align-items:center"><input type="checkbox">Verify samples</label>
+        </div>
+      </div>
+      <div style="margin-top:auto;padding:0 12px 10px;display:flex;justify-content:flex-end"><button class="btn">Preferences…</button></div>
+    </section>
+
+    <section style="flex:1;min-width:0;display:flex;flex-direction:column;gap:5px">
+      <div style="flex:1;background:#ffffff;border:1px solid #d7dde5;border-radius:8px;overflow:hidden">
+        <h3 style="margin:0;padding:7px 10px;font-size:12.5px;color:#0f6b63">Program Files <span class="sub" style="font-weight:400">in flash order</span></h3>
+        <table style="width:100%;border-collapse:collapse;table-layout:fixed">
+          <thead><tr>
+            <th class="th" scope="col" style="width:36px">#</th><th class="th" scope="col" style="width:70px">Source</th><th class="th" scope="col">File</th><th class="th" scope="col" style="width:80px">Offset</th>
+          </tr></thead>
+          <tbody>
+            <tr><td class="td">1</td><td class="td"><span class="tag">FFI</span></td><td class="td mono">out\FFI\RAD_SUZ05_FFI.s3</td><td class="td mono">0x0</td></tr>
+            <tr><td class="td">2</td><td class="td"><span class="tag">CAL</span></td><td class="td mono">20260623_142557_2018688_CAL_T008_v0_0.sre</td><td class="td mono">0x0</td></tr>
+            <tr><td class="td">3</td><td class="td"><span class="tag">BM</span></td><td class="td mono">out\bin\FBL_M7_LIP_RfeClock_Image.bin</td><td class="td mono">0x0</td></tr>
+            <tr><td class="td">4</td><td class="td"><span class="tag">FBL</span></td><td class="td mono">out\bin\Radar_SUZ05_Gen7_FBL.bin</td><td class="td mono">0xF1000</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="flex:1;background:#ffffff;border:1px solid #d7dde5;border-radius:8px;overflow:hidden">
+        <h3 style="margin:0;padding:7px 10px;font-size:12.5px;color:#0f6b63">Symbol Files <span class="sub" style="font-weight:400">App_M7</span></h3>
+        <table style="width:100%;border-collapse:collapse;table-layout:fixed">
+          <thead><tr>
+            <th class="th" scope="col" style="width:36px">#</th><th class="th" scope="col" style="width:70px">Source</th><th class="th" scope="col">File</th><th class="th" scope="col" style="width:80px"></th>
+          </tr></thead>
+          <tbody>
+            <tr><td class="td">1</td><td class="td"><span class="tag">ELF</span></td><td class="td mono">out\bin\Radar_SUZ05_Gen7.elf</td><td class="td"></td></tr>
+            <tr><td class="td">2</td><td class="td"><span class="tag">BM</span></td><td class="td mono">out\bin\Radar_SUZ05_Gen7_BM.elf</td><td class="td"></td></tr>
+            <tr><td class="td">3</td><td class="td"><span class="tag">FBL</span></td><td class="td mono">out\bin\Radar_SUZ05_Gen7_FBL.elf</td><td class="td"></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <span class="sub">All rows mapped — Flash enabled. With Advanced Debug off, the BM and FBL rows are hidden and unticked in the workspace.</span>
+    </section>
+  </div>
+
+  <section style="height:186px;flex:none;background:#ffffff;border:1px solid #d7dde5;border-radius:8px;display:flex;flex-direction:column">
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid #e9edf2">
+      <strong style="font-size:12.5px;color:#0f6b63">Information</strong>
+      <span style="margin-left:auto;display:flex;gap:6px"><button class="btn">Copy</button><button class="btn">Clear</button><button class="btn">Export debug bundle…</button></span>
+    </div>
+    <pre style="margin:0;padding:8px 10px;font-family:Consolas,Menlo,monospace;font-size:11.5px;line-height:1.5;color:#1a1a1a;overflow:hidden">15:40:02 INFO  Source repo: Release_DD_05_03_01 @ 8ebd595d, no local changes
+15:40:09 INFO  Pipeline for 8ebd595d: #1184220
+15:40:31 INFO  FFI: job create_ffi_stingray_3p5mb_no_HTSM -> Release_DD_05_03_01\8ebd595d_stingray_3p5mb_no_HTSM\FFI
+15:40:54 INFO  ELF: job build -> Release_DD_05_03_01\8ebd595d_stingray_3p5mb_no_HTSM\ELF
+15:41:12 INFO  CAL: 20260623_142557_2018688_CAL_T008_v0_0.sre found next to the workspace</pre>
+  </section>
+  <div style="display:flex;justify-content:space-between" class="sub"><span>Version: v0.1.0</span><span>Author: tranph9 (TRAN Phuc)</span></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":980}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

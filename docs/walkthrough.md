@@ -1243,3 +1243,16 @@ User xác nhận luồng hoàn chỉnh: khi gặp lỗi monitor, WFlash báo l�
 ### Đã kiểm tra
 
 - Đối chiếu tên file, class và method được nhắc tới với repo. Chỉ đổi tài liệu, không chạy lại test.
+
+## Phase 3.0: Spec cho developer debug
+
+User muốn tool phục vụ developer debug: đồng bộ firmware với commit của source repo, checkout từ app, cache theo branch, Advanced Debug để flash thêm BM và FBL từ repo riêng, CAL tự tìm cạnh workspace. Đã duyệt giao diện qua mockup. Spec nêu rõ các điểm chưa kiểm chứng phải thử trước (ghi dấu tick, các dòng chồng nhau khi flash, tìm pipeline theo commit). Chưa viết code.
+
+### Thay đổi
+
+- **`docs/superpowers/specs/2026-11-07-wflash-developer-debug-design.md`** (mới).
+- **`docs/superpowers/mockups/developer-ui/`** (mới): bản sao mockup đã duyệt.
+
+### Đã kiểm tra
+
+- Tự rà soát spec theo các quyết định của user. Chỉ có tài liệu, không chạy test.

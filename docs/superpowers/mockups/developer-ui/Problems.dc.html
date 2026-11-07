@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WFlash blocked</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+.btn{height:30px;padding:0 12px;border:1px solid #d7dde5;border-radius:6px;background:#ffffff;color:#1a1a1a;font:inherit;font-size:12.5px;white-space:nowrap}
+.field{height:30px;box-sizing:border-box;padding:0 8px;border:1px solid #d7dde5;border-radius:6px;background:#ffffff;color:#1a1a1a;font:inherit;font-size:12.5px;min-width:0}
+.lab{font-size:12.5px;color:#1a1a1a}
+.sub{font-size:11.5px;color:#5a6472;line-height:1.4}
+.warn{font-size:11.5px;color:#8a4b00;line-height:1.4}
+.bad{font-size:11.5px;color:#8f1d17;line-height:1.4}
+.th{padding:7px 8px;font-size:12px;font-weight:600;color:#0f6b63;text-align:left;background:#e7f3f1;border-bottom:2px solid #1f9488}
+.td{padding:6px 8px;font-size:12px;color:#1a1a1a;border-bottom:1px solid #e9edf2;white-space:nowrap}
+.miss{background:#ffcdd2;color:#5e1410}
+.mono{font-family:Consolas,Menlo,monospace;font-size:11.5px}
+.tag{display:inline-block;padding:1px 6px;border-radius:4px;background:#e3eceb;color:#1a1a1a;font-size:11px}
+</style>
+</helmet>
+<div style="width:1280px;height:860px;box-sizing:border-box;padding:10px;display:flex;flex-direction:column;gap:8px;background:#f2f6f6;color:#1a1a1a;font-family:'Segoe UI',system-ui,sans-serif">
+  <div style="display:flex;gap:10px;align-items:stretch">
+    <button class="btn" disabled="disabled" style="width:90px;height:70px;background:#d7dde5;border-color:#d7dde5;color:#5a6472;font-size:15px;font-weight:600;border-radius:10px">Flash</button>
+    <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:8px">
+      <div style="display:flex;gap:10px;align-items:center">
+        <div style="flex:1;height:18px;border-radius:9px;background:#e3eceb"></div>
+        <span class="sub">ETA: -- | Speed: --</span>
+      </div>
+      <strong style="font-size:12.5px">Step: Idle</strong>
+    </div>
+  </div>
+
+  <div role="alert" style="padding:8px 12px;background:#fdecea;border:1px solid #e6a5a0;border-radius:6px;color:#8f1d17;font-size:12.5px;line-height:1.5">
+    <strong>Cannot flash yet.</strong> Calibration file not found next to the workspace. Copy the <span class="mono">*_CAL_T008_*.sre</span> file into the workspace folder, then click Refresh.<br>
+    The workspace has no Download Files row for <span class="mono">Radar_SUZ05_Gen7_FBL.bin</span>. Add it after the BM row in Hardware &gt; Winbond W25Q64JW SPI &gt; Configure, at offset 0xF1000.
+  </div>
+
+  <div style="flex:1;display:flex;gap:8px;min-height:0">
+    <section style="width:372px;flex:none;box-sizing:border-box;background:#ffffff;border:1px solid #d7dde5;border-radius:8px;display:flex;flex-direction:column">
+      <h2 style="margin:0;padding:7px 12px;font-size:13px;color:#0f6b63;border-bottom:2px solid #1f9488">Setting</h2>
+      <div style="padding:10px 12px;display:flex;flex-direction:column;gap:9px">
+        <div style="display:grid;grid-template-columns:76px minmax(0,1fr) auto;gap:6px;align-items:center">
+          <label class="lab" for="profile2">Profile</label>
+          <select id="profile2" class="field"><option>suz05_m7_ffi</option></select>
+          <button class="btn">Reload</button>
+          <label class="lab" for="repo2">Source repo</label>
+          <input id="repo2" class="field" value="C:\work\SUZ05_APP_Application_Software-Impl">
+          <button class="btn">Browse</button>
+        </div>
+        <div style="margin-left:82px;display:flex;align-items:center;gap:8px">
+          <div style="flex:1;display:flex;flex-direction:column;gap:1px">
+            <span class="sub">Branch: <strong style="color:#1a1a1a">feature/rfe_clock</strong></span>
+            <span class="sub">Commit: <strong style="color:#1a1a1a">a13f77c2</strong></span>
+            <span class="warn">3 files have local changes: the build will not match your source exactly.</span>
+          </div>
+          <button class="btn" style="height:26px;font-size:11.5px">Checkout…</button>
+        </div>
+
+        <div style="background:#e7f3f1;border-radius:8px;padding:9px 10px;display:flex;flex-direction:column;gap:7px">
+          <strong style="font-size:12px;color:#0f6b63">Application</strong>
+          <div style="display:grid;grid-template-columns:64px minmax(0,1fr);gap:6px;align-items:center">
+            <label class="lab" for="config2">Build</label>
+            <select id="config2" class="field"><option>strx_3p5mb_no_HTSM</option></select>
+          </div>
+          <button class="btn" style="background:#0f6b63;border-color:#0f6b63;color:#ffffff">Load firmware for a13f77c2</button>
+          <span class="bad">Job create_ffi_strx_3p5mb_no_HTSM has not run for a13f77c2. Run it in GitLab, then load again.</span>
+          <button class="btn" style="align-self:flex-start;height:26px;font-size:11.5px">Choose job in GitLab…</button>
+        </div>
+
+        <div style="background:#e7f3f1;border-radius:8px;padding:9px 10px;display:flex;flex-direction:column;gap:7px">
+          <label class="lab" style="display:flex;gap:7px;align-items:center;font-weight:600;color:#0f6b63"><input type="checkbox" checked="checked">Advanced Debug</label>
+          <div style="display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:6px;align-items:center">
+            <strong style="font-size:12px">BM</strong>
+            <span class="bad">build_STINGRAY_3P5MB does not fit strx_3p5mb_no_HTSM. Load build_STRX_3P5MB.</span>
+            <button class="btn" style="height:26px;font-size:11.5px">Load…</button>
+            <strong style="font-size:12px">FBL</strong>
+            <span class="sub">Not loaded</span>
+            <button class="btn" style="height:26px;font-size:11.5px">Load…</button>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:76px minmax(0,1fr) auto;gap:6px;align-items:center">
+          <label class="lab" for="inst2">winIDEA</label>
+          <select id="inst2" class="field"><option>SUZ_7G5_M7.xjrf (5315)</option></select>
+          <button class="btn">Refresh</button>
+        </div>
+      </div>
+      <div style="margin-top:auto;padding:0 12px 10px;display:flex;justify-content:flex-end"><button class="btn">Preferences…</button></div>
+    </section>
+
+    <section style="flex:1;min-width:0;display:flex;flex-direction:column;gap:5px">
+      <div style="flex:1;background:#ffffff;border:1px solid #d7dde5;border-radius:8px;overflow:hidden">
+        <h3 style="margin:0;padding:7px 10px;font-size:12.5px;color:#0f6b63">Program Files <span class="sub" style="font-weight:400">in flash order</span></h3>
+        <table style="width:100%;border-collapse:collapse;table-layout:fixed">
+          <thead><tr>
+            <th class="th" scope="col" style="width:36px">#</th><th class="th" scope="col" style="width:70px">Source</th><th class="th" scope="col">File</th><th class="th" scope="col" style="width:80px">Offset</th>
+          </tr></thead>
+          <tbody>
+            <tr><td class="td">1</td><td class="td"><span class="tag">FFI</span></td><td class="td miss">RAD_SUZ05_FFI.s3: not loaded</td><td class="td mono">0x0</td></tr>
+            <tr><td class="td">2</td><td class="td"><span class="tag">CAL</span></td><td class="td miss">No *_CAL_T008_*.sre next to the workspace</td><td class="td mono">0x0</td></tr>
+            <tr><td class="td">3</td><td class="td"><span class="tag">BM</span></td><td class="td miss">FBL_M7_LIP_RfeClock_Image.bin: wrong job for this build</td><td class="td mono">0x0</td></tr>
+            <tr><td class="td">4</td><td class="td"><span class="tag">FBL</span></td><td class="td miss">Radar_SUZ05_Gen7_FBL.bin: no row in the workspace</td><td class="td mono">0xF1000</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="flex:1;background:#ffffff;border:1px solid #d7dde5;border-radius:8px;overflow:hidden">
+        <h3 style="margin:0;padding:7px 10px;font-size:12.5px;color:#0f6b63">Symbol Files <span class="sub" style="font-weight:400">App_M7</span></h3>
+        <table style="width:100%;border-collapse:collapse;table-layout:fixed">
+          <thead><tr>
+            <th class="th" scope="col" style="width:36px">#</th><th class="th" scope="col" style="width:70px">Source</th><th class="th" scope="col">File</th><th class="th" scope="col" style="width:80px"></th>
+          </tr></thead>
+          <tbody>
+            <tr><td class="td">1</td><td class="td"><span class="tag">ELF</span></td><td class="td miss">Radar_SUZ05_Gen7.elf: not loaded</td><td class="td"></td></tr>
+            <tr><td class="td">2</td><td class="td"><span class="tag">BM</span></td><td class="td miss">Radar_SUZ05_Gen7_BM.elf: wrong job for this build</td><td class="td"></td></tr>
+            <tr><td class="td">3</td><td class="td"><span class="tag">FBL</span></td><td class="td miss">Radar_SUZ05_Gen7_FBL.elf: not loaded</td><td class="td"></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <span class="sub">Red rows need attention before Flash is enabled.</span>
+    </section>
+  </div>
+  <div style="display:flex;justify-content:space-between" class="sub"><span>Version: v0.1.0</span><span>Author: tranph9 (TRAN Phuc)</span></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":860}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
