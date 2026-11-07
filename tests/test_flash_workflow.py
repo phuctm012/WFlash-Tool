@@ -294,3 +294,41 @@ def test_selected_file_deleted_before_flash_raises_with_no_adapter_calls(rows):
     assert "Download the artifact again" in error.hint
     assert adapter.calls == []
     assert steps == []
+
+
+from wflash.core.cancel import CancelToken as _Token
+from wflash.core.debug_bundle import DebugContext as _Ctx
+from wflash.core.errors import FlashError as _FlashError
+from wflash.core.fake_adapter import INSTANCE_ID as _ID, FakeWinIDEAAdapter as _Fake
+from wflash.core.file_matcher import MappingRow as _Row
+from wflash.core.flash_workflow import FlashRequest as _Req, FlashWorkflow as _Flow, Step as _Step
+
+
+def _verify_setup(tmp_path, fail_on=()):
+    adapter = _Fake(download_seconds=0.01, fail_on=fail_on)
+    s3 = tmp_path / "App.s3"
+    s3.write_text("S0\n")
+    steps = []
+    flow = _Flow(adapter, _Ctx(), on_step=steps.append)
+    req = lambda verify: _Req(_ID, [_Row(kind="program", target="App", pattern="*", selected=s3)], verify=verify)
+    return adapter, flow, req, steps, s3
+
+
+def test_verify_runs_between_download_and_reset_when_requested(tmp_path):
+    _adapter, flow, req, steps, _s3 = _verify_setup(tmp_path)
+    flow.run(req(True), _Token())
+    assert steps.index(_Step.DOWNLOAD) < steps.index(_Step.VERIFY) < steps.index(_Step.RESET)
+
+
+def test_verify_is_skipped_by_default(tmp_path):
+    _adapter, flow, req, steps, _s3 = _verify_setup(tmp_path)
+    flow.run(req(False), _Token())
+    assert _Step.VERIFY not in steps
+
+
+def test_verify_failure_does_not_roll_back_the_paths(tmp_path):
+    adapter, flow, req, steps, s3 = _verify_setup(tmp_path, fail_on=["verify"])
+    with pytest.raises(_FlashError):
+        flow.run(req(True), _Token())
+    assert _Step.ROLLBACK not in steps
+    assert adapter.programs["App"] == str(s3.resolve())

@@ -383,3 +383,46 @@ class RealWinIDEAAdapter:
             raise
         except Exception as exc:
             raise self._fail("resetting the target", exc) from exc
+
+    def verify_flash(self, progress: ProgressCallback) -> None:
+        """Compare the start and end of each segment of the enabled files with the flash.
+
+        Each read costs about 4.4 s whatever its size, so a whole-image compare would take over an hour.
+        """
+        ic, cmgr, ide = self._session()
+        umi = ic.CUMIController(cmgr)
+        workspace_dir = ide.getPath(ic.CIDEController.WORKSPACE_DIR)
+        samples = []
+        try:
+            for i in range(ide.getDynamicOptionSize(DOWNLOAD_FILES)):
+                if self._read(f"{DOWNLOAD_FILES}[{i}].Enabled") != "true":
+                    continue
+                stored = self._read(f"{DOWNLOAD_FILES}[{i}].Path")
+                if not is_srec_file(stored):
+                    log.warning("Verify skips %s: not an S-record file", stored)
+                    continue
+                offset = int(self._read(f"{DOWNLOAD_FILES}[{i}].Offset"), 16)
+                segments = parse_srec(Path(workspace_dir) / stored)
+                samples += [(address + offset, data, stored) for address, data in sample_ranges(segments)]
+        except OSError as exc:
+            raise FlashError(f"Cannot read a flashed file for the verify: {exc}") from exc
+        except WinIDEAError:
+            raise
+        except Exception as exc:
+            raise self._fail("preparing the verify", exc) from exc
+        for done, (address, expected, stored) in enumerate(samples, start=1):
+            data = ic.ByteVector(len(expected))  # read() raises unless the vector is already sized
+            calls_log.debug("CUMIController.read 0x%06X %d", address, len(expected))
+            try:
+                umi.read(0, address, len(expected), data)
+            except Exception as exc:
+                raise WinIDEAError(f"Reading the flash failed at 0x{address:06X}: {exc}; {umi.getLastError()}") from exc
+            actual = bytes(b if isinstance(b, int) else ord(b) for b in data)
+            if actual != expected:
+                offset = next(k for k, (a, b) in enumerate(zip(actual, expected)) if a != b)
+                raise FlashError(
+                    f"Flash differs from {stored} at 0x{address + offset:06X}: "
+                    f"flash 0x{actual[offset]:02X}, file 0x{expected[offset]:02X}",
+                    hint="Flash again. If it keeps failing, use Debug > Download in winIDEA and check the log.",
+                )
+            progress(done * 100 // len(samples), "Verifying flash samples")

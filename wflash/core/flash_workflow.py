@@ -25,6 +25,7 @@ class Step(str, Enum):
     VALIDATE = "Checking workspace entries"
     SET_PATHS = "Updating file paths"
     DOWNLOAD = "Downloading to external flash"
+    VERIFY = "Verifying flash samples"
     RESET = "Resetting target"
     ROLLBACK = "Restoring previous paths"
     DONE = "Done"
@@ -37,6 +38,7 @@ class FlashRequest:
     reset: bool = True
     run: bool = False
     timeout_s: int = 600
+    verify: bool = False
 
 
 class FlashWorkflow:
@@ -107,6 +109,10 @@ class FlashWorkflow:
         except BaseException:
             self._rollback(written)
             raise
+        if req.verify:
+            # Outside the rollback: the flash has happened, the new paths describe what is on it.
+            self._step(Step.VERIFY)
+            self.adapter.verify_flash(self._on_progress)
         if req.reset:
             self._step(Step.RESET)
             self.adapter.reset(run=req.run)

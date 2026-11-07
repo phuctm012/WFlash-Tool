@@ -1084,3 +1084,17 @@ Dòng Download Files và file symbol không có tên riêng, nên adapter đặt
 ### Đã kiểm tra
 
 - RED rồi GREEN; `pytest -k "not gui" -q`. Chưa chạy với winIDEA thật.
+
+## Phase 2.5: So mẫu flash sau khi ghi (core)
+
+Bước tùy chọn giữa download và reset, theo quyết định của user. Mỗi lần đọc mất khoảng 4,4 s bất kể kích thước, nên chỉ so đầu và cuối mỗi đoạn. Khi khác nhau, tool báo lỗi nhưng không khôi phục path, vì flash đã được ghi rồi và path mới mô tả đúng nội dung đó. Fake adapter có thêm `verify` để test nhánh lỗi.
+
+### Thay đổi
+
+- **`wflash/core/winidea_adapter.py`**, **`wflash/core/fake_adapter.py`**: `verify_flash`.
+- **`wflash/core/flash_workflow.py`**: `Step.VERIFY`, `FlashRequest.verify`.
+- **`tests/test_real_adapter.py`**, **`tests/test_fake_adapter.py`**, **`tests/test_flash_workflow.py`**: test mới.
+
+### Đã kiểm tra
+
+- RED rồi GREEN; `pytest -k "not gui" -q`. Chưa chạy với winIDEA thật.

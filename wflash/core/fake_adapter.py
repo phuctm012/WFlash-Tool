@@ -9,6 +9,7 @@ WFLASH_FAKE_FAIL="download,reset"):
                      disconnect() still works
   read_programs, read_applications, set_path, reset - raise WinIDEAError
   download         - FlashError half way through (progress stops below 100)
+  verify           - verify_flash() raises FlashError
 """
 from __future__ import annotations
 
@@ -25,11 +26,13 @@ from wflash.core.winidea_adapter import FileEntry, InstanceInfo, ProgressCallbac
 calls_log = logging.getLogger(CALLS_LOGGER)
 INSTANCE_ID = "fake-1"
 # Ops whose injection is handled by the method itself rather than in _call.
-_NON_RAISING = {"download", "list_instances", "connection_lost"}
+_NON_RAISING = {"download", "list_instances", "connection_lost", "verify"}
 WORKSPACE = r"C:\fake\SAF85xx\SAF85xx.xjrf"
 
 
 class FakeWinIDEAAdapter:
+    download_cancellable = True
+
     def __init__(
         self,
         programs: dict[str, str] | None = None,
@@ -125,6 +128,13 @@ class FakeWinIDEAAdapter:
                 raise FlashError("Fake failure injected in 'download'")
             progress(i * 100 // steps, "Programming external flash (fake)")
         self.target_state = "downloaded"
+
+    def verify_flash(self, progress: ProgressCallback) -> None:
+        self._require_connected()
+        self._call("verify")
+        if "verify" in self.fail_on:
+            raise FlashError("Fake failure injected in 'verify'")
+        progress(100, "Verifying flash samples (fake)")
 
     def reset(self, run: bool) -> None:
         self._require_connected()

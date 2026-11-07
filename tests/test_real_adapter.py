@@ -317,3 +317,57 @@ def test_workflow_stops_before_programming_when_the_file_is_named_differently(ad
         FlashWorkflow(adapter, DebugContext()).run(FlashRequest("5315", rows), CancelToken())
     assert "begin_program" not in world.calls
     assert world.options == before
+
+
+def _prepare_flash(world, tmp_path, corrupt=False):
+    world.workspace_dir = str(tmp_path)
+    world.options[f"{DEVICE}.DownloadFiles[1].Path"] = "RAD_SUZ05_FFI.s3"
+    world.options[f"{DEVICE}.DownloadFiles[2].Path"] = "CAL.bin"
+    (tmp_path / "RAD_SUZ05_FFI.s3").write_text(_s3(0x100, b"\x11" * 16) + "\n")
+    world.flash = {0x100 + i: 0x11 for i in range(16)}
+    if corrupt:
+        world.flash[0x105] = 0xFF
+
+
+def _s3(address, data):
+    body = bytes([4 + len(data) + 1]) + address.to_bytes(4, "big") + data
+    return "S3" + body.hex().upper() + f"{(~sum(body)) & 0xFF:02X}"
+
+
+def test_verify_flash_passes_and_skips_disabled_and_non_srec_rows(connected, world, tmp_path):
+    _prepare_flash(world, tmp_path)
+    seen = []
+    connected.verify_flash(lambda p, m: seen.append(p))
+    assert [c for c in world.calls if c.startswith("read")] == ["read 0 0x100 16"]
+    assert seen[-1] == 100
+
+
+def test_verify_flash_reports_the_first_difference(connected, world, tmp_path):
+    _prepare_flash(world, tmp_path, corrupt=True)
+    with pytest.raises(FlashError) as err:
+        connected.verify_flash(lambda p, m: None)
+    assert "0x000105" in str(err.value)
+    assert "Flash again" in err.value.hint
+
+
+def test_verify_flash_applies_the_row_offset(connected, world, tmp_path):
+    _prepare_flash(world, tmp_path)
+    world.options[f"{DEVICE}.DownloadFiles[1].Offset"] = "0x1000"
+    world.flash = {0x1100 + i: 0x11 for i in range(16)}
+    connected.verify_flash(lambda p, m: None)
+    assert "read 0 0x1100 16" in world.calls
+
+
+def test_verify_flash_read_failure_quotes_the_device_error(connected, world, tmp_path):
+    _prepare_flash(world, tmp_path)
+    world.read_error = OSError("CUMIController::read failed!")
+    with pytest.raises(WinIDEAError) as err:
+        connected.verify_flash(lambda p, m: None)
+    assert "Operation failed" in str(err.value)
+
+
+def test_verify_flash_with_a_missing_file_fails(connected, world, tmp_path):
+    _prepare_flash(world, tmp_path)
+    (tmp_path / "RAD_SUZ05_FFI.s3").unlink()
+    with pytest.raises(FlashError):
+        connected.verify_flash(lambda p, m: None)

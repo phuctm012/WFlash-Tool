@@ -2,7 +2,7 @@ import pytest
 
 from wflash.core.cancel import CancelToken
 from wflash.core.errors import CancelledError, FlashError, WinIDEAError
-from wflash.core.fake_adapter import FakeWinIDEAAdapter
+from wflash.core.fake_adapter import INSTANCE_ID, FakeWinIDEAAdapter
 from wflash.core.winidea_adapter import FileEntry, InstanceInfo, create_adapter
 
 
@@ -121,3 +121,11 @@ def test_connection_lost_after_successful_connect():
         adapter.reset(run=True)
     adapter.disconnect()
     assert adapter.connected_to is None
+
+
+def test_verify_flash_passes_and_can_fail():
+    connected().verify_flash(lambda p, m: None)
+    failing = FakeWinIDEAAdapter(fail_on=["verify"])
+    failing.connect(INSTANCE_ID)
+    with pytest.raises(FlashError):
+        failing.verify_flash(lambda p, m: None)
