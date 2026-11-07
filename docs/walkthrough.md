@@ -1031,3 +1031,16 @@ User bỏ yêu cầu checkbox mass erase: tùy chọn này theo cấu hình work
 ### Đã kiểm tra
 
 - Đối chiếu plan với code: `MappingRow`, helper test `make_host` và `make.factory`, test cũ của `create_adapter("real")`. Chưa viết code adapter.
+
+## Phase 2.1: Đọc file S-record và chọn mẫu so sánh
+
+Bước đầu của Plan 2. Việc so flash sau khi ghi cần địa chỉ và nội dung của file `.s3`/`.sre`. Logic này tách khỏi winIDEA để test được trên macOS, chuyển từ spike 09 sang code chính.
+
+### Thay đổi
+
+- **`wflash/core/srec.py`** (mới): `parse_srec`, `sample_ranges`, `is_srec_file`.
+- **`tests/test_srec.py`** (mới): 5 test.
+
+### Đã kiểm tra
+
+- RED rồi GREEN với `pytest tests/test_srec.py`.
