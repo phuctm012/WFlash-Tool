@@ -1044,3 +1044,17 @@ Bước đầu của Plan 2. Việc so flash sau khi ghi cần địa chỉ và 
 ### Đã kiểm tra
 
 - RED rồi GREEN với `pytest tests/test_srec.py`.
+
+## Phase 2.2: Adapter thật: danh sách instance và kết nối
+
+`getInstanceId()` trên máy thật trả về chuỗi rỗng, nên id của instance là cổng TCP. `cmgr.connect()` gắn vào winIDEA mở gần nhất, nên sau khi kết nối phải so workspace với workspace đã chọn và từ chối nếu khác: flash nhầm ECU là lỗi tệ nhất của tool. `disconnect()` chỉ bỏ tham chiếu, vì `ConnectionMgr.disconnect` chưa từng được quan sát. Lệch version chỉ cảnh báo, theo quyết định của user.
+
+### Thay đổi
+
+- **`wflash/core/winidea_adapter.py`**: `RealWinIDEAAdapter` (`list_instances`, `connect`, `disconnect`, `get_info`); Protocol có thêm `download_cancellable`, `verify_flash`.
+- **`tests/fake_isystem.py`** (mới): module giả dựng từ hành vi đã quan sát; `umi.write`, `erase`, `flush`, `getOptionJSON` báo lỗi ngay nếu bị gọi.
+- **`tests/test_real_adapter.py`** (mới).
+
+### Đã kiểm tra
+
+- RED rồi GREEN với `pytest tests/test_real_adapter.py`. Chưa chạy với winIDEA thật.

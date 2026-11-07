@@ -615,13 +615,13 @@ class RealWinIDEAAdapter:
         return instances
 
     def connect(self, instance_id: str) -> None:
+        ic = self._load_module()  # first: a missing module is the root cause of an empty instance list
         expected = self._workspaces.get(instance_id)
         if expected is None:
             raise WinIDEAError(
                 f"No winIDEA instance {instance_id!r} in the last list",
                 hint="Click Refresh next to the winIDEA instance list and select it again.",
             )
-        ic = self._load_module()
         try:
             cmgr = ic.ConnectionMgr()
             # cmgr.connect() attaches to the most recent winIDEA; selecting by id is unverified
