@@ -305,6 +305,16 @@ All enabled rows are loaded first, then there is **one** erase and one program p
 
 Whether `CLoaderController.download()` and `CSessionCtrl.begin_program()` produce this same sequence is not verified; the round 1 runs did not capture Output. Spikes 04 and 12 test that.
 
+### CLoaderController.download() matches Debug -> Download (04, 2026-11-07 12:43)
+
+`ic.CLoaderController(cmgr).download()` on the same workspace and rows returned normally after **99.0 s**. Its Output has the same sequence as the GUI: `Device 'Program' feature`, both files loaded, **one** `ERASING`, `PROGRAMMING ... (79 sectors)`, `OK`, `PROGRAMMING 0 bytes`. Unlike the GUI log, it has no `EMULATION END` line.
+
+Status right after: `status: 49`, `isStopped: 1`, `isMustInit: 0`, `isStopReasonStep: 1`, `execAddress: 872816248`. So here the target is already stopped after `download()`, without a separate reset. That differs from round 1 (`isMustInit: 1`, 6-8 s, other workspace); the reason is unknown.
+
+09 afterwards: 37 of 37 samples MATCH. The user reports the ECU worked after power cycling. Limit: the files were the same ones already in flash, so MATCH alone does not prove new content is written; the erase and program lines in the Output do show a write ran. A flash of a **different** firmware through the API is not tested yet.
+
+The user also reports `begin_program` (spike 12) left the ECU working; its logs are still to come.
+
 ### Matching SDK location
 
 `C:\Data\_Devtools\Winidea408\Python\Lib\site-packages\isystem_connect-9.21.408.1.dist-info`: winIDEA ships its own Python with `isystem.connect` 9.21.408.1. There is no wheel to install. All spike runs so far used 9.26.11.

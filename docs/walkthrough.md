@@ -981,3 +981,15 @@ User bấm Debug → Download và gửi log: nạp cả hai file trước (`Devi
 ### Đã kiểm tra
 
 - Chạy 12 với module giả: `--yes` gọi `begin_program`; không gõ `YES` thì không gọi. Chưa chạy với winIDEA thật.
+
+## Phase 1.56: download() qua API chạy đúng như Debug → Download
+
+Spike 04 trên ECU thật: 99 s, Output có một pha ERASING và 79 sector, giống hệt bấm tay; sau đó target đang dừng (`isStopped=1`); 09 cho 37/37 mẫu `MATCH`; user xác nhận ECU chạy sau khi bật lại nguồn. User cũng báo bước 12 (`begin_program`) không làm hỏng ECU, log sẽ gửi sau. Chưa thử flash một firmware khác qua API, nên `MATCH` chưa chứng minh nội dung mới được ghi; việc này cần kiểm tra khi có adapter thật.
+
+### Thay đổi
+
+- **`docs/winidea_api_notes.md`**: mục kết quả `download()`.
+
+### Đã kiểm tra
+
+- Đọc `v5_04_output.txt`, `04_download_20261107_124313.txt`, `09_flash_compare_20261107_124630.txt`. Chỉ đổi tài liệu.
