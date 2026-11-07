@@ -197,3 +197,122 @@ class RealWinIDEAAdapter:
         if _major_minor(winidea) != _major_minor(module):
             log.warning("isystem.connect %s does not match winIDEA %s", module, winidea)
         return {"winidea_version": winidea, "isystem_connect": module, "workspace": workspace, "adapter": "real"}
+
+    def _read(self, url: str) -> str:
+        calls_log.debug("getOptionStr %s", url)
+        return self._session()[2].getOptionStr(url)
+
+    def _check_device(self) -> None:
+        ide = self._session()[2]
+        calls_log.debug("getDynamicOptionSize %s", DEVICES)
+        if ide.getDynamicOptionSize(DEVICES) != 1:
+            raise WinIDEAError(
+                "Expected exactly one external flash device in the workspace",
+                hint="Check Hardware > Options in winIDEA; WFlash supports one device.",
+            )
+        for option, label in (("Enabled", "enabled"), ("ProgramAtDownload", "'Program at download'")):
+            if self._read(f"{DEVICE}.{option}") != "true":
+                raise WinIDEAError(
+                    f"The external flash device does not have {label} set, so a download would not program it",
+                    hint="Set it in Hardware > (your flash device) > Configure… in winIDEA.",
+                )
+
+    def read_programs(self) -> list[FileEntry]:
+        try:
+            self._check_device()
+            ide = self._session()[2]
+            calls_log.debug("getDynamicOptionSize %s", DOWNLOAD_FILES)
+            rows = []
+            for i in range(ide.getDynamicOptionSize(DOWNLOAD_FILES)):
+                path = self._read(f"{DOWNLOAD_FILES}[{i}].Path")
+                rows.append((i, path, self._read(f"{DOWNLOAD_FILES}[{i}].Enabled") == "true"))
+        except WinIDEAError:
+            raise
+        except Exception as exc:
+            raise self._fail("reading the download files", exc) from exc
+        enabled = [PureWindowsPath(path).name for _i, path, on in rows if on]
+        entries = []
+        self._program_rows = {}
+        for i, path, on in rows:
+            base = PureWindowsPath(path).name
+            if not on:
+                entries.append(FileEntry(f"{base} (disabled)", path))
+            elif enabled.count(base) > 1:
+                entries.append(FileEntry(f"{base} #{i}", path))  # never matches a profile target
+            else:
+                entries.append(FileEntry(base, path))
+                self._program_rows[base] = i
+        return entries
+
+    def read_applications(self) -> list[FileEntry]:
+        try:
+            apps = []
+            for i in range(1000):
+                try:
+                    # UNVERIFIED: the out-of-range error is observed for File[1] and DownloadFiles[3],
+                    # not yet for Applications[i].
+                    name = self._read(f"{APPLICATIONS}[{i}].Name")
+                except ValueError as exc:
+                    if _is_out_of_range(exc):
+                        break
+                    raise
+                apps.append((i, name, self._read_symbol_paths(i)))
+        except WinIDEAError:
+            raise
+        except Exception as exc:
+            raise self._fail("reading the applications", exc) from exc
+        entries = []
+        self._symbol_files = {}
+        for i, app, paths in apps:
+            bases = [PureWindowsPath(path).name for path in paths]
+            for j, path in enumerate(paths):
+                name = f"{app}/{bases[j]}"
+                if bases.count(bases[j]) > 1:
+                    entries.append(FileEntry(f"{name} #{j}", path))  # never matches a profile target
+                else:
+                    entries.append(FileEntry(name, path))
+                    self._symbol_files[name] = (i, j)
+        return entries
+
+    def _read_symbol_paths(self, app_index: int) -> list[str]:
+        paths: list[str] = []
+        for j in range(1000):
+            try:
+                paths.append(self._read(f"{APPLICATIONS}[{app_index}].SymbolFiles.File[{j}].Path"))
+            except ValueError as exc:
+                if _is_out_of_range(exc):
+                    break
+                raise
+        return paths
+
+    def _write_path(self, url: str, name: str, path: str) -> None:
+        expected = name.rsplit("/", 1)[-1]
+        if PureWindowsPath(path).name.casefold() != expected.casefold():
+            raise MappingError(
+                f"The selected file {PureWindowsPath(path).name} is not named like the workspace entry {expected}",
+                hint="WFlash replaces a workspace file with a file of the same name. Check the file in the mapping table.",
+            )
+        calls_log.debug("setOption %s = %s", url, path)
+        ide = self._session()[2]
+        try:
+            ide.setOption(url, path)
+            stored = ide.getOptionStr(url)
+        except Exception as exc:
+            raise self._fail(f"setting the path of {name}", exc) from exc
+        if stored != path:
+            raise WinIDEAError(f"winIDEA stored {stored!r} instead of {path!r} for {name}")
+
+    def set_program_path(self, name: str, path: str) -> None:
+        self._session()
+        row = self._program_rows.get(name)
+        if row is None:
+            raise WinIDEAError(f"No single enabled download row is named {name!r}")
+        self._write_path(f"{DOWNLOAD_FILES}[{row}].Path", name, path)
+
+    def set_symbol_path(self, name: str, path: str) -> None:
+        self._session()
+        where = self._symbol_files.get(name)
+        if where is None:
+            raise WinIDEAError(f"No single symbol file is named {name!r}")
+        i, j = where
+        self._write_path(f"{APPLICATIONS}[{i}].SymbolFiles.File[{j}].Path", name, path)

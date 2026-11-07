@@ -1058,3 +1058,16 @@ Bước đầu của Plan 2. Việc so flash sau khi ghi cần địa chỉ và 
 ### Đã kiểm tra
 
 - RED rồi GREEN với `pytest tests/test_real_adapter.py`. Chưa chạy với winIDEA thật.
+
+## Phase 2.3: Adapter thật: đọc và đổi path
+
+Dòng Download Files và file symbol không có tên riêng, nên adapter đặt tên theo file: `RAD_SUZ05_FFI.s3`, `App_M7/Radar_SUZ05_Gen7.elf`. Dòng không tick mang hậu tố `(disabled)`, hai dòng tick trùng tên mang `#i`; cả hai không khớp được với profile nên tool không đoán. Tool từ chối nếu thiết bị không bật hoặc không có "Program at download", vì khi đó download không ghi Winbond. File mới phải trùng tên với file đang cấu hình, và giá trị sau khi ghi được đọc lại để so.
+
+### Thay đổi
+
+- **`wflash/core/winidea_adapter.py`**: `read_programs`, `read_applications`, `set_program_path`, `set_symbol_path`.
+- **`tests/test_real_adapter.py`**: 12 test.
+
+### Đã kiểm tra
+
+- RED rồi GREEN với `pytest tests/test_real_adapter.py`. Đọc `Applications[i]` tới khi hết danh sách chưa được kiểm chứng trên máy thật, có ghi `# UNVERIFIED`.

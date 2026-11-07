@@ -100,3 +100,94 @@ def test_version_mismatch_is_a_warning_not_a_block(adapter, world, caplog):
 
 def test_download_is_not_cancellable():
     assert RealWinIDEAAdapter.download_cancellable is False
+
+
+from tests.fake_isystem import DEVICE
+from wflash.core.errors import MappingError
+
+ROW1 = f"{DEVICE}.DownloadFiles[1].Path"
+ELF = "/IDE/System.Debug.Applications[0].SymbolFiles.File[0].Path"
+
+
+def test_read_programs_names_rows_after_their_file(connected):
+    assert {e.name: e.path for e in connected.read_programs()} == {
+        "Radar_SUZ05_Gen7.s3 (disabled)": "Radar_SUZ05_Gen7.s3",
+        "RAD_SUZ05_FFI.s3": "../debug/out/FFI/RAD_SUZ05_FFI.s3",
+        "20260623_CAL_T008.sre": "20260623_CAL_T008.sre",
+    }
+
+
+def test_read_programs_does_not_guess_between_two_enabled_rows_with_one_name(connected, world):
+    world.options[f"{DEVICE}.DownloadFiles[2].Path"] = "other/RAD_SUZ05_FFI.s3"
+    names = [e.name for e in connected.read_programs()]
+    assert "RAD_SUZ05_FFI.s3" not in names
+    assert "RAD_SUZ05_FFI.s3 #1" in names and "RAD_SUZ05_FFI.s3 #2" in names
+    with pytest.raises(WinIDEAError):
+        connected.set_program_path("RAD_SUZ05_FFI.s3", "C:/new/RAD_SUZ05_FFI.s3")
+
+
+@pytest.mark.parametrize("option", ["Enabled", "ProgramAtDownload"])
+def test_read_programs_refuses_a_device_that_would_not_be_programmed(connected, world, option):
+    world.options[f"{DEVICE}.{option}"] = "false"
+    with pytest.raises(WinIDEAError) as err:
+        connected.read_programs()
+    assert "Configure" in err.value.hint
+
+
+def test_read_applications_lists_every_symbol_file_and_ends_at_out_of_range(connected):
+    assert {e.name: e.path for e in connected.read_applications()} == {
+        "App_M7/Radar_SUZ05_Gen7.elf": "../debug/out/bin/Radar_SUZ05_Gen7.elf",
+        "App_BBE/BBE_Core_Gen7.elf": "BBE_Core_Gen7.elf",
+        "App_A53/RAD_A53_Perception_Core.elf #0": "RAD_A53_Perception_Core.elf",
+        "App_A53/RAD_A53_Perception_Core.elf #1": "Y:\\out\\RAD_A53_Perception_Core.elf",
+    }
+
+
+def test_set_program_path_writes_only_that_row_and_reads_back(connected, world):
+    connected.read_programs()
+    before = dict(world.options)
+    connected.set_program_path("RAD_SUZ05_FFI.s3", "C:/new/RAD_SUZ05_FFI.s3")
+    changed = {k for k in world.options if world.options[k] != before[k]}
+    assert changed == {ROW1}
+    assert world.options[ROW1] == "C:/new/RAD_SUZ05_FFI.s3"
+
+
+def test_set_symbol_path_writes_only_that_file(connected, world):
+    connected.read_applications()
+    connected.set_symbol_path("App_M7/Radar_SUZ05_Gen7.elf", "C:/new/Radar_SUZ05_Gen7.elf")
+    assert world.options[ELF] == "C:/new/Radar_SUZ05_Gen7.elf"
+    assert world.options["/IDE/System.Debug.Applications[1].SymbolFiles.File[0].Path"] == "BBE_Core_Gen7.elf"
+
+
+def test_set_path_refuses_a_file_with_another_name(connected, world):
+    connected.read_programs()
+    with pytest.raises(MappingError) as err:
+        connected.set_program_path("RAD_SUZ05_FFI.s3", "C:/new/Other.s3")
+    assert "Other.s3" in str(err.value)
+    assert world.options[ROW1] == "../debug/out/FFI/RAD_SUZ05_FFI.s3"
+
+
+def test_set_path_file_name_check_ignores_case_like_windows(connected, world):
+    connected.read_programs()
+    connected.set_program_path("RAD_SUZ05_FFI.s3", "C:/new/rad_suz05_ffi.S3")
+    assert world.options[ROW1] == "C:/new/rad_suz05_ffi.S3"
+
+
+def test_set_path_fails_when_the_read_back_differs(connected, world):
+    connected.read_programs()
+    world.set_stores = "something else"
+    with pytest.raises(WinIDEAError):
+        connected.set_program_path("RAD_SUZ05_FFI.s3", "C:/new/RAD_SUZ05_FFI.s3")
+
+
+def test_set_path_for_a_disabled_row_fails(connected):
+    connected.read_programs()
+    with pytest.raises(WinIDEAError):
+        connected.set_program_path("Radar_SUZ05_Gen7.s3 (disabled)", "C:/new/Radar_SUZ05_Gen7.s3")
+
+
+def test_lost_connection_is_reported_as_such(connected, world):
+    world.routing_lost = True
+    with pytest.raises(WinIDEAError) as err:
+        connected.read_programs()
+    assert "lost" in str(err.value)
