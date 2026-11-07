@@ -426,3 +426,26 @@ def test_other_verify_read_failure_still_says_the_flash_finished(connected, worl
         connected.verify_flash(lambda p, m: None)
     assert "programming finished" in err.value.hint.lower()
     assert "power off and on" not in err.value.hint
+
+
+def test_download_resets_the_cpu_before_programming(connected, world):
+    connected.download(lambda p, m: None, CancelToken(), 600)
+    assert world.calls[-2:] == ["reset", "begin_program"]
+
+
+def test_download_still_programs_when_the_reset_before_it_fails(connected, world, caplog):
+    world.reset_error = OSError("reset refused")
+    with caplog.at_level(logging.WARNING):
+        connected.download(lambda p, m: None, CancelToken(), 600)
+    assert world.calls.count("begin_program") == 1
+    assert any("before programming" in r.getMessage() for r in caplog.records)
+
+
+def test_download_still_programs_when_the_target_does_not_stop_after_the_reset(connected, world, monkeypatch, caplog):
+    monkeypatch.setattr(winidea_adapter, "HALT_WAIT_S", 0.05)
+    monkeypatch.setattr(winidea_adapter, "HALT_POLL_S", 0.01)
+    world.stopped_after_reset = False
+    with caplog.at_level(logging.WARNING):
+        connected.download(lambda p, m: None, CancelToken(), 600)
+    assert world.calls.count("begin_program") == 1
+    assert any("before programming" in r.getMessage() for r in caplog.records)

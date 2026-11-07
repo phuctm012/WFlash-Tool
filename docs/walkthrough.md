@@ -1177,3 +1177,17 @@ Hai lần flash thật qua WFlash đều chạy đúng: một pha ERASING, 79 se
 ### Đã kiểm tra
 
 - RED rồi GREEN với `pytest tests/test_real_adapter.py`; `pytest -q`, `pytest -k thread -q`, `tools/stress_test.py`. Chưa kiểm chứng `begin_program` có ném lỗi khi gặp lỗi này không.
+
+## Phase 2.11: Reset CPU trước khi flash
+
+User đề xuất reset CPU trước khi flash. winIDEA cũng gợi ý như vậy, dù reset không gỡ được lỗi khi nó đã xảy ra. Nếu reset này lỗi hoặc target không dừng, tool chỉ cảnh báo rồi vẫn flash, vì Output cho thấy `begin_program` tự reset khi khởi động phiên. Chưa biết việc này có ngăn được lỗi không.
+
+### Thay đổi
+
+- **`wflash/core/winidea_adapter.py`**: `_reset_before_programming`, gọi đầu `download`.
+- **`tests/fake_isystem.py`**, **`tests/test_real_adapter.py`**: 3 test.
+- **`docs/winidea_api_notes.md`**: ghi quyết định.
+
+### Đã kiểm tra
+
+- RED rồi GREEN; `pytest -q`, `pytest -k thread -q`, `tools/stress_test.py`. Thứ tự reset rồi `begin_program` trong cùng phiên chưa chạy trên ECU thật.

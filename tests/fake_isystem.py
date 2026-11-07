@@ -52,6 +52,7 @@ class World:
         self.begin_program_error: Exception | None = None
         self.begin_program_hook = lambda: None
         self.stopped_after_reset = True
+        self.reset_error: Exception | None = None
         self.running = False
         self.flash: dict[int, int] = {}
         self.read_error: Exception | None = None
@@ -164,6 +165,8 @@ def build_module(world: World) -> types.ModuleType:
 
         def reset(self):
             world.calls.append("reset")
+            if world.reset_error:
+                raise world.reset_error
             world.running = not world.stopped_after_reset
 
         def run(self):

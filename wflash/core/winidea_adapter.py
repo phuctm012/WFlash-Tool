@@ -329,6 +329,7 @@ class RealWinIDEAAdapter:
         `cancel` and the timeout cannot apply: stopping mid-erase could leave the ECU empty.
         """
         ic, cmgr, _ide = self._session()
+        self._reset_before_programming(ic, cmgr)
         done = threading.Event()
         started = time.monotonic()
 
@@ -363,6 +364,21 @@ class RealWinIDEAAdapter:
             done.set()
             reporter.join()
         log.info("Programming finished in %.1f s", time.monotonic() - started)
+
+    def _reset_before_programming(self, ic, cmgr) -> None:
+        """Asked for by the user; winIDEA also suggests it. begin_program resets too, so a failure only warns."""
+        try:
+            debug = ic.CDebugFacade(cmgr)
+            calls_log.debug("CDebugFacade.reset (before programming)")
+            debug.reset()
+            deadline = time.monotonic() + HALT_WAIT_S
+            while not debug.getCPUStatus().isStopped():
+                if time.monotonic() >= deadline:
+                    log.warning("The target did not stop after the reset before programming; programming anyway")
+                    return
+                time.sleep(HALT_POLL_S)
+        except Exception as exc:
+            log.warning("The reset before programming failed; programming anyway: %s", exc)
 
     def reset(self, run: bool) -> None:
         ic, cmgr, _ide = self._session()

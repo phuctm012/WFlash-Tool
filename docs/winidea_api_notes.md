@@ -345,7 +345,7 @@ PROGRAMMING         0 bytes
 No core which could program flash is stopped
 ```
 
-Same code 39 as `umi.read` in the failed 09 run. User report: **only a power cycle of the ECU clears it; a reset from winIDEA does not.** So WFlash shows that advice and does not reset or retry.
+Same code 39 as `umi.read` in the failed 09 run. User report: **only a power cycle of the ECU clears it; a reset from winIDEA does not.** So WFlash shows that advice and does not retry. At the user's request it does reset the CPU once before programming (`debug.reset()`, then waits for `isStopped`); whether that prevents the error is not known, and reset followed by `begin_program` in one session has not run on hardware yet.
 
 Seen in WFlash during the verify: `Reading the flash failed at 0x000000: CUMIController::read failed! Error code unknown to isystem.connect facade: 39  [CUMIController.cpp, 551]; 001 - Operation failed! [fpcErrCode=0x39] [extErrCode=0x0000] [Error loading monitor]`.
 
