@@ -878,3 +878,16 @@ Hai ghi chú trước đây bị sửa lại theo dữ liệu mới. `getDeviceN
 
 - Tính số sector từ 20 chunk trong log: 64 KB cho 79 và 1, khớp log; 32 KB cho 148 và 1; 4 KB cho 1120 và 3.
 - Chạy 09 với module `isystem.connect` giả và file `.s3` tự tạo: đoạn còn nguyên báo `MATCH`, đoạn bị xóa báo `DIFFERENT wrong=16 wrong_and_0xFF=16`. `umi.read` thật và kiểu vector thật chưa được kiểm chứng.
+
+## Phase 1.48: Sự cố: spike 08 làm ECU không chạy được
+
+User báo sau khi chạy `08_umi_program.py` với 2 file đang tick (`RAD_SUZ05_FFI.s3` và CAL `.sre`), chip bị xóa hết và ECU không chạy được. Log có 2 pha ERASING, khớp với giả thuyết `write()` xóa toàn chip trước mỗi file; việc này chưa được xác nhận bằng cách đọc lại flash. Script đã được viết với giả định `write()` giống nút Program và chỉ thử trên module giả, nên không phát hiện được rủi ro này trước khi ghi lên ECU thật. Thêm chốt chặn: 08 từ chối chạy nếu số dòng đang tick khác 1. Gỡ các bước bấm Program và chạy 08 khỏi Vòng 4. Plan 2 không được dùng `umi.write(index, mode)` với nhiều dòng.
+
+### Thay đổi
+
+- **`spike/08_umi_program.py`**: dừng trước khi ghi nếu số dòng tick khác 1.
+- **`docs/windows_test_guide.md`**, **`spike/README.md`**, **`docs/winidea_api_notes.md`**: ghi sự cố, cảnh báo, thay Vòng 4.
+
+### Đã kiểm tra
+
+- Chạy 08 với module giả : 2 dòng tick và 0 dòng tick đều dừng trước khi ghi, 1 dòng tick mới gọi `write`. Chưa chạy với winIDEA thật. ECU chưa được khôi phục tại thời điểm ghi.

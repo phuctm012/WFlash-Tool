@@ -1,7 +1,8 @@
 """Spike 08: program external flash (Winbond) bằng CUMIController.write(). GHI VÀO FLASH.
 
-Giống bấm tay Hardware -> Winbond ... -> Program: ghi các file đang được tick trong
-Download Files của thiết bị. Script hỏi xác nhận trước khi ghi, đo thời gian, rồi reset target.
+CẢNH BÁO: với 2 file đang tick, write() xóa trước MỖI file; user báo chip bị xóa hết và ECU không
+chạy được (2026-11-07). Script từ chối chạy trừ khi có đúng 1 dòng đang tick.
+Script hỏi xác nhận trước khi ghi, đo thời gian, rồi reset target.
 
 Thiết bị: --device-name, hoặc tên từ CStorageDeviceFactory.getDeviceNames. Nếu không có tên
 (thiết bị Winbond có Name rỗng), dùng --device-index (mặc định 0). Script chỉ ghi khi thiết bị
@@ -72,11 +73,18 @@ def main() -> None:
             return
 
         report.section("files configured on this device")
+        enabled_rows = 0
         for i in range(ide.getDynamicOptionSize(f"{dev}.DownloadFiles")):
             row = f"{dev}.DownloadFiles[{i}]"
-            try_call(report, f"[{i}] Enabled", lambda r=row: ide.getOptionStr(f"{r}.Enabled"))
+            enabled_rows += try_call(report, f"[{i}] Enabled", lambda r=row: ide.getOptionStr(f"{r}.Enabled")) == "true"
             try_call(report, f"[{i}] Offset", lambda r=row: ide.getOptionStr(f"{r}.Offset"))
             try_call(report, f"[{i}] Path", lambda r=row: ide.getOptionStr(f"{r}.Path"))
+
+        # 2026-11-07: with two rows enabled, write() erased before each file. The user reports the
+        # whole chip ended up erased and the ECU no longer ran. Never run it with more than one row.
+        if enabled_rows != 1:
+            report.line(f"{enabled_rows} rows enabled, this script needs exactly 1 -> stop, nothing written")
+            return
 
         if not args.yes:
             answer = input(f"Program device {model} (index {index}) now? This WRITES the Winbond flash. Type YES: ")

@@ -241,7 +241,8 @@ Running  Reset         EMULATION END - Without cleanup ... EMULATION STARTED
 - Each enabled row gets its own erase + program pass, in row order.
 - The sector counts fit a **64 KB sector** exactly: the 20 chunks touch 79 blocks of 64 KB (148 of 32 KB, 1120 of 4 KB), and the CAL touches 1 of 64 KB (3 of 4 KB).
 - The CAL's block `0x7F0000` also holds four `.s3` chunks: `0x7F2FC0`, `0x7F31C0`, `0x7F6000`, `0x7F7000`.
-- **Unknown:** how much the second erase covers. If it is a mass erase, the whole `.s3` is gone. If it erases block `0x7F0000` without preserving it, those four chunks are gone. If winIDEA preserves the rest, nothing is lost. The log cannot tell these apart. `spike/09_flash_compare.py` reads the flash back and compares it with the files.
+- **INCIDENT, user report 2026-11-07:** after this run the whole chip was erased and the ECU no longer ran. Not yet confirmed by reading the flash back. **`umi.write(index, mode)` must not be used with more than one enabled row.**
+- How much the second erase covers was not proven by the log alone. If it is a mass erase, the whole `.s3` is gone. If it erases block `0x7F0000` without preserving it, those four chunks are gone. If winIDEA preserves the rest, nothing is lost. The log cannot tell these apart. `spike/09_flash_compare.py` reads the flash back and compares it with the files.
 
 After `debug.reset()` here, `isStopped -> False`, unlike round 1 (`True`). The status was read immediately, and `toString` was not printed, so the state is unknown. "Reset and halt" needs re-checking.
 

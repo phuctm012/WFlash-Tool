@@ -434,30 +434,8 @@ Gửi lại `spike\results\` như các vòng trước.
 
 Lần chạy `08_umi_program.py` đầu tiên dừng ở `no device found -> stop` và **chưa ghi gì vào flash**: thiết bị Winbond có `Name` rỗng nên không lấy được danh sách tên. Script đã sửa để dùng chỉ số thiết bị 0, và chỉ ghi khi thiết bị đó đang bật và đúng model `W25Q64JW`. Lấy bản mới của nhánh rồi chạy lại V3.4. Nếu chưa chạy V3.2 và V3.3 (ghi path), chạy chúng trước.
 
-## Vòng 4 (sau kết quả ngày 2026-11-07)
+## Vòng 4 (đã thay đổi sau sự cố ngày 2026-11-07)
 
-Lần program bằng `08` có hai pha ERASING: một trước `RAD_SUZ05_FFI.s3`, một trước file CAL `.sre`. Vòng này kiểm tra pha thứ hai có làm mất dữ liệu của `.s3` không. **Ngay sau lần program bằng tay ở V4.2, chạy lại V4.3 để so sánh.** Không flash file nào khác giữa các bước.
+> ⛔ **Không chạy `08_umi_program.py` và không bấm *Hardware → Winbond → Program* khi đang tick từ 2 file trở lên.** Lần chạy `08` với 2 file đang tick có 2 pha ERASING, và user báo chip bị xóa hết, ECU không chạy được. Menu Program có thể cũng hoạt động như vậy, chưa kiểm chứng. Các hướng dẫn bấm Program và chạy `08` ở những vòng trên không còn áp dụng.
 
-**V4.1. So flash với file sau lần program bằng API** (chỉ đọc). Nếu ECU đã được flash lại kể từ lần chạy `08`, chạy lại `python 08_umi_program.py` trước:
-
-```bat
-python 09_flash_compare.py --full
-```
-
-**V4.2. Bấm tay để đối chiếu.** Mở *View → Output*, bấm *Hardware → Winbond W25Q64JW SPI → Program*, chép toàn bộ Output vào `results\v4_manual_output.txt`.
-
-**V4.3. So lại sau lần bấm tay:**
-
-```bat
-python 09_flash_compare.py --full
-```
-
-**V4.4. Thử firmware:** tắt nguồn ECU, bật lại, rồi ghi vào `00_manual.txt` xem firmware có chạy đúng không.
-
-**V4.5. Xem cấu hình erase:** chụp lại hộp thoại *Hardware → Winbond W25Q64JW SPI → Configure…* của workspace này (`v4_device_dialog.png`), để thấy "Mass erase before download" có đang tick không.
-
-**V4.6. Version Python của winIDEA:**
-
-```bat
-C:\Data\_Devtools\Winidea408\Python\python.exe -c "import sys, isystem.connect as ic; print(sys.version); print(ic.getModuleVersion())" > results\v4_winidea_python.txt 2>&1
-```
+Trước khi flash khôi phục, nếu có thể, chạy `python 09_flash_compare.py` (chỉ đọc) để lưu bằng chứng. Sau đó khôi phục ECU bằng đúng cách flash vẫn dùng hằng ngày. Các bước tiếp theo sẽ được gửi sau khi có kết quả.
