@@ -1256,3 +1256,15 @@ User muốn tool phục vụ developer debug: đồng bộ firmware với commit
 ### Đã kiểm tra
 
 - Tự rà soát spec theo các quyết định của user. Chỉ có tài liệu, không chạy test.
+
+## Phase 3.1: Plan 3 cho developer debug
+
+Viết plan 11 task theo spec đã duyệt. Task 1 là spike trên máy thật, các task lõi không phụ thuộc phần cứng làm được song song, còn phần adapter và luồng flash chỉ bắt đầu sau khi có kết quả spike. Chưa viết code ứng dụng.
+
+### Thay đổi
+
+- **`docs/superpowers/plans/2026-11-07-wflash-developer-debug.md`** (mới).
+
+### Đã kiểm tra
+
+- Tự rà soát plan theo spec. Chỉ có tài liệu.
