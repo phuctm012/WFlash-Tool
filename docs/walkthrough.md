@@ -943,3 +943,16 @@ Lần chạy 09 `--full` cuối cùng cũng kết thúc: không so được đo�
 ### Đã kiểm tra
 
 - Đọc `09_flash_compare_20261107_120935.txt`: 0 đoạn `MATCH`/`DIFFERENT`. Chạy 10 với module giả: in được docstring, hằng số và menu; không có lời gọi nào tới `invoke`, `write`, `flush`, `read`, `reset`. Chưa chạy trên winIDEA thật.
+
+## Phase 1.53: Spike 10 chưa chỉ ra lệnh Program; thêm spike 11 tìm ví dụ
+
+Spike 10 không tác động lên target. Nó ghi lại được hằng số `IConnectUMI` và cách dùng `invoke`, nhưng không có danh sách tên hàm dịch vụ, và `getMenuStructure` cần tham số chưa biết. Vì vậy chưa có bằng chứng cho lệnh nào tương đương nút Program, và chưa đề xuất lệnh ghi flash mới. Docstring nhắc tới các file ví dụ, nên thêm spike 11 tìm chúng trên máy.
+
+### Thay đổi
+
+- **`spike/11_find_examples.py`** (mới): quét thư mục winIDEA và package `isystem`, chép ví dụ vào `results/examples/`, liệt kê tài liệu. Không import `isystem.connect`.
+- **`docs/winidea_api_notes.md`**, **`spike/README.md`**, **`docs/windows_test_guide.md`**: ghi kết quả 10, thêm 11.
+
+### Đã kiểm tra
+
+- Chạy 11 trên macOS với thư mục giả: chép `test_flush.py` (theo tên) và `mine.py` (theo từ khóa), bỏ qua `other.py`; liệt kê `sdk_python.pdf`, bỏ qua `readme.pdf`. Chưa chạy trên Windows.

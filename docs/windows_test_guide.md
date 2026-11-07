@@ -447,3 +447,5 @@ Chạy script chỉ đọc tài liệu API và menu (không flash, không đụn
 ```bat
 python 10_program_api_docs.py
 ```
+
+Sau `10`, chạy `python 11_find_examples.py` (không kết nối winIDEA, không đụng ECU), rồi gửi `results\examples\` và file kết quả. Nếu winIDEA cài ở chỗ khác, thêm `--root <thư mục>`.

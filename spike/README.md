@@ -32,6 +32,7 @@ Mục đích: xác minh API `isystem.connect` trên winIDEA 9.21 + workspace SAF
 | `python 08_umi_program.py` | program Winbond bằng `CUMIController.write()` (hỏi xác nhận, gõ `YES`), rồi reset. **Từ chối chạy nếu số dòng đang tick khác 1: với 2 dòng, chip đã bị xóa hết** | **Có: ghi external flash** |
 | `python 09_flash_compare.py` | so flash với file đang tick. **Tạm thời không chạy:** `umi.read` nạp monitor vào target | Không ghi flash, **có đụng target** |
 | `python 10_program_api_docs.py` | in tài liệu API, đọc cấu trúc menu | Không |
+| `python 11_find_examples.py` | tìm ví dụ và tài liệu `isystem.connect` trên máy, chép vào `results\examples` (không kết nối winIDEA) | Không |
 
 - Nhiều instance winIDEA: thêm `--instance <id>` (id lấy từ output 01).
 - URL cho bước 03 lấy từ các dòng `getOptionStr ... -> '...elf'` thành công trong output 02.

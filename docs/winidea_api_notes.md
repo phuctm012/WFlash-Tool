@@ -273,6 +273,12 @@ On a running ECU, the first segment took a long time with no output, then:
 
 Nothing was compared, so this run neither confirms nor rules out the chip erase. "Error loading monitor" indicates `read` needs a monitor loaded into the target, so it can disturb running firmware. What state it needs is unknown; the target was presumably running. **The adapter must not call `umi.read` on a running target without this being resolved.** `CUMIController.flush` ("Programs the device from the intermediate cache") and `write(..., wProgCache)` are a further candidate for a single-erase program; unverified, docstring only.
 
+### Program API docs (spike 10, 2026-11-07)
+
+`IConnectUMI`: `wProgDevice = 0`, `wProgCache = 16384`, `wProgMask = 16384`, `wFileFormatAuto = 0`, `wFileFormatBin = 65536`, `wFileFormatS = 131072`, `wFileFormatHex = 196608`, `wOpWrite = 0`, `wOpFlush = 512`, `wOpErase = 768`, `wOpVerify = 1024`, `wOverrideSafety = 32768`, `wScopeDevice = 4096`.
+
+`ide.invoke(funcUrl, inParams)` calls a named winIDEA service function, for example `'/IDE/Divide'`. An error in the function does not raise: check `ResultB` and `ResultS` in the result. `invoke_T` raises instead. No list of function names is known, so the menu's Program cannot be called yet. `ide.getMenuStructure()` raises `TypeError: missing 1 required positional argument: 'optionUrl'`, and it has no docstring. `CUMIController.flush(deviceIndex)`: "Programs the device from the intermediate cache". `verify` compares the device with the cache. None of these was called. Docstrings name examples (`test_write.py`, `test_flush.py`, `test_begin_program.py`...); spike 11 looks for them on disk.
+
 ### Matching SDK location
 
 `C:\Data\_Devtools\Winidea408\Python\Lib\site-packages\isystem_connect-9.21.408.1.dist-info`: winIDEA ships its own Python with `isystem.connect` 9.21.408.1. There is no wheel to install. All spike runs so far used 9.26.11.
