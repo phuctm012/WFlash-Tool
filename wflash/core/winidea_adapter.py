@@ -92,6 +92,7 @@ PROGRESS_TICK_S = 1.0
 HALT_WAIT_S = 5.0
 HALT_POLL_S = 0.2
 MONITOR_ERROR_TEXT = "error loading monitor"
+PROBE_BYTES = 16
 # Observed on the user's ECU: only a power cycle clears it, a reset from winIDEA does not.
 POWER_CYCLE_HINT = "Turn the ECU power off and on, then flash again; a reset from winIDEA does not clear this."
 BITNESS_HINT = (
@@ -327,6 +328,10 @@ class RealWinIDEAAdapter:
 
         begin_program() blocks and reports nothing, so `progress` is an estimate from elapsed time.
         `cancel` and the timeout cannot apply: stopping mid-erase could leave the ECU empty.
+
+        begin_program() does NOT raise when winIDEA fails to load its flash monitor: it returned
+        normally after 4.8 s instead of about 100 s, and winIDEA only printed the failure in its
+        Output view. The next read failed at once with the same error, so one read confirms it.
         """
         ic, cmgr, _ide = self._session()
         self._reset_before_programming(ic, cmgr)
@@ -363,7 +368,26 @@ class RealWinIDEAAdapter:
         finally:
             done.set()
             reporter.join()
+        log.info("begin_program returned after %.1f s", time.monotonic() - started)
+        self._confirm_programmed(ic, cmgr)
         log.info("Programming finished in %.1f s", time.monotonic() - started)
+
+    def _confirm_programmed(self, ic, cmgr) -> None:
+        try:
+            log.info("Target after programming: stopped=%s", ic.CDebugFacade(cmgr).getCPUStatus().isStopped())
+        except Exception as exc:
+            log.warning("Cannot read the target status after programming: %s", exc)
+        umi = ic.CUMIController(cmgr)
+        calls_log.debug("CUMIController.read (confirm programming)")
+        try:
+            umi.read(0, 0, PROBE_BYTES, ic.ByteVector(PROBE_BYTES))
+        except Exception as exc:
+            detail = f"{exc}; {umi.getLastError()}"
+            advice = POWER_CYCLE_HINT if MONITOR_ERROR_TEXT in detail.lower() else "Check the Output view in winIDEA, then flash again."
+            raise FlashError(
+                f"Programming could not be confirmed: {detail}",
+                hint=f"{advice} The firmware on the ECU may be the previous one or incomplete; see the Output view in winIDEA.",
+            ) from exc
 
     def _reset_before_programming(self, ic, cmgr) -> None:
         """Asked for by the user; winIDEA also suggests it. begin_program resets too, so a failure only warns."""

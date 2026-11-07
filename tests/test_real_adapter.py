@@ -198,7 +198,7 @@ from wflash.core.cancel import CancelToken
 from wflash.core.debug_bundle import DebugContext
 from wflash.core.errors import CancelledError, FlashError
 from wflash.core.file_matcher import MappingRow
-from wflash.core.flash_workflow import FlashRequest, FlashWorkflow
+from wflash.core.flash_workflow import FlashRequest, FlashWorkflow, Step
 
 
 def test_download_calls_begin_program_once(connected, world):
@@ -430,7 +430,7 @@ def test_other_verify_read_failure_still_says_the_flash_finished(connected, worl
 
 def test_download_resets_the_cpu_before_programming(connected, world):
     connected.download(lambda p, m: None, CancelToken(), 600)
-    assert world.calls[-2:] == ["reset", "begin_program"]
+    assert world.calls.index("reset") < world.calls.index("begin_program")
 
 
 def test_download_still_programs_when_the_reset_before_it_fails(connected, world, caplog):
@@ -449,3 +449,38 @@ def test_download_still_programs_when_the_target_does_not_stop_after_the_reset(c
         connected.download(lambda p, m: None, CancelToken(), 600)
     assert world.calls.count("begin_program") == 1
     assert any("before programming" in r.getMessage() for r in caplog.records)
+
+
+def test_download_confirms_programming_by_reading_the_flash_once(connected, world):
+    connected.download(lambda p, m: None, CancelToken(), 600)
+    assert world.calls[-2:] == ["begin_program", f"read 0 0x0 {winidea_adapter.PROBE_BYTES}"]
+
+
+def _silent_monitor_failure(world):
+    # Observed: begin_program returns normally after 4.8 s, the next read fails with code 39.
+    world.read_error = OSError("CUMIController::read failed! Error code unknown to isystem.connect facade: 39")
+    world.umi_last_error = MONITOR_ERROR
+
+
+def test_download_reports_a_program_that_failed_silently(connected, world):
+    _silent_monitor_failure(world)
+    with pytest.raises(FlashError) as err:
+        connected.download(lambda p, m: None, CancelToken(), 600)
+    assert "Error loading monitor" in str(err.value)
+    assert "power off and on" in err.value.hint
+
+
+def test_workflow_restores_the_paths_and_does_not_finish_after_a_silent_failure(adapter, world, tmp_path):
+    before = dict(world.options)
+    _silent_monitor_failure(world)
+    steps = []
+    with pytest.raises(FlashError):
+        FlashWorkflow(adapter, DebugContext(), on_step=steps.append).run(FlashRequest("5315", _rows(tmp_path)), CancelToken())
+    assert world.options == before
+    assert Step.DONE not in steps and Step.RESET not in steps
+
+
+def test_download_logs_the_target_status_after_programming(connected, world, caplog):
+    with caplog.at_level(logging.INFO):
+        connected.download(lambda p, m: None, CancelToken(), 600)
+    assert any("stopped=True" in r.getMessage() for r in caplog.records)

@@ -1191,3 +1191,17 @@ User đề xuất reset CPU trước khi flash. winIDEA cũng gợi ý như vậ
 ### Đã kiểm tra
 
 - RED rồi GREEN; `pytest -q`, `pytest -k thread -q`, `tools/stress_test.py`. Thứ tự reset rồi `begin_program` trong cùng phiên chưa chạy trên ECU thật.
+
+## Phase 2.12: Sửa lỗi báo Done khi flash thất bại
+
+User báo WFlash hiện `Done` khi winIDEA thực ra lỗi `Error loading monitor`. Debug bundle cho thấy nguyên nhân: `begin_program` không ném lỗi trong trường hợp này mà trả về bình thường sau 4,8 s (thành công mất 95-100 s), winIDEA chỉ in lỗi ra cửa sổ Output. Các lần có Verify đều lỗi ngay ở lần đọc đầu, nên lần Verify tắt mới lọt thành `Done`. Giờ sau `begin_program` luôn đọc thử 16 byte ở `0x0`; đọc lỗi nghĩa là flash thất bại: khôi phục path, không báo `Done`, gợi ý tắt bật nguồn ECU. Trạng thái target sau khi flash được ghi log để xem có phân biệt được hai trường hợp không.
+
+### Thay đổi
+
+- **`wflash/core/winidea_adapter.py`**: `_confirm_programmed`, gọi sau `begin_program`.
+- **`tests/test_real_adapter.py`**: 4 test.
+- **`docs/winidea_api_notes.md`**: bằng chứng từ bundle.
+
+### Đã kiểm tra
+
+- RED rồi GREEN; `pytest -q`, `pytest -k thread -q`, `tools/stress_test.py`. Đọc `log.txt` trong bundle. Chưa chạy lại trên ECU, nhất là chưa tái hiện được lỗi monitor với bản mới.
