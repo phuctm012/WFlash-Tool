@@ -1231,3 +1231,15 @@ User xác nhận luồng hoàn chỉnh: khi gặp lỗi monitor, WFlash báo l�
 ### Đã kiểm tra
 
 - Đọc `wflash_debug_20261107_150629.zip`. Chỉ đổi tài liệu.
+
+## Phase 2.15: Cập nhật CLAUDE.md
+
+`CLAUDE.md` còn ghi "chưa có code ứng dụng" và mô tả các module đã xóa. Viết lại phần trạng thái, lệnh và kiến trúc theo code hiện tại, và ghi các điều học được trên ECU thật: không gọi `umi.write`, `begin_program` không báo lỗi khi flash thất bại, `getOptionJSON` làm mất kết nối, cách đặt tên dòng, Cancel bị khóa, nhiều nguồn.
+
+### Thay đổi
+
+- **`CLAUDE.md`**: các mục trên.
+
+### Đã kiểm tra
+
+- Đối chiếu tên file, class và method được nhắc tới với repo. Chỉ đổi tài liệu, không chạy lại test.
