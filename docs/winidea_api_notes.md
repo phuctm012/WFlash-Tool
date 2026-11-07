@@ -330,7 +330,7 @@ Status right after: `status: 49`, `isStopped: 1`, `isMustInit: 0`, `isStopReason
 3. Post-flash sampled compare is an optional checkbox, off by default.
 4. A version mismatch of `isystem.connect` is logged as a warning, not blocked.
 
-Requested, not decided: a checkbox for "Mass erase before download". This is an exception to the spec's "no flash-loader configuration" and to Approach A. The option's URL is unknown (spike 13).
+No checkbox for "Mass erase before download": it follows the workspace configuration, as Approach A requires. Plan: `docs/superpowers/plans/2026-11-07-wflash-real-adapter.md`.
 
 ### Matching SDK location
 

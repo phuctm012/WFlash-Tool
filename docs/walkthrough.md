@@ -1018,3 +1018,16 @@ User đồng ý: khớp `.s3` và ELF theo tên file, khóa Cancel từ lúc b�
 ### Đã kiểm tra
 
 - Chạy 13 với module giả và file `.xjrf` tự tạo: liệt kê đúng field, kể cả field lồng và phần tử danh sách; bỏ qua `DownloadFiles`; `setOption` và `getOptionJSON` không bị gọi. Cấu trúc XML thật mới được suy ra từ output spike 02. Chưa chạy trên winIDEA thật.
+
+## Phase 1.59: Plan 2: adapter winIDEA thật
+
+User bỏ yêu cầu checkbox mass erase: tùy chọn này theo cấu hình workspace, đúng với nguyên tắc chỉ đổi path. Viết Plan 2 dựa trên `docs/winidea_api_notes.md`. Quyết định thiết kế chính: dòng download và file symbol không có tên riêng nên adapter đặt tên theo file (`RAD_SUZ05_FFI.s3`, `App_M7/Radar_SUZ05_Gen7.elf`), nhờ vậy `FlashWorkflow` và schema profile gần như giữ nguyên; lập trình bằng `begin_program`; `connect` từ chối nếu winIDEA đang gắn với workspace khác, vì chưa chọn được instance theo id.
+
+### Thay đổi
+
+- **`docs/superpowers/plans/2026-11-07-wflash-real-adapter.md`** (mới): 7 task.
+- **`docs/winidea_api_notes.md`**: ghi quyết định bỏ checkbox.
+
+### Đã kiểm tra
+
+- Đối chiếu plan với code: `MappingRow`, helper test `make_host` và `make.factory`, test cũ của `create_adapter("real")`. Chưa viết code adapter.
