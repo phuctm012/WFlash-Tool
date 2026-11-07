@@ -349,7 +349,14 @@ Same code 39 as `umi.read` in the failed 09 run. User report: **only a power cyc
 
 Seen in WFlash during the verify: `Reading the flash failed at 0x000000: CUMIController::read failed! Error code unknown to isystem.connect facade: 39  [CUMIController.cpp, 551]; 001 - Operation failed! [fpcErrCode=0x39] [extErrCode=0x0000] [Error loading monitor]`.
 
-**`begin_program()` does not raise on this.** Debug bundle of 2026-11-07, three failed runs in a row: `begin_program` returned normally after **4.8 s** (successes: 94.8 to 99.6 s), and the following `umi.read` at `0x000000` failed about 0.14 s later with code 39. With Verify off, the user saw WFlash report `Done` for a failed program. WFlash therefore always reads 16 bytes at `0x0` after `begin_program` and treats a failure as a failed program (rollback, power cycle hint). The evidence is that this read failed every time programming had failed with Verify on, and worked on every success.
+**`begin_program()` does not raise on this.** Debug bundle of 2026-11-07, 21 programming runs in 40 minutes:
+
+| `begin_program` returned after | Runs | Verify on | First read | Outcome in that build |
+|---|---|---|---|---|
+| 4.7 to 6.0 s | 15 | 14 | failed at `0x000000`, 14 of 14 | 14 failed in verify, **1 with Verify off reported `Done`** (14:08:43) |
+| 94.8 to 100.8 s | 6 | 3 | worked, 3 of 3 | all `Done` |
+
+WFlash therefore always reads 16 bytes at `0x0` after `begin_program` and treats a failure as a failed program (rollback, power cycle hint). What triggers the failure is unknown: it came in runs of 4 to 5 attempts, each ended by a long run, and some flashes directly after a success worked (14:42, 14:46) while others failed (14:14, 14:26, 14:35).
 
 The round 1 `download()` runs of 6-8 s with `isMustInit: 1` were probably the same failure, not hash skipping; this is not proven. The target status after programming is now logged (`stopped=...`) to see whether it also separates the two cases.
 

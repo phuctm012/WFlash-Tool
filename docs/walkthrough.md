@@ -1194,7 +1194,7 @@ User đề xuất reset CPU trước khi flash. winIDEA cũng gợi ý như vậ
 
 ## Phase 2.12: Sửa lỗi báo Done khi flash thất bại
 
-User báo WFlash hiện `Done` khi winIDEA thực ra lỗi `Error loading monitor`. Debug bundle cho thấy nguyên nhân: `begin_program` không ném lỗi trong trường hợp này mà trả về bình thường sau 4,8 s (thành công mất 95-100 s), winIDEA chỉ in lỗi ra cửa sổ Output. Các lần có Verify đều lỗi ngay ở lần đọc đầu, nên lần Verify tắt mới lọt thành `Done`. Giờ sau `begin_program` luôn đọc thử 16 byte ở `0x0`; đọc lỗi nghĩa là flash thất bại: khôi phục path, không báo `Done`, gợi ý tắt bật nguồn ECU. Trạng thái target sau khi flash được ghi log để xem có phân biệt được hai trường hợp không.
+User báo WFlash hiện `Done` khi winIDEA thực ra lỗi `Error loading monitor`. Debug bundle cho thấy nguyên nhân: `begin_program` không ném lỗi trong trường hợp này mà trả về bình thường sau 4,8 s (thành công mất 95-100 s), winIDEA chỉ in lỗi ra cửa sổ Output. Trong 21 lần flash của bundle, 15 lần trả về sau 5-6 s: 14 lần có Verify đều lỗi ngay ở lần đọc đầu, còn lần Verify tắt (14:08:43) lọt thành `Done`. Cả 3 lần flash dài có Verify đều đọc được. Giờ sau `begin_program` luôn đọc thử 16 byte ở `0x0`; đọc lỗi nghĩa là flash thất bại: khôi phục path, không báo `Done`, gợi ý tắt bật nguồn ECU. Trạng thái target sau khi flash được ghi log để xem có phân biệt được hai trường hợp không.
 
 ### Thay đổi
 
