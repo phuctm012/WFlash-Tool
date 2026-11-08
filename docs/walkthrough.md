@@ -1361,3 +1361,20 @@ BM và FBL ghi đè lên một phần FFI, nên so mẫu theo từng file sẽ b
 ### Đã kiểm tra
 
 - RED rồi GREEN; `pytest -q`. Hành vi ghi chồng thật của winIDEA còn chờ phần B của Vòng 8.
+
+## Phase 3.9: Adapter ghi dấu tick và luồng flash theo kế hoạch
+
+Spike 14 cho thấy ghi được dấu tick của dòng Download Files (`.Enabled`) và của Symbol File (`.Load`), đọc lại đúng. Profile có `builds` giờ đi luồng mới: đọc toàn bộ dòng, kiểm tra bằng `make_plan`, đổi path và dấu tick, rồi flash như cũ (reset, `begin_program`, đọc xác nhận). Khi lỗi chỉ khôi phục path, dấu tick giữ nguyên theo quyết định của user. Thiếu file BM khi bật Advanced Debug thì báo lỗi trước khi đổi gì. Profile không có `builds` vẫn đi luồng cũ.
+
+### Thay đổi
+
+- **`wflash/core/winidea_adapter.py`**: `SYMBOL_TICK_FIELD = "Load"`, `workspace_dir`, `read_program_rows`, `read_symbol_rows`, `set_program_row`, `set_symbol_row`; Protocol cập nhật.
+- **`wflash/core/fake_adapter.py`**: cùng các hàm trên.
+- **`wflash/core/flash_workflow.py`**: `_run_planned`, `_finish`, `_restore_row_paths`; `FlashRequest.profile`, `advanced`, `cal_file`.
+- **`wflash/core/flash_plan.py`**: báo lỗi khi file chưa nạp. **`wflash/core/debug_bundle.py`**: `snapshot_rows`.
+- **`docs/winidea_api_notes.md`**: kết quả spike 14.
+- **`tests/test_flash_workflow.py`**, **`tests/test_real_adapter.py`**.
+
+### Đã kiểm tra
+
+- RED rồi GREEN; `pytest -q`, `pytest -k thread -q`, `tools/stress_test.py`. Chưa chạy luồng mới trên ECU.

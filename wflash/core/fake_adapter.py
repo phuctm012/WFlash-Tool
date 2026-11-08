@@ -17,10 +17,13 @@ from __future__ import annotations
 import logging
 import os
 import time
+from dataclasses import replace
+from pathlib import Path
 from typing import Iterable
 
 from wflash.core.cancel import CancelToken
 from wflash.core.errors import FlashError, WinIDEAError
+from wflash.core.flash_plan import ProgramRow, SymbolRow
 from wflash.core.logging_setup import CALLS_LOGGER
 from wflash.core.winidea_adapter import FileEntry, InstanceInfo, ProgressCallback
 
@@ -39,6 +42,7 @@ class FakeWinIDEAAdapter:
         download_seconds: float = 3.0,
         fail_on: Iterable[str] = (),
         cancellable: bool = True,
+        rows: tuple[list[ProgramRow], list[SymbolRow]] | None = None,
     ) -> None:
         self.programs = dict(programs if programs is not None else {"App": r"C:\fake\old\App.s3"})
         self.applications = dict(
@@ -49,6 +53,15 @@ class FakeWinIDEAAdapter:
         self.download_seconds = download_seconds
         self.fail_on = set(fail_on)
         self.download_cancellable = cancellable
+        # Row view of the workspace, for the planned flash (profiles with builds).
+        if rows is None:
+            rows = (
+                [ProgramRow(i, name, path, True, 0) for i, (name, path) in enumerate(self.programs.items())],
+                [SymbolRow(0, j, name, path, True) for j, (name, path) in enumerate(self.applications.items())],
+            )
+        self.program_rows = list(rows[0])
+        self.symbol_rows = list(rows[1])
+        self.workspace = Path(WORKSPACE).parent
         self.connected_to: str | None = None
         self.target_state = "unknown"
         self.calls: list[str] = []
@@ -139,6 +152,33 @@ class FakeWinIDEAAdapter:
         if "verify" in self.fail_on:
             raise FlashError("Fake failure injected in 'verify'")
         progress(100, "Verifying flash samples (fake)")
+
+    def workspace_dir(self) -> Path:
+        return self.workspace
+
+    def read_program_rows(self) -> list[ProgramRow]:
+        self._require_connected()
+        self._call("read_programs")
+        return list(self.program_rows)
+
+    def read_symbol_rows(self) -> list[SymbolRow]:
+        self._require_connected()
+        self._call("read_applications")
+        return list(self.symbol_rows)
+
+    def set_program_row(self, index: int, path: str | None = None, tick: bool | None = None) -> None:
+        self._require_connected()
+        self._call("set_path", f"row {index} path={path} tick={tick}")
+        at = next(i for i, row in enumerate(self.program_rows) if row.index == index)
+        row = self.program_rows[at]
+        self.program_rows[at] = replace(row, path=row.path if path is None else path, enabled=row.enabled if tick is None else tick)
+
+    def set_symbol_row(self, app_index: int, file_index: int, path: str | None = None, tick: bool | None = None) -> None:
+        self._require_connected()
+        self._call("set_path", f"symbol {app_index}/{file_index} path={path} tick={tick}")
+        at = next(i for i, r in enumerate(self.symbol_rows) if (r.app_index, r.file_index) == (app_index, file_index))
+        row = self.symbol_rows[at]
+        self.symbol_rows[at] = replace(row, path=row.path if path is None else path, enabled=row.enabled if tick is None else tick)
 
     def reset(self, run: bool) -> None:
         self._require_connected()

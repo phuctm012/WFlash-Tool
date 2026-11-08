@@ -62,6 +62,13 @@ def _find_program(rows, spec) -> ProgramRow:
     return found[0]
 
 
+def _file(files: dict[str, Path], target: str, role: str | None) -> str:
+    path = files.get(target)
+    if path is None:
+        raise MappingError(f"{target} is not loaded.", hint=f"Load the {str(role).upper()} firmware first.")
+    return str(path)
+
+
 def make_plan(profile: Profile, advanced: bool, program_rows, symbol_rows, files: dict[str, Path], cal_file: str) -> FlashPlan:
     programs: list[RowChange] = []
     last_index = -1
@@ -82,7 +89,7 @@ def make_plan(profile: Profile, advanced: bool, program_rows, symbol_rows, files
                 raise MappingError("No CAL file was found next to the workspace.", hint=f"Copy a {spec.pattern} file there.")
             new_path = None if row.path == cal_file else cal_file
         else:
-            new_path = None if off else str(files[spec.winidea_entry])
+            new_path = None if off else _file(files, spec.winidea_entry, spec.role)
         programs.append(RowChange(row, new_path, not off))
 
     managed = {change.row.index for change in programs}
@@ -102,5 +109,5 @@ def make_plan(profile: Profile, advanced: bool, program_rows, symbol_rows, files
             if off:
                 continue  # nothing to untick
             raise MappingError(f"Symbol Files has no {spec.winidea_app}.", hint="Add it in Debug > Configure Session.")
-        symbols.append(RowChange(row, None if off else str(files[spec.winidea_app]), not off))
+        symbols.append(RowChange(row, None if off else _file(files, spec.winidea_app, spec.role), not off))
     return FlashPlan(programs, symbols)

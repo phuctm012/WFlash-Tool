@@ -332,3 +332,96 @@ def test_verify_failure_does_not_roll_back_the_paths(tmp_path):
         flow.run(req(True), _Token())
     assert _Step.ROLLBACK not in steps
     assert adapter.programs["App"] == str(s3.resolve())
+
+
+# -- planned flash (profiles with builds) ----------------------------------------------
+import dataclasses as _dc
+
+from wflash.core.fake_adapter import INSTANCE_ID as _INSTANCE
+from wflash.core.file_matcher import MappingRow as _MRow
+from wflash.core.flash_plan import ProgramRow, SymbolRow
+
+SUZ05 = Path(__file__).resolve().parents[1] / "profiles" / "suz05_m7_ffi.yaml"
+CAL = "20260623_142557_2018688_CAL_T008_v0_0.sre"
+BM_BIN, FBL_BIN = "FBL_M7_LIP_RfeClock_Image.bin", "Radar_SUZ05_Gen7_FBL.bin"
+
+
+def suz05_rows():
+    programs = [
+        ProgramRow(0, "Radar_SUZ05_Gen7.s3", "Radar_SUZ05_Gen7.s3", False, 0x1AA000),
+        ProgramRow(1, "RAD_SUZ05_FFI.s3", "old/RAD_SUZ05_FFI.s3", True, 0),
+        ProgramRow(2, CAL, CAL, True, 0),
+        ProgramRow(3, BM_BIN, f"old/{BM_BIN}", False, 0),
+        ProgramRow(4, FBL_BIN, f"old/{FBL_BIN}", False, 0xF1000),
+    ]
+    symbols = [
+        SymbolRow(0, 0, "App_M7/Radar_SUZ05_Gen7.elf", "old/a.elf", True),
+        SymbolRow(0, 1, "App_M7/Radar_SUZ05_Gen7_BM.elf", "old/b.elf", False),
+        SymbolRow(0, 2, "App_M7/Radar_SUZ05_Gen7_FBL.elf", "old/c.elf", False),
+    ]
+    return programs, symbols
+
+
+def suz05_mapping(tmp_path):
+    files = {
+        "RAD_SUZ05_FFI.s3": ("program", "RAD_SUZ05_FFI.s3"),
+        BM_BIN: ("program", BM_BIN),
+        FBL_BIN: ("program", FBL_BIN),
+        "App_M7/Radar_SUZ05_Gen7.elf": ("application", "Radar_SUZ05_Gen7.elf"),
+        "App_M7/Radar_SUZ05_Gen7_BM.elf": ("application", "Radar_SUZ05_Gen7_BM.elf"),
+        "App_M7/Radar_SUZ05_Gen7_FBL.elf": ("application", "Radar_SUZ05_Gen7_FBL.elf"),
+    }
+    rows = []
+    for target, (kind, name) in files.items():
+        path = tmp_path / name
+        path.write_bytes(b"x")
+        rows.append(_MRow(kind, target, "*", [path], path))
+    return rows
+
+
+def planned(tmp_path, advanced=False, fail_on=()):
+    adapter = FakeWinIDEAAdapter(download_seconds=0.01, fail_on=fail_on, rows=suz05_rows())
+    req = FlashRequest(_INSTANCE, suz05_mapping(tmp_path), profile=load_profile(SUZ05), advanced=advanced, cal_file=CAL)
+    return adapter, FlashWorkflow(adapter, DebugContext()), req
+
+
+def test_planned_flash_with_advanced_off_unticks_bm_and_fbl_and_keeps_it(tmp_path):
+    adapter, flow, req = planned(tmp_path)
+    adapter.program_rows[3] = _dc.replace(adapter.program_rows[3], enabled=True)
+    flow.run(req, CancelToken())
+    assert adapter.program_rows[3].enabled is False
+    assert adapter.program_rows[3].path == f"old/{BM_BIN}"
+    assert adapter.program_rows[1].path == str((tmp_path / "RAD_SUZ05_FFI.s3").resolve())
+
+
+def test_planned_flash_with_advanced_on_ticks_and_replaces(tmp_path):
+    adapter, flow, req = planned(tmp_path, advanced=True)
+    flow.run(req, CancelToken())
+    assert adapter.program_rows[3].enabled and adapter.program_rows[3].path.endswith(BM_BIN)
+    assert adapter.symbol_rows[1].enabled and adapter.symbol_rows[1].path.endswith("Radar_SUZ05_Gen7_BM.elf")
+
+
+def test_planned_check_failure_changes_nothing(tmp_path):
+    adapter, flow, req = planned(tmp_path)
+    adapter.program_rows.pop(4)
+    before = list(adapter.program_rows)
+    with pytest.raises(MappingError):
+        flow.run(req, CancelToken())
+    assert adapter.program_rows == before and "download" not in adapter.calls
+
+
+def test_failed_flash_restores_paths_but_keeps_ticks(tmp_path):
+    adapter, flow, req = planned(tmp_path, advanced=True, fail_on=["download"])
+    with pytest.raises(FlashError):
+        flow.run(req, CancelToken())
+    assert adapter.program_rows[3].path == f"old/{BM_BIN}"
+    assert adapter.program_rows[3].enabled is True
+    assert adapter.symbol_rows[1].path == "old/b.elf" and adapter.symbol_rows[1].enabled is True
+
+
+def test_planned_flash_without_a_loaded_bm_refuses(tmp_path):
+    adapter, flow, req = planned(tmp_path, advanced=True)
+    req.mapping = [r for r in req.mapping if r.target != BM_BIN]
+    with pytest.raises(MappingError, match="BM|FBL_M7"):
+        flow.run(req, CancelToken())
+    assert "download" not in adapter.calls

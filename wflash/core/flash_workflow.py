@@ -9,6 +9,8 @@ from wflash.core.cancel import CancelToken
 from wflash.core.debug_bundle import DebugContext
 from wflash.core.errors import FlashError, MappingError, WFlashError
 from wflash.core.file_matcher import MappingRow
+from wflash.core.flash_plan import ProgramRow, SymbolRow, make_plan
+from wflash.core.profile import Profile
 from wflash.core.logging_setup import get_logger
 from wflash.core.winidea_adapter import ProgressCallback, WinIDEAAdapter
 
@@ -39,6 +41,9 @@ class FlashRequest:
     run: bool = False
     timeout_s: int = 600
     verify: bool = False
+    profile: Profile | None = None  # a profile with builds selects the planned flash
+    advanced: bool = False  # Advanced Debug: flash BM and FBL too
+    cal_file: str = ""  # CAL file name next to the workspace
 
 
 class FlashWorkflow:
@@ -91,6 +96,9 @@ class FlashWorkflow:
 
     def _run_connected(self, req: FlashRequest, cancel: CancelToken) -> None:
         self._step(Step.VALIDATE)
+        if req.profile is not None and req.profile.builds:
+            self._run_planned(req, cancel)
+            return
         current = self._read_current("before")
         self._check_targets(req.mapping, current)
         old = {(row.kind, row.target): current[row.kind][row.target] for row in req.mapping}
@@ -109,6 +117,9 @@ class FlashWorkflow:
         except BaseException:
             self._rollback(written)
             raise
+        self._finish(req)
+
+    def _finish(self, req: FlashRequest) -> None:
         if req.verify:
             # Outside the rollback: the flash has happened, the new paths describe what is on it.
             self._step(Step.VERIFY)
@@ -116,6 +127,56 @@ class FlashWorkflow:
         if req.reset:
             self._step(Step.RESET)
             self.adapter.reset(run=req.run)
+
+    def _run_planned(self, req: FlashRequest, cancel: CancelToken) -> None:
+        """Check the whole workspace, then set paths and ticks; a failure restores the paths only.
+
+        Ticks stay as WFlash set them, even after a failure (user decision): they show the
+        configuration chosen in WFlash, such as Advanced Debug off.
+        """
+        program_rows = self.adapter.read_program_rows()
+        symbol_rows = self.adapter.read_symbol_rows()
+        self.ctx.snapshot_rows("before", program_rows, symbol_rows)
+        files = {row.target: row.selected.resolve() for row in req.mapping if row.selected is not None}
+        plan = make_plan(req.profile, req.advanced, program_rows, symbol_rows, files, req.cal_file)
+        cancel.raise_if_cancelled()
+        changed: list[ProgramRow | SymbolRow] = []
+        try:
+            self._step(Step.SET_PATHS)
+            for change in plan.programs:
+                if change.new_path is not None:
+                    changed.append(change.row)  # before the call: a failed set may have applied
+                log.info("Row %d %s: path %s, tick %s", change.row.index, change.row.name, change.new_path, change.tick)
+                self.adapter.set_program_row(change.row.index, change.new_path, change.tick)
+            for change in plan.symbols:
+                if change.new_path is not None:
+                    changed.append(change.row)
+                log.info("Symbol %s: path %s, tick %s", change.row.name, change.new_path, change.tick)
+                self.adapter.set_symbol_row(change.row.app_index, change.row.file_index, change.new_path, change.tick)
+            self.ctx.snapshot_rows("after_set", self.adapter.read_program_rows(), self.adapter.read_symbol_rows())
+            cancel.raise_if_cancelled()
+            self._step(Step.DOWNLOAD)
+            self.adapter.download(self._on_progress, cancel, req.timeout_s)
+        except BaseException:
+            self._restore_row_paths(changed)
+            raise
+        self._finish(req)
+
+    def _restore_row_paths(self, rows: list) -> None:
+        try:
+            self._step(Step.ROLLBACK)
+        except Exception:
+            log.warning("Step callback failed for ROLLBACK; continuing with restore", exc_info=True)
+        for row in rows:
+            try:
+                if isinstance(row, ProgramRow):
+                    self.adapter.set_program_row(row.index, row.path, None)
+                else:
+                    self.adapter.set_symbol_row(row.app_index, row.file_index, row.path, None)
+            except Exception as exc:
+                self._rollback_failed = True
+                log.error("Rollback failed for %s; it may still point to the new file: %s", row.name, exc)
+                self.ctx.add_error(exc)
 
     def _read_current(self, label: str) -> dict[str, dict[str, str]]:
         programs = self.adapter.read_programs()

@@ -371,6 +371,16 @@ Both with the real GitLab artifacts and the adapter's path changes; Output of ea
 
 `debug.reset()` followed by `begin_program()` in one session works: 98.8 s, then `stopped=True`, read confirmed, `Done`, ECU ran (user report). **The reset does not prevent the monitor failure**: runs with it still returned after 4.9 s, with `stopped=False`, and the confirming read failed. A power cycle cleared it. The user sees the same failure when flashing by hand, so it is not caused by WFlash; whether winIDEA or the external flash causes it is unknown.
 
+### Row ticks (spike 14, 2026-11-08)
+
+Download Files rows: `/iOPEN/UMIConfig.Devices.Devices[0].DownloadFiles[i].Enabled` reads `'true'`/`'false'`; `setOption(url, 'false')` then `getOptionStr` gave `'false'`, and restoring `'true'` read back `'true'` (row 3, the BM `.bin`).
+
+Symbol files: the tick is **`/IDE/System.Debug.Applications[i].SymbolFiles.File[j].Load`**, `'true'`/`'false'`; written and read back the same way (file 1, the BM ELF). `Options.LoadSymbols` and `Options.LoadCode` also exist (read `'false'` with `Load='true'`); WFlash leaves them alone. Not existing: `Enabled`, `Enable`, `Use`, `Used`, `Active`, `Checked`, `Options.Load`.
+
+Workspace observed: rows FFI (1), CAL (2, relative name), BM `FBL_M7_LIP_RfeClock_Image.bin` (3, offset `0x0`), FBL `Radar_SUZ05_Gen7_FBL.bin` (4, first read `0x0`, then `0xF1000` after the user corrected it). `App_M7` symbol files: app ELF, `Radar_SUZ05_Gen7_BM.elf`, `Radar_SUZ05_Gen7_FBL.elf`.
+
+Not yet observed: how winIDEA programs overlapping rows (Vòng 8 part B) and pipelines by `sha` (spike 15).
+
 ### Matching SDK location
 
 `C:\Data\_Devtools\Winidea408\Python\Lib\site-packages\isystem_connect-9.21.408.1.dist-info`: winIDEA ships its own Python with `isystem.connect` 9.21.408.1. There is no wheel to install. `C:\Data\_Devtools\Winidea408\Python\python.exe` reports Python `3.13.12 (MSC v.1944 64 bit)` and `ic.getModuleVersion() -> 9.21.408.1`. All spike runs so far used 9.26.11.
