@@ -70,6 +70,9 @@ class AppSettings:
     # Profile file name (e.g. "saf.yaml") -> CI project typed in Load from GitLab.
     ci_project_overrides: dict[str, str] = field(default_factory=dict)
     ci_job_name: str = ""
+    # Profile file name -> the developer's source repo folder, and the last build chosen.
+    source_repos: dict[str, str] = field(default_factory=dict)
+    last_build: dict[str, str] = field(default_factory=dict)
 
     def resolved_cache_dir(self) -> Path:
         return Path(self.cache_dir) if self.cache_dir else default_cache_dir()

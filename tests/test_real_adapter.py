@@ -322,7 +322,7 @@ def test_workflow_stops_before_programming_when_the_file_is_named_differently(ad
 def _prepare_flash(world, tmp_path, corrupt=False):
     world.workspace_dir = str(tmp_path)
     world.options[f"{DEVICE}.DownloadFiles[1].Path"] = "RAD_SUZ05_FFI.s3"
-    world.options[f"{DEVICE}.DownloadFiles[2].Path"] = "CAL.bin"
+    world.options[f"{DEVICE}.DownloadFiles[2].Path"] = "CAL.hex"
     (tmp_path / "RAD_SUZ05_FFI.s3").write_text(_s3(0x100, b"\x11" * 16) + "\n")
     world.flash = {0x100 + i: 0x11 for i in range(16)}
     if corrupt:
@@ -494,3 +494,50 @@ def test_binding_errors_stay_out_of_the_message_and_go_to_the_log(connected, wor
         connected.read_programs()
     assert "E_INVALIDARG" not in str(err.value)
     assert any("E_INVALIDARG" in r.getMessage() for r in caplog.records)
+
+
+def test_verify_compares_only_what_a_later_row_did_not_overwrite(connected, world, tmp_path):
+    world.workspace_dir = str(tmp_path)
+    world.options[f"{DEVICE}.DownloadFiles[1].Path"] = "RAD_SUZ05_FFI.s3"
+    world.options[f"{DEVICE}.DownloadFiles[2].Path"] = "BM.bin"
+    world.options[f"{DEVICE}.DownloadFiles[2].Offset"] = "0x104"
+    (tmp_path / "RAD_SUZ05_FFI.s3").write_text(_s3(0x100, b"\x11" * 16) + "\n")
+    (tmp_path / "BM.bin").write_bytes(b"\x22" * 4)
+    world.flash = {0x100 + i: 0x11 for i in range(16)}
+    world.flash.update({0x104 + i: 0x22 for i in range(4)})
+    connected.verify_flash(lambda p, m: None)  # no false difference where BM covers the FFI
+    world.flash[0x105] = 0xFF
+    with pytest.raises(FlashError) as err:
+        connected.verify_flash(lambda p, m: None)
+    assert "0x000105" in str(err.value) and "BM.bin" in str(err.value)
+
+
+def test_read_program_and_symbol_rows(connected, world):
+    world.options["/IDE/System.Debug.Applications[0].SymbolFiles.File[0].Load"] = "true"
+    world.options["/IDE/System.Debug.Applications[1].SymbolFiles.File[0].Load"] = "false"
+    world.options["/IDE/System.Debug.Applications[2].SymbolFiles.File[0].Load"] = "true"
+    world.options["/IDE/System.Debug.Applications[2].SymbolFiles.File[1].Load"] = "true"
+    rows = connected.read_program_rows()
+    assert [(r.index, r.name, r.enabled, r.offset) for r in rows][:2] == [
+        (0, "Radar_SUZ05_Gen7.s3", False, 0x1AA000), (1, "RAD_SUZ05_FFI.s3", True, 0)]
+    symbols = connected.read_symbol_rows()
+    assert (symbols[0].name, symbols[0].enabled) == ("App_M7/Radar_SUZ05_Gen7.elf", True)
+    assert symbols[1].enabled is False
+
+
+def test_set_program_row_writes_path_and_tick_and_reads_back(connected, world):
+    connected.set_program_row(1, path="C:/new/RAD_SUZ05_FFI.s3", tick=False)
+    assert world.options[f"{DEVICE}.DownloadFiles[1].Path"] == "C:/new/RAD_SUZ05_FFI.s3"
+    assert world.options[f"{DEVICE}.DownloadFiles[1].Enabled"] == "false"
+
+
+def test_set_symbol_row_writes_the_load_field(connected, world):
+    world.options["/IDE/System.Debug.Applications[0].SymbolFiles.File[0].Load"] = "false"
+    connected.set_symbol_row(0, 0, tick=True)
+    assert world.options["/IDE/System.Debug.Applications[0].SymbolFiles.File[0].Load"] == "true"
+
+
+def test_a_tick_winidea_does_not_keep_is_an_error(connected, world):
+    world.set_stores = "true"
+    with pytest.raises(WinIDEAError):
+        connected.set_program_row(1, tick=False)

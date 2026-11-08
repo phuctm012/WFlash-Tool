@@ -17,8 +17,8 @@ from functools import partial
 from pathlib import Path
 
 from PySide6.QtCore import QEvent, Qt
-from PySide6.QtGui import QColor, QFontDatabase
-from PySide6.QtWidgets import QComboBox, QHBoxLayout, QHeaderView, QLabel, QPushButton, QTableWidgetItem
+from PySide6.QtGui import QColor
+from PySide6.QtWidgets import QComboBox, QHBoxLayout, QHeaderView, QLabel, QPushButton, QTableWidget, QTableWidgetItem
 
 from wflash.core.file_matcher import (
     MappingRow,
@@ -33,7 +33,8 @@ from wflash.gui.theme import current_theme
 
 log = get_logger("ui.mapping")
 
-NUMBER_COLUMN, TYPE_COLUMN, TARGET_COLUMN, PATTERN_COLUMN, FILE_COLUMN = range(5)
+NUMBER_COLUMN, SOURCE_COLUMN, FILE_COLUMN, OFFSET_COLUMN = range(4)
+FIXED_COLUMN_WIDTHS = {NUMBER_COLUMN: 36, SOURCE_COLUMN: 70, OFFSET_COLUMN: 80}
 NONE_TEXT = "-- select file --"
 NO_FIRMWARE_TITLE = "No firmware loaded — use Load from GitLab…"
 HINT_NO_FIRMWARE = "Load firmware to fill the mapping."
@@ -61,16 +62,22 @@ class MappingTableMixin:
         self._source_rows: dict[str, list[MappingRow]] = {}
         self._source_loaded: dict[str, FirmwareSource] = {}
         self._source_widgets: dict[str, tuple[QPushButton, QLabel]] = {}
-        header = self.ui.tableWidget_mapping.horizontalHeader()
-        for column in (NUMBER_COLUMN, TYPE_COLUMN, TARGET_COLUMN, PATTERN_COLUMN):
-            header.setSectionResizeMode(column, QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(FILE_COLUMN, QHeaderView.ResizeMode.Stretch)
+        self._row_cells: list[tuple[QTableWidget, int]] = []  # mapping row -> (table, row in it)
+        for table in self.file_tables():
+            header = table.horizontalHeader()
+            for column, width in FIXED_COLUMN_WIDTHS.items():
+                header.setSectionResizeMode(column, QHeaderView.ResizeMode.Fixed)
+                header.resizeSection(column, width)
+            header.setSectionResizeMode(FILE_COLUMN, QHeaderView.ResizeMode.Stretch)
         self._show_firmware_source(None, None)
         self._update_mapping_hint()
 
     def on_firmware_ready(self, path: Path, source: FirmwareSource) -> None:
         """Build the mapping for freshly downloaded (or cached) firmware from Load from GitLab."""
         if self.profile is None or self._closing:
+            return
+        if getattr(self, "developer_mode", lambda: False)():
+            self.on_developer_firmware(path, source)
             return
         if self.profile.sources:
             self._on_source_ready(path, source)
@@ -189,35 +196,43 @@ class MappingTableMixin:
         self.ui.label_sourceCache.setText(source.cache_note)
         self.ui.frame_sourceCard.setToolTip(str(path) if path else "")
 
+    def file_tables(self) -> tuple[QTableWidget, QTableWidget]:
+        return self.ui.tableWidget_programFiles, self.ui.tableWidget_symbolFiles
+
     def set_mapping_rows(self, rows: list[MappingRow], root: Path | None) -> None:
-        table = self.ui.tableWidget_mapping
-        fixed = QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont)
+        """Program rows go to Program Files, symbol rows to Symbol Files, each numbered in order."""
         self._mapping_rows = rows
         self.artifact_root = root
-        table.setRowCount(len(rows))
+        self._row_cells = []
+        programs, symbols = self.file_tables()
+        for table in (programs, symbols):
+            table.setRowCount(0)
         for index, row in enumerate(rows):
-            number = QTableWidgetItem(str(index + 1))
+            table = programs if row.kind == "program" else symbols
+            at = table.rowCount()
+            table.insertRow(at)
+            self._row_cells.append((table, at))
+            number = QTableWidgetItem(str(at + 1))
             number.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            table.setItem(index, NUMBER_COLUMN, number)
-            kind_text = "Program" if row.kind == "program" else "Symbols"
-            table.setItem(index, TYPE_COLUMN, QTableWidgetItem(kind_text))
-            table.setItem(index, TARGET_COLUMN, QTableWidgetItem(row.target))
-            pattern = QTableWidgetItem(row.pattern)
-            pattern.setFont(fixed)
-            table.setItem(index, PATTERN_COLUMN, pattern)
+            table.setItem(at, NUMBER_COLUMN, number)
+            source = (row.role or row.source or "-").upper()
+            table.setItem(at, SOURCE_COLUMN, QTableWidgetItem(source))
+            offset = f"0x{row.offset:X}" if row.kind == "program" and row.offset is not None else ""
+            table.setItem(at, OFFSET_COLUMN, QTableWidgetItem(offset))
             combo = QComboBox()
+            combo.setToolTip(f"{row.target} · {row.pattern}")
             combo.installEventFilter(self)  # swallow wheel events, see eventFilter
-            combo.addItem(NONE_TEXT, None)
+            combo.addItem(row.missing_text or NONE_TEXT, None)
             base = row.root or root
             options = row.candidates or (candidates_for_kind(base, row.kind) if base is not None else [])
             for option in options:
-                combo.addItem(option.relative_to(base).as_posix(), str(option))
+                combo.addItem(option.relative_to(base).as_posix() if base else option.name, str(option))
             if row.selected is not None:
                 combo.setCurrentIndex(options.index(row.selected) + 1)
             # GUI-thread signal from a GUI-thread widget: a partial is safe here. The
             # lambda/partial ban (threading rule 8) is about signals emitted from pool threads.
             combo.currentIndexChanged.connect(partial(self._on_mapping_choice, index))
-            table.setCellWidget(index, FILE_COLUMN, combo)
+            table.setCellWidget(at, FILE_COLUMN, combo)
             self._paint_mapping_row(index)
         self._update_mapping_hint()
         self._update_flash_controls()
@@ -234,13 +249,16 @@ class MappingTableMixin:
         self.firmware_source = None
         self.ctx.source = {}
         self.rebuild_source_slots()
-        self.ui.tableWidget_mapping.setRowCount(0)
+        self._row_cells = []
+        for table in self.file_tables():
+            table.setRowCount(0)
         self._show_firmware_source(None, None)
         self._update_mapping_hint()
         self._update_flash_controls()
 
     def mapping_combo(self, index: int) -> QComboBox:
-        return self.ui.tableWidget_mapping.cellWidget(index, FILE_COLUMN)
+        table, at = self._row_cells[index]
+        return table.cellWidget(at, FILE_COLUMN)
 
     def _on_mapping_choice(self, index: int, _combo_index: int) -> None:
         data = self.mapping_combo(index).currentData()
@@ -254,7 +272,8 @@ class MappingTableMixin:
         combo = self.mapping_combo(index)
         combo.setProperty("missing", not ok)
         combo.setStyleSheet("" if ok else missing_style())
-        number = self.ui.tableWidget_mapping.item(index, NUMBER_COLUMN)
+        table, at = self._row_cells[index]
+        number = table.item(at, NUMBER_COLUMN)
         if number is not None:
             number.setBackground(QColor(current_theme()["soft"]))
 

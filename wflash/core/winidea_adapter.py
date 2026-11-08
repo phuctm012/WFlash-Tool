@@ -9,9 +9,10 @@ from pathlib import Path, PureWindowsPath
 from typing import Callable, Protocol
 
 from wflash.core.cancel import CancelToken
+from wflash.core.flash_plan import ProgramRow, SymbolRow
 from wflash.core.errors import CancelledError, FlashError, MappingError, WinIDEAError
 from wflash.core.logging_setup import CALLS_LOGGER, get_logger
-from wflash.core.srec import is_srec_file, parse_srec, sample_ranges
+from wflash.core.srec import is_image_file, read_image, sample_ranges, visible_segments
 
 log = get_logger("winidea")
 calls_log = logging.getLogger(CALLS_LOGGER)
@@ -71,6 +72,17 @@ class WinIDEAAdapter(Protocol):
 
     def reset(self, run: bool) -> None: ...
 
+    # Row view of the workspace, for the planned flash (profiles with builds).
+    def workspace_dir(self) -> Path: ...
+
+    def read_program_rows(self) -> list[ProgramRow]: ...
+
+    def read_symbol_rows(self) -> list[SymbolRow]: ...
+
+    def set_program_row(self, index: int, path: str | None = None, tick: bool | None = None) -> None: ...
+
+    def set_symbol_row(self, app_index: int, file_index: int, path: str | None = None, tick: bool | None = None) -> None: ...
+
 
 def create_adapter(kind: str) -> WinIDEAAdapter:
     if kind == "fake":
@@ -86,6 +98,8 @@ DEVICES = "/iOPEN/UMIConfig.Devices.Devices"
 DEVICE = f"{DEVICES}[0]"
 DOWNLOAD_FILES = f"{DEVICE}.DownloadFiles"
 APPLICATIONS = "/IDE/System.Debug.Applications"
+# Observed with spike 14 (2026-11-08): the tick of a symbol file, "true"/"false", writable and read back.
+SYMBOL_TICK_FIELD = "Load"
 EXPECTED_PROGRAM_S = 100  # observed 98.8 s and 99.0 s; only for the estimated progress
 MAX_ESTIMATED_PERCENT = 95
 PROGRESS_TICK_S = 1.0
@@ -442,18 +456,19 @@ class RealWinIDEAAdapter:
         ic, cmgr, ide = self._session()
         umi = ic.CUMIController(cmgr)
         workspace_dir = ide.getPath(ic.CIDEController.WORKSPACE_DIR)
-        samples = []
+        images: list[list[tuple[int, bytes]]] = []
+        names: list[str] = []
         try:
             for i in range(ide.getDynamicOptionSize(DOWNLOAD_FILES)):
                 if self._read(f"{DOWNLOAD_FILES}[{i}].Enabled") != "true":
                     continue
                 stored = self._read(f"{DOWNLOAD_FILES}[{i}].Path")
-                if not is_srec_file(stored):
-                    log.warning("Verify skips %s: not an S-record file", stored)
+                if not is_image_file(stored):
+                    log.warning("Verify skips %s: unknown file type", stored)
                     continue
                 offset = int(self._read(f"{DOWNLOAD_FILES}[{i}].Offset"), 16)
-                segments = parse_srec(Path(workspace_dir) / stored)
-                samples += [(address + offset, data, stored) for address, data in sample_ranges(segments)]
+                images.append(read_image(Path(workspace_dir) / stored, offset))
+                names.append(stored)
         except OSError as exc:
             log.error("Cannot read a flashed file for the verify: %s", exc)
             raise FlashError("Cannot read a flashed file for the check.") from exc
@@ -461,6 +476,12 @@ class RealWinIDEAAdapter:
             raise
         except Exception as exc:
             raise self._fail("preparing the verify", exc) from exc
+        # Rows are written in order, so a later row covers an earlier one; compare what stays on the flash.
+        samples = [
+            (address, data, name)
+            for name, segments in zip(names, visible_segments(images))
+            for address, data in sample_ranges(segments)
+        ]
         for done, (address, expected, stored) in enumerate(samples, start=1):
             data = ic.ByteVector(len(expected))  # read() raises unless the vector is already sized
             calls_log.debug("CUMIController.read 0x%06X %d", address, len(expected))
@@ -485,3 +506,71 @@ class RealWinIDEAAdapter:
                 progress(done * 100 // len(samples), "Verifying flash samples")
             except CancelledError:
                 pass  # a Cancel pressed just before the lock; the flash is already done, finish the check
+
+    # -- rows, for the planned flash (spike 14: .Enabled and .Load write and read back) --
+    def workspace_dir(self) -> Path:
+        ic, _cmgr, ide = self._session()
+        return Path(ide.getPath(ic.CIDEController.WORKSPACE_DIR))
+
+    def read_program_rows(self) -> list[ProgramRow]:
+        try:
+            self._check_device()
+            ide = self._session()[2]
+            rows = []
+            for i in range(ide.getDynamicOptionSize(DOWNLOAD_FILES)):
+                path = self._read(f"{DOWNLOAD_FILES}[{i}].Path")
+                rows.append(ProgramRow(
+                    i, PureWindowsPath(path).name, path,
+                    self._read(f"{DOWNLOAD_FILES}[{i}].Enabled") == "true",
+                    int(self._read(f"{DOWNLOAD_FILES}[{i}].Offset"), 16),
+                ))
+            return rows
+        except WinIDEAError:
+            raise
+        except Exception as exc:
+            raise self._fail("reading the download files", exc) from exc
+
+    def read_symbol_rows(self) -> list[SymbolRow]:
+        rows: list[SymbolRow] = []
+        try:
+            for i in range(1000):
+                try:
+                    app = self._read(f"{APPLICATIONS}[{i}].Name")
+                except ValueError as exc:
+                    if _is_out_of_range(exc):
+                        return rows
+                    raise
+                for j, path in enumerate(self._read_symbol_paths(i)):
+                    tick = self._read(f"{APPLICATIONS}[{i}].SymbolFiles.File[{j}].{SYMBOL_TICK_FIELD}")
+                    rows.append(SymbolRow(i, j, f"{app}/{PureWindowsPath(path).name}", path, tick == "true"))
+        except WinIDEAError:
+            raise
+        except Exception as exc:
+            raise self._fail("reading the symbol files", exc) from exc
+        return rows
+
+    def _write_option(self, url: str, value: str, label: str) -> None:
+        ide = self._session()[2]
+        calls_log.debug("setOption %s = %s", url, value)
+        try:
+            ide.setOption(url, value)
+            stored = ide.getOptionStr(url)
+        except Exception as exc:
+            raise self._fail(f"changing {label}", exc) from exc
+        if stored != value:
+            log.error("winIDEA stored %r instead of %r for %s", stored, value, url)
+            raise WinIDEAError(f"winIDEA did not accept the change to {label}.")
+
+    def set_program_row(self, index: int, path: str | None = None, tick: bool | None = None) -> None:
+        row = f"{DOWNLOAD_FILES}[{index}]"
+        if path is not None:
+            self._write_option(f"{row}.Path", path, f"download row {index}")
+        if tick is not None:
+            self._write_option(f"{row}.Enabled", "true" if tick else "false", f"download row {index}")
+
+    def set_symbol_row(self, app_index: int, file_index: int, path: str | None = None, tick: bool | None = None) -> None:
+        row = f"{APPLICATIONS}[{app_index}].SymbolFiles.File[{file_index}]"
+        if path is not None:
+            self._write_option(f"{row}.Path", path, f"symbol file {file_index}")
+        if tick is not None:
+            self._write_option(f"{row}.{SYMBOL_TICK_FIELD}", "true" if tick else "false", f"symbol file {file_index}")

@@ -213,3 +213,22 @@ def test_verify_false_is_passed_to_requests():
     assert client.list_refs(42) == []
     assert all(call.request.req_kwargs["verify"] is False for call in responses.calls)
     clear_secrets()
+
+
+@responses.activate
+def test_list_pipelines_for_commit_asks_by_sha(client):
+    responses.get(
+        f"{API}/projects/42/pipelines",
+        match=[matchers.query_param_matcher({"sha": "abc123", "per_page": "10", "order_by": "id", "sort": "desc"})],
+        json=[{"id": 100, "ref": "main", "status": "success", "sha": "abc123", "created_at": "2026-10-01T10:00:00Z"}],
+    )
+    assert client.list_pipelines_for_commit(42, "abc123")[0].id == 100
+
+
+@responses.activate
+def test_list_jobs_can_keep_jobs_without_an_archive(client):
+    responses.get(
+        f"{API}/projects/42/pipelines/100/jobs",
+        json=[{"id": 3, "name": "manual_job", "stage": "build", "status": "manual", "artifacts": []}],
+    )
+    assert [j.status for j in client.list_jobs(42, 100, archived_only=False)] == ["manual"]

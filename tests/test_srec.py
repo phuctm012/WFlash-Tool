@@ -1,4 +1,4 @@
-from wflash.core.srec import is_srec_file, parse_srec, sample_ranges
+from wflash.core.srec import is_srec_file, parse_srec, read_image, sample_ranges, visible_segments
 
 
 def record(address: int, data: bytes) -> str:
@@ -39,3 +39,25 @@ def test_is_srec_file():
     assert is_srec_file("RAD_SUZ05_FFI.s3")
     assert is_srec_file("x_CAL.SRE")
     assert not is_srec_file("image.bin")
+
+
+def test_visible_segments_removes_what_a_later_image_overwrites():
+    ffi = [(0x0, b"A" * 100)]
+    bm = [(0x10, b"B" * 10)]
+    assert visible_segments([ffi, bm]) == [[(0x0, b"A" * 16), (0x1A, b"A" * 74)], [(0x10, b"B" * 10)]]
+
+
+def test_visible_segments_can_remove_a_whole_segment():
+    assert visible_segments([[(0x10, b"A" * 4)], [(0x0, b"B" * 100)]]) == [[], [(0x0, b"B" * 100)]]
+
+
+def test_read_image_applies_the_offset_to_a_bin(tmp_path):
+    path = tmp_path / "x.bin"
+    path.write_bytes(b"abc")
+    assert read_image(path, 0xF1000) == [(0xF1000, b"abc")]
+
+
+def test_read_image_applies_the_offset_to_srecords(tmp_path):
+    path = tmp_path / "x.s3"
+    path.write_text(record(0x100, b"\x11") + "\n")
+    assert read_image(path, 0x1000) == [(0x1100, b"\x11")]

@@ -89,12 +89,6 @@ def test_list_profiles_missing_dir(tmp_path):
     assert list_profiles(tmp_path / "missing") == []
 
 
-def test_suz05_profile_targets_only_the_ffi_row_and_the_m7_elf():
-    from pathlib import Path
-
-    profile = load_profile(Path(__file__).parents[1] / "profiles" / "suz05_m7_ffi.yaml")
-    assert [p.winidea_entry for p in profile.programs] == ["RAD_SUZ05_FFI.s3"]
-    assert [a.winidea_app for a in profile.applications] == ["App_M7/Radar_SUZ05_Gen7.elf"]
 
 
 MULTI = """
@@ -146,3 +140,41 @@ def test_profile_rejects_a_target_source_without_sources(tmp_path):
     text = "name: x\ngitlab: {project: g/a}\nprograms:\n  - {winidea_entry: a, source: s, pattern: '*'}\n"
     with pytest.raises(ProfileError, match="unknown source"):
         _load(tmp_path, text)
+
+
+def test_suz05_profile_declares_builds_in_flash_order():
+    profile = load_profile(ROOT / "profiles" / "suz05_m7_ffi.yaml")
+    assert [p.role for p in profile.programs] == ["ffi", "cal", "bm", "fbl"]
+    assert profile.programs[3].offset == 0xF1000
+    assert profile.build("strx_3p5mb_no_HTSM").bm_job == "build_STRX_3P5MB"
+    assert profile.build("stingray_uds27_bypass").elf_job == "build_STINGRAY_3P5MB_UDS27_BYPASS"
+    assert profile.debug_sources["fbl"].job == "build"
+    assert len(profile.builds) == 4
+
+
+BUILDS = """
+name: b
+gitlab: {project: g/a}
+builds:
+  - {name: one, ffi_job: f, elf_job: e, bm_job: m}
+programs:
+  - {role: ffi, winidea_entry: a.s3, pattern: "**/a.s3"}
+  - {role: cal, pattern: "*_CAL_*.sre"}
+applications:
+  - {role: elf, winidea_app: "App/b.elf", pattern: "**/b.elf"}
+"""
+
+
+def test_only_a_cal_row_may_omit_its_entry(tmp_path):
+    with pytest.raises(ProfileError, match="winidea_entry"):
+        _load(tmp_path, BUILDS.replace('winidea_entry: a.s3, ', ""))
+
+
+def test_builds_require_ffi_cal_and_elf_roles(tmp_path):
+    with pytest.raises(ProfileError, match="cal"):
+        _load(tmp_path, BUILDS.replace('  - {role: cal, pattern: "*_CAL_*.sre"}\n', ""))
+
+
+def test_unknown_build_is_a_profile_error(tmp_path):
+    with pytest.raises(ProfileError):
+        _load(tmp_path, BUILDS).build("nope")

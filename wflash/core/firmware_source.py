@@ -15,6 +15,7 @@ class FirmwareSource:
     detail: str  # "group/saf85xx-sw · main · pipeline #100"
     cache_note: str  # "Cached · 3 files" / "Downloaded · 3 files"
     commit: str = ""  # the pipeline's commit
+    job_name: str = ""  # the CI job the artifact belongs to
 
     def to_dict(self) -> dict[str, str]:
         return asdict(self)

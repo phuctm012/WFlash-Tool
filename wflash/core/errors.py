@@ -31,6 +31,10 @@ class WinIDEAError(WFlashError):
     default_hint = "Make sure winIDEA is running with the correct workspace."
 
 
+class SourceRepoError(WFlashError):
+    default_hint = "Check the source repo path, and that git is installed."
+
+
 class FlashError(WFlashError):
     default_hint = "See the log for details and try a manual download in winIDEA."
 

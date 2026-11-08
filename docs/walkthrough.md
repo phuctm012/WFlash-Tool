@@ -1243,3 +1243,215 @@ User xác nhận luồng hoàn chỉnh: khi gặp lỗi monitor, WFlash báo l�
 ### Đã kiểm tra
 
 - Đối chiếu tên file, class và method được nhắc tới với repo. Chỉ đổi tài liệu, không chạy lại test.
+
+## Phase 3.0: Spec cho developer debug
+
+User muốn tool phục vụ developer debug: đồng bộ firmware với commit của source repo, checkout từ app, cache theo branch, Advanced Debug để flash thêm BM và FBL từ repo riêng, CAL tự tìm cạnh workspace. Đã duyệt giao diện qua mockup. Spec nêu rõ các điểm chưa kiểm chứng phải thử trước (ghi dấu tick, các dòng chồng nhau khi flash, tìm pipeline theo commit). Chưa viết code.
+
+### Thay đổi
+
+- **`docs/superpowers/specs/2026-11-07-wflash-developer-debug-design.md`** (mới).
+- **`docs/superpowers/mockups/developer-ui/`** (mới): bản sao mockup đã duyệt.
+
+### Đã kiểm tra
+
+- Tự rà soát spec theo các quyết định của user. Chỉ có tài liệu, không chạy test.
+
+## Phase 3.1: Plan 3 cho developer debug
+
+Viết plan 11 task theo spec đã duyệt. Task 1 là spike trên máy thật, các task lõi không phụ thuộc phần cứng làm được song song, còn phần adapter và luồng flash chỉ bắt đầu sau khi có kết quả spike. Chưa viết code ứng dụng.
+
+### Thay đổi
+
+- **`docs/superpowers/plans/2026-11-07-wflash-developer-debug.md`** (mới).
+
+### Đã kiểm tra
+
+- Tự rà soát plan theo spec. Chỉ có tài liệu.
+
+## Phase 3.2: Spike 14, 15 và Vòng 8
+
+Trước khi viết phần flash mới, cần biết API có ghi được dấu tick không, field nào là dấu tick của Symbol File, winIDEA xử lý các dòng chồng nhau thế nào, và GitLab có tìm được pipeline theo commit không. Chưa có gì trong số này từng chạy trên máy thật.
+
+### Thay đổi
+
+- **`spike/14_tick_options.py`**, **`spike/15_pipeline_sha.py`** (mới).
+- **`spike/README.md`**, **`docs/windows_test_guide.md`**: mục "Vòng 8", ghi rõ phần ghi flash và cách khôi phục.
+
+### Đã kiểm tra
+
+- Chạy 14 và 15 với module giả: đọc in đúng, đảo rồi khôi phục đúng, token không xuất hiện trong file kết quả. Chưa chạy trên máy thật.
+
+## Phase 3.3: Đọc source repo và checkout
+
+Module mới gọi `git` qua `subprocess`, không dùng Qt, để đọc branch, commit, thay đổi chưa commit, liệt kê branch và commit, fetch, checkout. Checkout từ chối khi có thay đổi chưa commit và không bao giờ dùng `--force`, `stash`, `reset`, `clean`. `GIT_TERMINAL_PROMPT=0` để git không treo chờ nhập mật khẩu.
+
+### Thay đổi
+
+- **`wflash/core/source_repo.py`** (mới), **`wflash/core/errors.py`**: `SourceRepoError`.
+- **`tests/test_source_repo.py`** (mới): chạy trên git repo tạm thật.
+
+### Đã kiểm tra
+
+- RED rồi GREEN với `pytest tests/test_source_repo.py`. Chưa chạy trên Windows.
+
+## Phase 3.4: Profile có cấu hình build, vai trò và nguồn debug
+
+Profile SUZ05 giờ khai báo 4 cấu hình build (cặp job FFI, ELF và job BM tương ứng), vai trò từng file, offset của BM và FBL, và project riêng của BM, FBL. Thứ tự trong `programs` là thứ tự flash. Lưu ý: giao diện chưa dùng phần này (Task 9), nên trong lúc phát triển profile SUZ05 chưa dùng được với nút Load cũ; nhánh này chưa merge nên không ảnh hưởng `main`.
+
+### Thay đổi
+
+- **`wflash/core/profile.py`**, **`wflash/core/file_matcher.py`**, **`profiles/suz05_m7_ffi.yaml`**, **`tests/test_profile.py`**.
+
+### Đã kiểm tra
+
+- RED rồi GREEN với `pytest tests/test_profile.py`; `pytest -q`.
+
+## Phase 3.5: Tìm cặp job của một cấu hình build theo commit
+
+`find_build_jobs` tìm pipeline đúng commit, lấy pipeline mới nhất có cả job FFI và ELF thành công, và không bao giờ chuyển sang commit khác. Khi không có, thông báo nêu rõ job nào và trạng thái gì. Lệnh tìm theo `sha` chờ kết quả spike 15 trên GitLab thật.
+
+### Thay đổi
+
+- **`wflash/core/gitlab_client.py`**: `list_pipelines_for_commit`, tham số `archived_only`.
+- **`wflash/core/firmware_fetch.py`**: `find_build_jobs`.
+- **`tests/test_firmware_fetch.py`**, **`tests/test_gitlab_client.py`**: test mới.
+
+### Đã kiểm tra
+
+- RED rồi GREEN với hai file test trên. Chưa chạy với GitLab thật.
+
+## Phase 3.6: Cache theo branch, commit và cấu hình
+
+Firmware tải theo commit nằm trong thư mục có tên cho biết đang debug gì: `<branch>\<commit8>_<build>\FFI`, và `BM\<ref>\<commit8>_<job>` cho BM, FBL. Ký tự Windows không cho phép được đổi thành `_`, tên quá dài được rút gọn kèm hash. Giải nén vào thư mục tạm rồi mới đổi tên. Clear cache dọn cả layout mới và layout cũ, và không đụng tới file khác trong thư mục cache. Popup GitLab vẫn dùng layout cũ.
+
+### Thay đổi
+
+- **`wflash/core/artifact_cache.py`**: `safe_segment`, `build_cache_path`, `debug_cache_path`, `NamedArtifactCache`.
+- **`wflash/core/firmware_fetch.py`**: `fetch_named_artifact`.
+- **`wflash/gui/preferences_dialog.py`**: Clear cache dùng cache mới.
+- **`tests/test_artifact_cache.py`**, **`tests/test_firmware_fetch.py`**.
+
+### Đã kiểm tra
+
+- RED rồi GREEN; `pytest -q`.
+
+## Phase 3.7: Kiểm tra workspace và lập kế hoạch flash
+
+Trước khi đổi bất cứ thứ gì, `make_plan` kiểm tra đủ dòng, thứ tự FFI → CAL → BM → FBL, offset của BM và FBL, không có dòng lạ đang tick, và CAL có sẵn. Nó trả về danh sách thay đổi path và dấu tick. Đây là logic thuần, chưa gọi winIDEA, nên test được đầy đủ trên macOS. Tắt Advanced Debug thì BM và FBL bị bỏ tick và giữ nguyên path.
+
+### Thay đổi
+
+- **`wflash/core/flash_plan.py`**, **`tests/test_flash_plan.py`** (mới).
+
+### Đã kiểm tra
+
+- RED rồi GREEN với `pytest tests/test_flash_plan.py`; `pytest -q`.
+
+## Phase 3.8: Verify với các file chồng nhau
+
+BM và FBL ghi đè lên một phần FFI, nên so mẫu theo từng file sẽ báo lỗi sai. Verify giờ đọc cả file `.bin` theo offset, và chỉ so phần của mỗi file còn nằm trên flash sau khi các dòng sau ghi đè.
+
+### Thay đổi
+
+- **`wflash/core/srec.py`**: `read_image`, `visible_segments`, `is_image_file`.
+- **`wflash/core/winidea_adapter.py`**: `verify_flash` dùng các hàm trên.
+- **`tests/test_srec.py`**, **`tests/test_real_adapter.py`**.
+
+### Đã kiểm tra
+
+- RED rồi GREEN; `pytest -q`. Hành vi ghi chồng thật của winIDEA còn chờ phần B của Vòng 8.
+
+## Phase 3.9: Adapter ghi dấu tick và luồng flash theo kế hoạch
+
+Spike 14 cho thấy ghi được dấu tick của dòng Download Files (`.Enabled`) và của Symbol File (`.Load`), đọc lại đúng. Profile có `builds` giờ đi luồng mới: đọc toàn bộ dòng, kiểm tra bằng `make_plan`, đổi path và dấu tick, rồi flash như cũ (reset, `begin_program`, đọc xác nhận). Khi lỗi chỉ khôi phục path, dấu tick giữ nguyên theo quyết định của user. Thiếu file BM khi bật Advanced Debug thì báo lỗi trước khi đổi gì. Profile không có `builds` vẫn đi luồng cũ.
+
+### Thay đổi
+
+- **`wflash/core/winidea_adapter.py`**: `SYMBOL_TICK_FIELD = "Load"`, `workspace_dir`, `read_program_rows`, `read_symbol_rows`, `set_program_row`, `set_symbol_row`; Protocol cập nhật.
+- **`wflash/core/fake_adapter.py`**: cùng các hàm trên.
+- **`wflash/core/flash_workflow.py`**: `_run_planned`, `_finish`, `_restore_row_paths`; `FlashRequest.profile`, `advanced`, `cal_file`.
+- **`wflash/core/flash_plan.py`**: báo lỗi khi file chưa nạp. **`wflash/core/debug_bundle.py`**: `snapshot_rows`.
+- **`docs/winidea_api_notes.md`**: kết quả spike 14.
+- **`tests/test_flash_workflow.py`**, **`tests/test_real_adapter.py`**.
+
+### Đã kiểm tra
+
+- RED rồi GREEN; `pytest -q`, `pytest -k thread -q`, `tools/stress_test.py`. Chưa chạy luồng mới trên ECU.
+
+## Phase 3.10: Spike 15: tìm pipeline theo commit chạy được
+
+GitLab thật trả về pipeline đúng commit. Trạng thái chung của pipeline là `manual` vì còn job chạy tay, nên tool chỉ xét hai job cần dùng, đúng như `find_build_jobs` đang làm. Các job `manual` và `skipped` không có artifact, và thông báo lỗi nêu rõ trạng thái đó.
+
+### Thay đổi
+
+- **`docs/winidea_api_notes.md`**: kết quả spike 15.
+
+### Đã kiểm tra
+
+- Đối chiếu kết quả với logic `find_build_jobs` và test hiện có. Chỉ đổi tài liệu.
+
+## Phase 3.11: Giao diện developer: source repo, build, Advanced Debug, hai bảng file
+
+Profile có `builds` giờ hiện panel developer thay cho nút Load from GitLab. Người dùng chọn thư mục source repo, WFlash đọc branch, commit và cảnh báo khi có thay đổi chưa commit (chỉ cảnh báo, không chặn). Nút "Load firmware for <commit>" tìm pipeline của commit đó, rồi tải FFI và ELF theo build đã chọn vào thư mục cache đặt theo branch. CAL được tìm cạnh file `.xjrf`. Advanced Debug thêm dòng BM và FBL; khi tắt thì ẩn hai dòng này và lúc flash sẽ bỏ tick chúng. Bảng file tách thành Program Files (có cột Offset) và Symbol Files, bỏ cột winIDEA target. Flash bị khoá khi thiếu CAL hoặc BM lấy từ job khác với job của build, kèm lý do hiện trên banner.
+
+### Thay đổi
+
+- **`wflash/gui/main_window.ui`** và **`ui_main_window.py`** (sinh lại): `scrollArea_setting`, `frame_developer`, `frame_application`, `frame_advancedDebug`, `tableWidget_programFiles`, `tableWidget_symbolFiles`, `label_flashBlocked`.
+- **`wflash/gui/source_panel.py`** (mới): `SourcePanelMixin`; đọc repo và tải build chạy trên worker.
+- **`wflash/gui/mapping_table.py`**: hai bảng, cột Source theo role.
+- **`wflash/gui/flash_mixin.py`**: `source_busy`, `flash_block_reason`, `flash_request_extras`.
+- **`wflash/gui/gitlab_dialog.py`**: `prepare(..., project=, cache=)` cho BM/FBL và chọn job tay.
+- **`wflash/core/file_matcher.py`**, **`settings.py`**, **`firmware_source.py`**, **`fake_adapter.py`**: role, offset, `source_repos`, `last_build`, `job_name`, `workspace`.
+- **`wflash/resources/style*.qss`**: màu cho các khung mới.
+- **`tests/test_gui_source_panel.py`** (mới), **`tests/gui_stubs.py`**: pipeline theo commit giả.
+
+### Đã kiểm tra
+
+- `pytest -q` (432 passed), `pytest -k thread -q` (42 passed), `tools/stress_test.py` (PASS, 0 cảnh báo threading).
+- Chụp cửa sổ offscreen ở 1280×820: bố cục hai bảng và panel cuộn đúng. Chưa xem màu QSS và chưa chạy trên Windows/ECU. Nút Checkout chưa có chức năng (Task 10).
+
+## Phase 3.12: Checkout branch hoặc commit từ WFlash
+
+Nút Checkout… trong panel developer mở hộp thoại liệt kê các branch (local và remote) và tối đa 50 commit mới nhất của branch đang chọn, kèm trạng thái pipeline trên GitLab. Cột Pipeline chỉ để tiện xem: nếu GitLab lỗi hoặc profile không có project thì cột hiện `-` và checkout vẫn chạy bình thường. Chọn commit đầu tiên thì checkout branch; chọn commit cũ hơn thì checkout commit đó ở trạng thái detached. Khi repo có thay đổi chưa commit, checkout bị từ chối, có giải thích và file của người dùng giữ nguyên; WFlash không bao giờ stash, reset hay force. Fetch chỉ chạy `git fetch --prune`. Sau khi checkout xong, panel đọc lại repo; nếu firmware đã nạp thuộc commit khác thì panel ghi chú "Loaded firmware is from another commit." nhưng không khoá Flash.
+
+### Thay đổi
+
+- **`wflash/gui/checkout_dialog.ui`** (mới) và **`ui_checkout_dialog.py`** (sinh bằng pyside6-uic).
+- **`wflash/gui/checkout_dialog.py`** (mới): `CheckoutDialog`. Worker dùng key `checkout-`, có guard `_generation`, `done()` chờ tối đa 10 s và chỉ đóng hộp thoại khi worker đã xong.
+- **`wflash/gui/source_panel.py`**: `open_checkout_dialog`; tín hiệu `checkedOut` gọi `refresh_source_repo`. **`main_window.py`**: `abort_for_close` khi đóng cửa sổ.
+- **`wflash/resources/style*.qss`**: chữ đỏ cho `label_checkoutError`.
+- **`tests/test_gui_checkout_dialog.py`** (mới), **`tests/test_gui_source_panel.py`**, **`tests/test_gui_ui_files.py`**.
+
+### Đã kiểm tra
+
+- `pytest -q` (442 passed), `pytest -k thread -q` (43 passed), `tools/stress_test.py` (PASS); app chạy được với `--adapter fake`.
+- Test dùng repo git thật trên macOS. Chưa thử với repo thật trên Windows: thời gian `git fetch` qua mạng nội bộ và cột Pipeline với GitLab thật.
+
+## Phase 3.13: Stress test cho luồng developer, tài liệu và Vòng 9
+
+Stress test giờ chạy cả luồng developer trên một cửa sổ thật: dùng repo git tạm, nạp build theo commit qua GitLab giả, bật/tắt Advanced Debug ba lần, rồi flash hai lần. Lần đầu tắt Advanced Debug thì BM, FBL bị bỏ tick; lần hai bật thì BM, FBL và ELF của chúng được tick và trỏ vào file mới. Phần races có thêm hai trường hợp: đóng cửa sổ khi đang tải build, và khi đang đọc repo. Tài liệu cập nhật luồng developer, và có hướng dẫn Vòng 9 cho máy Windows.
+
+### Thay đổi
+
+- **`tools/stress_test.py`**: `new_dev_window`, `check_developer_flow`, `deliver_debug`; thêm race đóng cửa sổ trong lúc tải build và đọc repo.
+- **`README.md`**: mục "Chế độ developer", hai bảng file, lệnh uic cho `checkout_dialog.ui`.
+- **`CLAUDE.md`**: ngoại lệ của Approach A cho profile có `builds` (tick BM/FBL, đường dẫn CAL, lỗi thì chỉ trả lại path, không trả lại tick); `source_repo` không bao giờ stash, reset hay force; danh sách file GUI mới.
+- **`docs/windows_test_guide.md`**: Vòng 9.
+
+### Đã kiểm tra
+
+- `pytest -q` (442 passed), `pytest -k thread -q` (43 passed), `tools/stress_test.py` (393 checkpoint, PASS, 0 cảnh báo threading), `main.py --adapter fake --smoke` (exit 0).
+- Chưa có kết quả trên phần cứng: chờ Vòng 8 phần B và Vòng 9.
+
+## Phase 3.14: Vòng 8 phần B đạt: flash bốn dòng chồng nhau
+
+Người dùng chạy trên ECU thật với bốn dòng FFI, CAL, BM (`.bin`, offset `0x0`), FBL (`.bin`, offset `0xF1000`). Cả Debug → Download bấm tay và `begin_program()` đều chỉ có một lần `ERASING`, rồi ghi 79 sector và báo `OK`. Sau mỗi lần, tắt bật nguồn thì ECU chạy đúng. winIDEA chỉ cảnh báo vùng chồng nhau, và dòng nạp sau ghi đè dòng trước: spike 09 đọc được giá trị của BM ở vùng FFI bị BM che. Đây đúng là giả định `visible_segments` đang dùng. Vì vậy có thể làm tiếp Vòng 9.
+
+### Thay đổi
+
+- **`docs/winidea_api_notes.md`**: mục "Round 8 part B".
+
+### Đã kiểm tra
+
+- Đọc Output tay và Output API, `12_begin_program` (99.8 s, trả về `None`), `09_flash_compare` (FFI khớp trừ vùng BM ghi đè, CAL khớp). Chỉ đổi tài liệu. Dòng `PROGRAMMING 0 bytes` ở cuối Output của lần chạy API chưa giải thích được.

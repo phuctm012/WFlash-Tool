@@ -150,14 +150,25 @@ class GitLabClient:
                 for p in resp.json()
             ]
 
-    def list_jobs(self, project_id: int, pipeline_id: int, name_glob: str = "*") -> list[Job]:
+    def list_pipelines_for_commit(self, project_id: int, sha: str, limit: int = 10) -> list[Pipeline]:
+        """Pipelines that ran on this exact commit, newest first."""
+        path = f"/projects/{project_id}/pipelines"
+        params = {"sha": sha, "per_page": max(1, min(limit, 100)), "order_by": "id", "sort": "desc"}
+        resp = self._get(path, params)
+        with _parsing(path):
+            return [
+                Pipeline(p["id"], p.get("ref", ""), p.get("status", ""), p.get("sha", ""), p.get("created_at") or "")
+                for p in resp.json()
+            ]
+
+    def list_jobs(self, project_id: int, pipeline_id: int, name_glob: str = "*", archived_only: bool = True) -> list[Job]:
         path = f"/projects/{project_id}/pipelines/{pipeline_id}/jobs"
         data = self._get_all(path)
         with _parsing(path):
             jobs = [
                 Job(j["id"], j["name"], j.get("stage", ""), j.get("status", ""), j.get("finished_at") or "")
                 for j in data
-                if _has_archive(j) and fnmatch.fnmatchcase(j["name"], name_glob)
+                if (not archived_only or _has_archive(j)) and fnmatch.fnmatchcase(j["name"], name_glob)
             ]
         return sorted(jobs, key=lambda j: j.name)
 

@@ -11,7 +11,7 @@ from pathlib import Path
 
 from PySide6.QtWidgets import QDialog, QDialogButtonBox, QFileDialog, QMessageBox, QWidget
 
-from wflash.core.artifact_cache import ArtifactCache
+from wflash.core.artifact_cache import NamedArtifactCache
 from wflash.core.errors import ArtifactError
 from wflash.core.logging_setup import get_logger
 from wflash.core.settings import AppSettings, bundled_profiles_dir, default_cache_dir
@@ -69,7 +69,7 @@ class PreferencesDialog(QDialog):
             return
         errors: list[ArtifactError] = []
         try:
-            ArtifactCache(root).clear()
+            NamedArtifactCache(root).clear()
         except ArtifactError as exc:
             log.error("Cannot clear the cache %s: %s", root, exc)
             errors.append(exc)

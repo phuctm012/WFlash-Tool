@@ -371,6 +371,20 @@ Both with the real GitLab artifacts and the adapter's path changes; Output of ea
 
 `debug.reset()` followed by `begin_program()` in one session works: 98.8 s, then `stopped=True`, read confirmed, `Done`, ECU ran (user report). **The reset does not prevent the monitor failure**: runs with it still returned after 4.9 s, with `stopped=False`, and the confirming read failed. A power cycle cleared it. The user sees the same failure when flashing by hand, so it is not caused by WFlash; whether winIDEA or the external flash causes it is unknown.
 
+### Row ticks (spike 14, 2026-11-08)
+
+Download Files rows: `/iOPEN/UMIConfig.Devices.Devices[0].DownloadFiles[i].Enabled` reads `'true'`/`'false'`; `setOption(url, 'false')` then `getOptionStr` gave `'false'`, and restoring `'true'` read back `'true'` (row 3, the BM `.bin`).
+
+Symbol files: the tick is **`/IDE/System.Debug.Applications[i].SymbolFiles.File[j].Load`**, `'true'`/`'false'`; written and read back the same way (file 1, the BM ELF). `Options.LoadSymbols` and `Options.LoadCode` also exist (read `'false'` with `Load='true'`); WFlash leaves them alone. Not existing: `Enabled`, `Enable`, `Use`, `Used`, `Active`, `Checked`, `Options.Load`.
+
+Workspace observed: rows FFI (1), CAL (2, relative name), BM `FBL_M7_LIP_RfeClock_Image.bin` (3, offset `0x0`), FBL `Radar_SUZ05_Gen7_FBL.bin` (4, first read `0x0`, then `0xF1000` after the user corrected it). `App_M7` symbol files: app ELF, `Radar_SUZ05_Gen7_BM.elf`, `Radar_SUZ05_Gen7_FBL.elf`.
+
+Not yet observed: how winIDEA programs overlapping rows (Vòng 8 part B).
+
+### GitLab: pipelines by commit (spike 15, 2026-11-08)
+
+`GET /projects/:id/pipelines?sha=<full sha>` on gitlab.hella.com returned HTTP 200 and pipeline `1579882`, `ref=Release_DD_05_03_01`, for `8ebd595d…`. The pipeline's own status was `manual` because manual jobs had not run, so WFlash must look at the two jobs, never at the pipeline status. Jobs seen: `build` success with archive, `create_ffi_stingray_3p5mb_no_HTSM` success with archive, `create_ffi_stingray_3p5mb`, `build_STRX_3P5MB`, `build_STINGRAY_3P5MB_UDS27_BYPASS` `manual` without archive, `create_ffi_stingray_uds27_bypass` and `create_ffi_strx_3p5mb_no_HTSM` `skipped`. `find_build_jobs` reports these states by name.
+
 ### Matching SDK location
 
 `C:\Data\_Devtools\Winidea408\Python\Lib\site-packages\isystem_connect-9.21.408.1.dist-info`: winIDEA ships its own Python with `isystem.connect` 9.21.408.1. There is no wheel to install. `C:\Data\_Devtools\Winidea408\Python\python.exe` reports Python `3.13.12 (MSC v.1944 64 bit)` and `ic.getModuleVersion() -> 9.21.408.1`. All spike runs so far used 9.26.11.
@@ -379,6 +393,16 @@ Both with the real GitLab artifacts and the adapter's path changes; Output of ea
 
 - Replace only **row 1** of the Winbond Download Files (the `.s3`). Row 2 (CAL `.sre`) stays as it is.
 - Replace only the **`App_M7`** symbol file. `App_BBE` and `App_A53` stay as they are.
+
+## Round 8 part B: four overlapping rows (2026-11-09)
+
+Workspace rows: [0] `Radar_SUZ05_Gen7.s3` unticked; [1] FFI `.s3` offset 0x0; [2] CAL `.sre` offset 0x0; [3] BM `FBL_M7_LIP_RfeClock_Image.bin` offset 0x0; [4] FBL `Radar_SUZ05_Gen7_FBL.bin` offset 0xF1000. All of [1]–[4] ticked.
+
+- **Debug → Download by hand** and **`CSessionCtrl.begin_program()`** gave the same Output: the four files load in row order, then **one** `ERASING Winbond W25Q64JW SPI`, then `PROGRAMMING ... (79 sectors)`, `OK`. `begin_program` returned `None` after 99.8 s; the CPU was `isStopped=1` before and after. The user power-cycled the ECU after each run and it ran correctly both times.
+- A `.bin` row loads raw at its row offset: `LOADED Offset=0x0000, Size=0x15'6340` (BM) and `Offset=0x0F'1000, Size=0x02'40C0` (FBL).
+- Overlaps only warn (`Load WARNING Overlap detected at 0000` and `at 0F'1000`), and **the later row wins**: spike 09 read `0x00` at 0x15617C where the FFI file has `0xFF` and the BM image (0x0..0x156340) covers it. Every other sampled FFI region and the CAL matched. This is the evidence for `srec.visible_segments` (later images overwrite earlier ones) and for `read_image` placing a `.bin` at its row offset.
+- The API run's Output ends with an extra `PROGRAMMING 0 bytes` line after `OK`. It did not affect the result. Not explained yet.
+- Spike 09 parses every row as S-record, so it fails on the BM `.bin` and reads 0 segments from the FBL `.bin`. That is a limit of the spike only; WFlash's verify uses `read_image`.
 
 ## Open questions
 

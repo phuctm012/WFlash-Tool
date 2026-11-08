@@ -23,6 +23,7 @@ from wflash.gui.gitlab_dialog import WORKER_PREFIX, ClientFactory, GitlabDialog,
 from wflash.gui.log_panel import LogPanelMixin
 from wflash.gui.mapping_table import MappingTableMixin
 from wflash.gui.preferences_dialog import PreferencesDialog
+from wflash.gui.source_panel import SourcePanelMixin
 from wflash.gui.style import apply_theme, repolish
 from wflash.gui.ui_main_window import Ui_MainWindow
 from wflash.gui.workers import WorkerRegistry
@@ -34,7 +35,7 @@ log = get_logger("ui")
 CLOSE_TIMEOUT_S = 15.0
 
 
-class MainWindow(MappingTableMixin, FlashMixin, LogPanelMixin, QMainWindow):
+class MainWindow(SourcePanelMixin, MappingTableMixin, FlashMixin, LogPanelMixin, QMainWindow):
     def __init__(
         self,
         settings: AppSettings,
@@ -63,6 +64,7 @@ class MainWindow(MappingTableMixin, FlashMixin, LogPanelMixin, QMainWindow):
         self._init_log_panel()  # first, so the other parts' start-up is logged
         self._init_mapping_table()
         self._init_flash()
+        self._init_source_panel()
         self._init_status_bar()
         # One dialog for the window's whole life: it is never deleted while one of its
         # workers could still report to it (CLAUDE.md threading rules 1 and 4).
@@ -123,6 +125,7 @@ class MainWindow(MappingTableMixin, FlashMixin, LogPanelMixin, QMainWindow):
         data = self.ui.comboBox_profile.currentData()
         self.profile = None
         self.clear_mapping()
+        self.update_developer_panel()
         if data is None:
             self._update_flash_controls()
             return
@@ -138,6 +141,7 @@ class MainWindow(MappingTableMixin, FlashMixin, LogPanelMixin, QMainWindow):
             return
         self.profile = profile
         self.rebuild_source_slots()
+        self.update_developer_panel()
         self.ui.checkBox_reset.setChecked(profile.post_flash.reset)
         self.ui.checkBox_run.setChecked(profile.post_flash.run)
         self.settings.last_profile = path.name
@@ -211,6 +215,7 @@ class MainWindow(MappingTableMixin, FlashMixin, LogPanelMixin, QMainWindow):
         self._closing = True
         self._close_in_progress = True
         self._gitlab_dialog.abort_for_close()
+        self._checkout_dialog.abort_for_close()
         flash_key = self._flash_key
         # The wait pumps events: lock the UI so no modal dialog (Preferences, file dialogs)
         # can open nested inside it and break the bound.

@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Checkout source repo</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+.btn{height:30px;padding:0 12px;border:1px solid #d7dde5;border-radius:6px;background:#ffffff;color:#1a1a1a;font:inherit;font-size:12.5px;white-space:nowrap}
+.field{height:30px;box-sizing:border-box;padding:0 8px;border:1px solid #d7dde5;border-radius:6px;background:#ffffff;color:#1a1a1a;font:inherit;font-size:12.5px;min-width:0}
+.lab{font-size:12.5px;color:#1a1a1a}
+.sub{font-size:11.5px;color:#5a6472;line-height:1.4}
+.th{padding:6px 8px;font-size:12px;font-weight:600;color:#0f6b63;text-align:left;background:#e7f3f1;border-bottom:2px solid #1f9488}
+.td{padding:6px 8px;font-size:12px;color:#1a1a1a;border-bottom:1px solid #e9edf2;white-space:nowrap}
+.mono{font-family:Consolas,Menlo,monospace;font-size:11.5px}
+</style>
+</helmet>
+<div style="width:640px;height:520px;box-sizing:border-box;padding:16px;display:flex;flex-direction:column;gap:12px;background:#f2f6f6;color:#1a1a1a;font-family:'Segoe UI',system-ui,sans-serif">
+  <h1 style="margin:0;font-size:15px;color:#0f6b63">Checkout source repo</h1>
+  <span class="sub">Current: Release_DD_05_03_01 · 8ebd595d · no local changes</span>
+  <div style="display:grid;grid-template-columns:70px minmax(0,1fr) auto;gap:6px;align-items:center">
+    <label class="lab" for="branch">Branch</label>
+    <select id="branch" class="field"><option>origin/Release_DD_05_03_01</option></select>
+    <button class="btn">Fetch</button>
+  </div>
+  <div style="flex:1;min-height:0;background:#ffffff;border:1px solid #d7dde5;border-radius:8px;overflow:hidden">
+    <table style="width:100%;border-collapse:collapse">
+      <caption class="sub" style="text-align:left;padding:7px 10px">Commits on this branch, newest first</caption>
+      <thead><tr><th class="th" scope="col">Commit</th><th class="th" scope="col">Date</th><th class="th" scope="col">Message</th><th class="th" scope="col">Pipeline</th></tr></thead>
+      <tbody>
+        <tr style="background:#e7f3f1"><td class="td mono">8ebd595d</td><td class="td">[date]</td><td class="td">[commit message]</td><td class="td">Passed</td></tr>
+        <tr><td class="td mono">[commit]</td><td class="td">[date]</td><td class="td">[commit message]</td><td class="td">Passed</td></tr>
+        <tr><td class="td mono">[commit]</td><td class="td">[date]</td><td class="td">[commit message]</td><td class="td">Failed</td></tr>
+        <tr><td class="td mono">[commit]</td><td class="td">[date]</td><td class="td">[commit message]</td><td class="td">None</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="sub" style="margin:0">Checkout is refused while the repo has local changes. Commit or stash them yourself first; WFlash never discards or stashes your work.</p>
+  <div style="display:flex;justify-content:flex-end;gap:8px"><button class="btn">Cancel</button><button class="btn" style="background:#0f6b63;border-color:#0f6b63;color:#ffffff">Checkout</button></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":640,"height":520}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

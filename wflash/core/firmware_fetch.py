@@ -8,9 +8,10 @@ from __future__ import annotations
 
 import tempfile
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePath
+from typing import Iterable
 
-from wflash.core.artifact_cache import ArtifactCache
+from wflash.core.artifact_cache import ArtifactCache, NamedArtifactCache
 from wflash.core.cancel import CancelToken
 from wflash.core.errors import GitLabError
 from wflash.core.firmware_source import FirmwareSource, files_note, short_timestamp
@@ -104,6 +105,43 @@ def find_latest_job(
     )
 
 
+def find_build_jobs(
+    client: GitLabClient,
+    project_id: int,
+    sha: str,
+    ffi_job: str,
+    elf_job: str,
+    cancel: CancelToken | None = None,
+) -> tuple[JobRow, JobRow]:
+    """The FFI and ELF jobs of the newest pipeline of `sha` where both succeeded. Never another commit."""
+    pipelines = client.list_pipelines_for_commit(project_id, sha)
+    if not pipelines:
+        raise GitLabError(
+            f"Commit {sha[:8]} has no pipeline.",
+            hint="Push the commit and wait for its pipeline, or use Choose job in GitLab…",
+        )
+    problems: list[str] = []
+    for pipeline in pipelines:
+        _check(cancel)
+        jobs = {job.name: job for job in client.list_jobs(project_id, pipeline.id, archived_only=False)}
+        wanted = [jobs.get(ffi_job), jobs.get(elf_job)]
+        if all(job is not None and job.status == "success" for job in wanted):
+            return tuple(_job_row(pipeline, job) for job in wanted)
+        if not problems:
+            for name, job in zip((ffi_job, elf_job), wanted):
+                if job is None or job.status != "success":
+                    problems.append(f"{name}: {job.status if job else 'not in the pipeline'}")
+    raise GitLabError(
+        f"Commit {sha[:8]} has no finished build: {'; '.join(problems)}.",
+        hint="Run the job in GitLab, then load again.",
+    )
+
+
+def _job_row(pipeline, job) -> JobRow:
+    when = short_timestamp(job.finished_at or pipeline.created_at)
+    return JobRow(pipeline.id, job.id, job.name, pipeline.ref, job.status, when, pipeline.sha)
+
+
 def fetch_ci_artifact(
     client: GitLabClient,
     project: str,
@@ -130,5 +168,39 @@ def fetch_ci_artifact(
         detail=f"{project} · {job.ref} · pipeline #{job.pipeline_id}",
         cache_note=files_note(from_cache, count_files(path)),
         commit=job.commit,
+        job_name=job.job_name,
+    )
+    return path, source
+
+
+def fetch_named_artifact(
+    client: GitLabClient,
+    project: str,
+    project_id: int,
+    job: JobRow,
+    cache: NamedArtifactCache,
+    rel: PurePath,
+    progress: DownloadProgress | None = None,
+    cancel: CancelToken | None = None,
+    keep: Iterable[PurePath] = (),
+) -> tuple[Path, FirmwareSource]:
+    """Extracted artifact of `job` in a folder named after what it is, from the cache when it is there."""
+    path = cache.get(rel)
+    from_cache = path is not None
+    if path is None:
+        with tempfile.TemporaryDirectory(prefix="wflash_dl_") as tmp:
+            zip_path = client.download_artifacts(project_id, job.job_id, Path(tmp), progress, cancel)
+            _check(cancel)
+            path = cache.store_zip(rel, zip_path, keep=keep)
+    else:
+        log.info("Using cached artifact of job #%s: %s", job.job_id, path)
+    source = FirmwareSource(
+        kind="ci",
+        project=project,
+        title=f"CI artifact · job #{job.job_id} {job.job_name}",
+        detail=f"{project} · {job.ref} · pipeline #{job.pipeline_id}",
+        cache_note=files_note(from_cache, count_files(path) - 1),  # without the marker
+        commit=job.commit,
+        job_name=job.job_name,
     )
     return path, source

@@ -2,11 +2,15 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Literal
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from wflash.core.errors import ProfileError
+
+
+Role = Literal["ffi", "cal", "bm", "fbl", "elf"]
 
 
 class _Strict(BaseModel):
@@ -25,16 +29,35 @@ class SourceSpec(_Strict):
     job_filter: str | None = None
 
 
+class BuildSpec(_Strict):
+    """Which CI jobs make up one build configuration of the application."""
+
+    name: str = Field(min_length=1)
+    ffi_job: str = Field(min_length=1)
+    elf_job: str = Field(min_length=1)
+    bm_job: str = Field(min_length=1)
+
+
+class DebugSourceSpec(_Strict):
+    """A repo of its own, for files that are flashed only with Advanced Debug."""
+
+    project: str = Field(min_length=1)
+    job: str | None = None
+
+
 class ProgramSpec(_Strict):
-    winidea_entry: str = Field(min_length=1)
+    winidea_entry: str | None = Field(default=None, min_length=1)
     pattern: str = Field(min_length=1)
     source: str | None = None
+    role: Role | None = None
+    offset: int | None = Field(default=None, ge=0)
 
 
 class ApplicationSpec(_Strict):
     winidea_app: str = Field(min_length=1)
     pattern: str = Field(min_length=1)
     source: str | None = None
+    role: Role | None = None
 
 
 class PostFlash(_Strict):
@@ -50,6 +73,8 @@ class Profile(_Strict):
     name: str = Field(min_length=1)
     gitlab: GitLabSpec
     sources: dict[str, SourceSpec] = Field(default_factory=dict)
+    builds: list[BuildSpec] = Field(default_factory=list)
+    debug_sources: dict[str, DebugSourceSpec] = Field(default_factory=dict)
     programs: list[ProgramSpec] = Field(min_length=1)
     applications: list[ApplicationSpec] = Field(default_factory=list)
     post_flash: PostFlash = Field(default_factory=PostFlash)
@@ -58,7 +83,7 @@ class Profile(_Strict):
     @model_validator(mode="after")
     def _unique_targets(self) -> "Profile":
         for label, names in (
-            ("program entry", [p.winidea_entry for p in self.programs]),
+            ("program entry", [p.winidea_entry for p in self.programs if p.winidea_entry]),
             ("application", [a.winidea_app for a in self.applications]),
         ):
             dupes = sorted({n for n in names if names.count(n) > 1})
@@ -70,7 +95,7 @@ class Profile(_Strict):
     def _consistent_sources(self) -> "Profile":
         targets = [*self.programs, *self.applications]
         for target in targets:
-            name = getattr(target, "winidea_entry", None) or target.winidea_app
+            name = getattr(target, "winidea_entry", None) or getattr(target, "winidea_app", target.pattern)
             if target.source is None:
                 if self.sources:
                     raise ValueError(f"Target '{name}' needs a source: the profile declares sources")
@@ -80,6 +105,24 @@ class Profile(_Strict):
         if unused:
             raise ValueError(f"Source with no target: {', '.join(unused)}")
         return self
+
+    @model_validator(mode="after")
+    def _consistent_builds(self) -> "Profile":
+        for program in self.programs:
+            if program.winidea_entry is None and program.role != "cal":
+                raise ValueError("Only a cal row may omit winidea_entry")
+        if self.builds:
+            roles = {p.role for p in self.programs} | {a.role for a in self.applications}
+            missing = {"ffi", "cal", "elf"} - roles
+            if missing:
+                raise ValueError(f"A profile with builds needs the roles: {', '.join(sorted(missing))}")
+        return self
+
+    def build(self, name: str) -> BuildSpec:
+        for build in self.builds:
+            if build.name == name:
+                return build
+        raise ProfileError(f"Unknown build '{name}' in profile {self.name}")
 
     def job_filter_for(self, source_id: str | None) -> str:
         spec = self.sources.get(source_id) if source_id else None

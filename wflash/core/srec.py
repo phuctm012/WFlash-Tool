@@ -5,6 +5,7 @@ from pathlib import Path, PurePath
 
 ADDRESS_BYTES = {"1": 2, "2": 3, "3": 4}
 SREC_SUFFIXES = {".s3", ".s2", ".s1", ".sre", ".srec", ".s19", ".mot"}
+BINARY_SUFFIXES = {".bin"}
 
 
 def is_srec_file(name: str) -> bool:
@@ -40,3 +41,37 @@ def sample_ranges(segments: list[tuple[int, bytes]], sample: int = 256) -> list[
             ranges.append((address, data[:sample]))
             ranges.append((address + len(data) - sample, data[-sample:]))
     return ranges
+
+
+def is_image_file(name: str) -> bool:
+    return is_srec_file(name) or PurePath(name).suffix.lower() in BINARY_SUFFIXES
+
+
+def read_image(path: Path, offset: int) -> list[tuple[int, bytes]]:
+    if Path(path).suffix.lower() in BINARY_SUFFIXES:
+        return [(offset, Path(path).read_bytes())]
+    return [(address + offset, data) for address, data in parse_srec(path)]
+
+
+def visible_segments(images: list[list[tuple[int, bytes]]]) -> list[list[tuple[int, bytes]]]:
+    """Later images are written over earlier ones, so compare each only where it stays on the flash."""
+    result = []
+    for i, image in enumerate(images):
+        later = [(a, a + len(d)) for other in images[i + 1:] for a, d in other]
+        kept: list[tuple[int, bytes]] = []
+        for address, data in image:
+            pieces = [(address, address + len(data))]
+            for start, end in later:
+                next_pieces = []
+                for low, high in pieces:
+                    if end <= low or start >= high:
+                        next_pieces.append((low, high))
+                        continue
+                    if low < start:
+                        next_pieces.append((low, start))
+                    if end < high:
+                        next_pieces.append((end, high))
+                pieces = next_pieces
+            kept += [(low, data[low - address:high - address]) for low, high in pieces]
+        result.append(kept)
+    return result

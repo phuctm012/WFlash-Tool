@@ -480,3 +480,66 @@ Gửi lại `results\13_device_options_*.txt`.
 6. Tải artifact **firmware khác**, Flash, tắt bật nguồn, kiểm tra ECU đúng là chạy firmware mới. Đây là bước đầu tiên chứng minh firmware mới thật sự được ghi.
 7. Thử lỗi: trong winIDEA tạm bỏ tick dòng `RAD_SUZ05_FFI.s3`, rồi bấm Flash. Mong đợi báo lỗi không tìm thấy entry, không có `ERASING`, path giữ nguyên. Sau đó tick lại dòng đó.
 8. Export debug bundle, gửi lại cùng Output của winIDEA.
+
+## Vòng 8: kiểm chứng cho tính năng developer debug
+
+Lấy bản mới của nhánh `feat/developer-debug`. Trong workspace, các dòng phải nằm theo thứ tự FFI, CAL, BM, FBL, BM ở offset `0x0`, FBL ở offset `0xF1000`. Trong `App_M7` có sẵn ELF của BM và FBL. Làm trong thư mục `spike`.
+
+**Phần A: không ghi flash**
+
+1. Đọc dấu tick:
+   ```bat
+   python 14_tick_options.py
+   ```
+2. Thử đảo dấu tick của dòng BM (thay `<i>` bằng số dòng BM trong kết quả bước 1, script tự khôi phục):
+   ```bat
+   python 14_tick_options.py --toggle-row <i>
+   ```
+3. Thử đảo dấu tick ELF của BM. Thay `<j>` bằng số dòng của `Radar_SUZ05_Gen7_BM.elf`, và `<field>` bằng field đọc ra `true` hoặc `false` ở bước 1 (thường là `Load`):
+   ```bat
+   python 14_tick_options.py --toggle-symbol <j> --field <field>
+   ```
+   Trong lúc script chạy không cần làm gì. Sau đó mở *Debug → Configure Session → App_M7 → Symbol Files* để chắc chắn dấu tick đúng như trước.
+4. Tìm pipeline theo commit. Token chỉ nằm trong biến môi trường, không vào file kết quả:
+   ```bat
+   set GITLAB_TOKEN=<token>
+   python 15_pipeline_sha.py --project alm/projects_group/e-ad_group/e-ad_radar_cust_suz05_group/SUZ05_APP_Application_Software-Impl --sha <commit đầy đủ>
+   set GITLAB_TOKEN=
+   ```
+   `<commit đầy đủ>` lấy từ `git rev-parse HEAD` trong source repo, ví dụ commit có pipeline đã chạy. Nếu báo lỗi SSL, thêm `--ca-bundle <file chứng chỉ>`.
+
+Gửi kết quả phần A trước. Nếu không ghi được dấu tick thì **chưa làm phần B**.
+
+**Phần B: có ghi flash**
+
+⚠️ Hai bước dưới **ghi vào flash**, gồm cả BM và FBL. Cách khôi phục: bỏ tick BM và FBL, chỉ tick FFI và CAL, rồi Debug → Download bấm tay. Nếu gặp `Error loading monitor`, tắt bật nguồn ECU trước. Chọn BM và FBL là bản tốt, và đúng cặp với FFI.
+
+5. Trong winIDEA tick FFI, CAL, BM, FBL. Xóa Output, bấm Debug → Download. Chép Output vào `results\v8_manual_output.txt`. Tắt bật nguồn, kiểm tra ECU. Rồi chạy `python 09_flash_compare.py` (không `--full`). Phần FFI bị BM hoặc FBL ghi đè sẽ báo `DIFFERENT`, đó là dự kiến; các file BM và FBL là `.bin` nên script này bỏ qua hoặc báo lỗi đọc file, cứ gửi kết quả.
+6. Xóa Output, chạy `python 12_begin_program.py`, xem danh sách file rồi gõ `YES`. Chép Output vào `results\v8_api_output.txt`. Tắt bật nguồn, kiểm tra ECU, và kiểm tra ECU đúng là đang chạy BM và FBL đã chọn nếu có cách phân biệt.
+
+Gửi lại `spike\results\`, kèm: Output có đúng 1 `ERASING` không, và ECU có chạy đúng không.
+
+## Vòng 9: thử chế độ developer trong WFlash
+
+Làm **sau khi phần B của Vòng 8 đạt**. Phần đó chứng minh winIDEA flash được bốn dòng FFI, CAL, BM, FBL trong một lần. Lấy bản mới của nhánh `feat/developer-debug`, cài lại (`python -m pip install -e ".[dev]"`), chạy `python main.py --verbose` từ thư mục repo. Mở một winIDEA duy nhất với workspace SUZ05 M7; file CAL `.sre` nằm cùng thư mục với file `.xjrf`.
+
+⚠️ Các bước ghi **(FLASH)** sẽ ghi vào flash. Cách khôi phục: trong winIDEA bỏ tick BM và FBL, chỉ tick FFI và CAL, chọn lại các file tốt đã biết, rồi Debug → Download bấm tay. Gặp `Error loading monitor` thì tắt bật nguồn ECU rồi làm lại.
+
+**Phần A: không ghi flash**
+
+1. Chọn profile `SUZ05_M7_FFI`. Vùng Setting phải hiện panel developer (Source repo, Application, Advanced Debug), không còn nút Load from GitLab. Bảng bên phải tách thành **Program Files** (FFI, CAL; cột Offset) và **Symbol Files** (ELF).
+2. **Browse…** chọn thư mục gốc source SUZ05. Kiểm tra Branch, Commit đúng với `git log -1` trong repo, và dòng "No local changes".
+3. Sửa tạm một file trong repo (chưa commit). Bấm vào ô Source repo rồi nhấn Enter. Mong đợi: cảnh báo "local changes" nhưng nút Load vẫn bấm được.
+4. Vẫn còn thay đổi đó, bấm **Checkout…**, chọn branch khác, chọn commit đầu, bấm Checkout. Mong đợi: bị **từ chối**, có thông báo đỏ, file đã sửa giữ nguyên. Trả file về như cũ (`git checkout -- <file>` do bạn tự làm).
+5. **Checkout…** lần nữa: thử **Fetch**, chọn branch có pipeline, kiểm tra cột Pipeline (Passed/Failed/Manual…). Chọn commit đầu, bấm Checkout. Panel phải hiện branch mới. Rồi Checkout lại về branch ban đầu.
+6. Chọn Build `stingray_3p5mb_no_HTSM`, bấm **Load firmware for <commit>**. Mong đợi: tải FFI và ELF, dòng trạng thái ghi job và commit; thư mục cache có dạng `<cache>\<branch>\<commit>_stingray_3p5mb_no_HTSM\FFI` và `...\ELF`. Dòng CAL tự lấy file `.sre` cạnh workspace.
+7. Chọn Build mà job chưa chạy (ví dụ `strx_3p5mb_no_HTSM`, job `create_ffi_strx_3p5mb_no_HTSM` đang `skipped`), bấm Load. Mong đợi: thông báo rõ job chưa chạy, không tải gì. Chọn lại build stingray.
+8. Đổi tạm tên file CAL `.sre` cạnh workspace, chọn lại instance winIDEA. Mong đợi: dòng CAL đỏ, Flash bị khóa với lý do thiếu CAL. Đổi lại tên file, chọn lại instance.
+9. Tick **Advanced Debug**. Bảng có thêm dòng BM, FBL (offset `0x0` và `0xF1000`) và ELF của BM, FBL. Load BM từ job **sai** (ví dụ `build_STRX_3P5MB` nếu có, hoặc job khác `build_STINGRAY_3P5MB`). Mong đợi: Flash bị khóa, dải đỏ nêu job cần dùng. Load lại BM từ `build_STINGRAY_3P5MB` và FBL từ job `build`: Flash bật lại.
+
+**Phần B: có ghi flash**
+
+10. **(FLASH)** Bỏ tick Advanced Debug, bấm Flash. Mong đợi: Output winIDEA có đúng 1 `ERASING`; xong thì trong workspace dòng BM, FBL và ELF của BM, FBL **không tick**, dòng FFI trỏ vào thư mục cache theo branch. Tắt bật nguồn, kiểm tra ECU chạy.
+11. **(FLASH)** Tick Advanced Debug (BM, FBL đã nạp ở bước 9), bấm Flash. Mong đợi: 1 `ERASING`; dòng BM, FBL và ELF của chúng **được tick** và trỏ vào cache. Tắt bật nguồn, kiểm tra ECU chạy, và nếu có cách thì kiểm tra đúng BM, FBL vừa chọn.
+12. **(FLASH)** Checkout một commit khác có pipeline (firmware khác), Load firmware, bỏ Advanced Debug, Flash. Tắt bật nguồn, kiểm tra ECU đúng là chạy firmware mới.
+13. Export debug bundle, gửi lại cùng Output winIDEA của các bước 10–12 và ảnh chụp panel developer.

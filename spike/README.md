@@ -34,6 +34,8 @@ Mục đích: xác minh API `isystem.connect` trên winIDEA 9.21 + workspace SAF
 | `python 10_program_api_docs.py` | in tài liệu API, đọc cấu trúc menu | Không |
 | `python 12_begin_program.py` | flash qua `CSessionCtrl.begin_program()` (hỏi `YES`), in trạng thái sau đó | **Có: ghi external flash** |
 | `python 13_device_options.py` | liệt kê option của thiết bị Winbond từ file workspace và đọc từng option | Không (chỉ đọc) |
+| `python 14_tick_options.py` | đọc dấu tick của Download Files và Symbol Files; `--toggle-row`, `--toggle-symbol` đảo rồi khôi phục | Đổi tạm, tự khôi phục; không flash |
+| `python 15_pipeline_sha.py` | tìm pipeline và job theo commit trên GitLab; token lấy từ biến `GITLAB_TOKEN` | Không |
 | `python 11_find_examples.py` | tìm ví dụ và tài liệu `isystem.connect` trên máy, chép vào `results\examples` (không kết nối winIDEA) | Không |
 
 - Nhiều instance winIDEA: thêm `--instance <id>` (id lấy từ output 01).

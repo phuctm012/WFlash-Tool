@@ -32,6 +32,13 @@ class DebugContext:
             "applications": [asdict(e) for e in applications],
         }
 
+    def snapshot_rows(self, label: str, programs: list, symbols: list) -> None:
+        """Download Files and Symbol Files rows, with ticks and offsets (planned flash)."""
+        self.snapshots[label] = {
+            "programs": [asdict(r) for r in programs],
+            "symbols": [asdict(r) for r in symbols],
+        }
+
     def add_error(self, exc: BaseException) -> None:
         self.errors.append("".join(traceback.format_exception(type(exc), exc, exc.__traceback__)))
 

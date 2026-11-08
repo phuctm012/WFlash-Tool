@@ -94,7 +94,7 @@ python 01_connect.py
 
 ## Rules
 
-- **GUI changes go in the `.ui` file first (`main_window.ui`, `gitlab_dialog.ui`, `preferences_dialog.ui`), `.py` code second.** If a change can be expressed as a widget/layout/property in the `.ui` XML, make it there and regenerate with `pyside6-uic` — never hand-build the equivalent widget in Python, and never hand-edit `ui_*.py`. Fall back to Python-side construction only for what Designer genuinely can't express (logic-driven content, e.g. the mapping table's rows and the per-source Load rows).
+- **GUI changes go in the `.ui` file first (`main_window.ui`, `gitlab_dialog.ui`, `preferences_dialog.ui`, `checkout_dialog.ui`), `.py` code second.** If a change can be expressed as a widget/layout/property in the `.ui` XML, make it there and regenerate with `pyside6-uic` — never hand-build the equivalent widget in Python, and never hand-edit `ui_*.py`. Fall back to Python-side construction only for what Designer genuinely can't express (logic-driven content, e.g. the mapping table's rows and the per-source Load rows).
 - **Name every widget and layout in the `.ui` meaningfully — never Designer's auto-numbered defaults** (`verticalLayout_2`, `label_5`). Use names that say what the thing is or where it lives: `verticalLayout_gitlabBrowser`, `tableWidget_mapping`, `horizontalLayout_flashButtons`. Before renaming an existing one, grep `wflash/gui/*.py` for `self.ui.<name>` — some layouts get widgets added at runtime.
 - **Before ending a session that touched the app, run the full test suite and confirm the app still launches** (`~/.venvs/wflash/bin/python main.py --adapter fake`). If anything worker- or thread-related changed, run `pytest -k thread` explicitly. A green run is not optional polish: SFlash shipped a real `QThread: Destroyed while thread is still running` crash precisely because that path was only exercised by hand.
 - **Before pushing a whole session's changes, stress test first.** Run (1) the full suite, (2) the threading tests explicitly even if untouched, (3) `python tools/stress_test.py`. It drives the real app headlessly against the fake adapter through many chained actions in one process and fails on Qt threading warnings as well as its own checkpoints. If it all passes, push without asking again. If anything fails, **stop and report — do not push on your own judgment.**
@@ -123,7 +123,7 @@ The fake is not a stub that returns success. Every failure the real probe can pr
 The spec's §3 is a safety decision, not a convenience. The workspace is the user's, already configured so that manual flashing works. Therefore:
 
 1. Read the existing entries; **match** by the profile's `winidea_entry`/`winidea_app`. Download rows and symbol files have no names of their own, so the adapter names them after their file: `RAD_SUZ05_FFI.s3` for an enabled row of the flash device's Download Files (`/iOPEN/UMIConfig.Devices.Devices[0].DownloadFiles[i]`), `App_M7/Radar_SUZ05_Gen7.elf` for a symbol file. A disabled row or a duplicate name gets a suffix, so it cannot match. The selected file must have the same name as the entry.
-2. Change **only the file path**. Never touch target device, verify, offset, row ticks, mass erase or load mode. Never create a missing entry — that is `MappingError`, surfaced to the user.
+2. Change **only the file path**. Never touch target device, verify, offset, row ticks, mass erase or load mode. Never create a missing entry — that is `MappingError`, surfaced to the user. **Exception, for a profile with `builds` only** (developer flow, spec `2026-11-07-wflash-developer-debug-design.md`): `flash_plan.make_plan` also sets the ticks of the BM/FBL download rows and their `App_M7` symbol files (on with Advanced Debug, off without), and points the CAL row at the `.sre` found next to the workspace `.xjrf`. The plan is checked before anything is written. On failure only the **paths** are restored; the ticks stay as WFlash set them (user decision). Offsets, mass erase and every other setting are still never touched.
 3. **Back up every original path before writing**, and roll back on any failure from that point on (set-path or download). A workflow that fails and leaves the workspace pointing at a stale artifact is worse than one that refuses to start.
 4. The rollback must also run on the paths that are easy to forget — an exception mid-way through setting the *second* of three paths, a cancel, a timeout. Make it a `try/finally`-shaped guarantee, not a line at the end of the happy path, and prove it with a fake-adapter test per branch.
 
@@ -139,10 +139,12 @@ The spec's §4 and the plan's File Structure both list plain hand-written `gui/*
 - **`MainWindow` is composed by multiple inheritance from focused mixins**, all sharing one `self.ui` and free to call each other's methods directly:
 
 ```
-wflash/gui/main_window.ui        Designer, source of truth (also gitlab_dialog.ui, preferences_dialog.ui)
+wflash/gui/main_window.ui        Designer, source of truth (also gitlab_dialog.ui, preferences_dialog.ui, checkout_dialog.ui)
 wflash/gui/ui_*.py               generated by pyside6-uic, never edited
-wflash/gui/main_window.py        MainWindow(MappingTableMixin, FlashMixin, LogPanelMixin)
-wflash/gui/mapping_table.py      mixin: the mapping rows, the source card, one Load row per source
+wflash/gui/main_window.py        MainWindow(SourcePanelMixin, MappingTableMixin, FlashMixin, LogPanelMixin)
+wflash/gui/source_panel.py       mixin: developer panel (source repo, build, Advanced Debug, CAL)
+wflash/gui/mapping_table.py      mixin: Program Files and Symbol Files tables, the source card, one Load row per source
+wflash/gui/checkout_dialog.py    modal Checkout popup: branch or commit of the source repo
 wflash/gui/log_panel.py          mixin + QtLogHandler
 wflash/gui/flash_mixin.py        mixin: Flash/Cancel, step state, post-flash, Cancel lock
 wflash/gui/gitlab_dialog.py      modal Load from GitLab popup: CI artifact only
@@ -154,6 +156,10 @@ wflash/gui/theme.py, style.py    Teal light/dark tokens; resources/style*.qss mu
 Dynamic content stays in Python — mapping rows, log lines, per-source Load rows. That is the legitimate exception, not a loophole for building static layout in code.
 
 The redesign spec is `docs/superpowers/specs/2026-10-04-wflash-ui-redesign-design.md`. Spec §4 of the original design still shows the old list.
+
+### Developer flow: source repo and checkout
+
+`wflash/core/source_repo.py` drives the developer's git repo through the `git` command line (`GIT_TERMINAL_PROMPT=0`, no console window on Windows). It refuses a checkout while the repo has local changes, and it **never** stashes, resets, cleans or forces: the working tree is the developer's. Firmware for a profile with `builds` comes from the pipeline of the repo's exact commit (`firmware_fetch.find_build_jobs`), never from another commit; local changes only warn.
 
 ### Several sources
 

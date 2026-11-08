@@ -15,8 +15,9 @@ UI_FILES = {
     "main_window.ui": "ui_main_window.py",
     "preferences_dialog.ui": "ui_preferences_dialog.py",
     "gitlab_dialog.ui": "ui_gitlab_dialog.py",
+    "checkout_dialog.ui": "ui_checkout_dialog.py",
 }
-TOP_LEVEL = {"MainWindow", "PreferencesDialog", "GitlabDialog"}
+TOP_LEVEL = {"MainWindow", "PreferencesDialog", "GitlabDialog", "CheckoutDialog"}
 # <kind>_<what>, e.g. verticalLayout_gitlabBrowser, tableWidget_mapping.
 MEANINGFUL = re.compile(r"^[a-z][A-Za-z]*_[a-z][A-Za-z0-9]*$")
 
@@ -96,8 +97,9 @@ def test_gui_generated_modules_import(qapp):
     window = QMainWindow()
     ui = Ui_MainWindow()
     ui.setupUi(window)
-    assert ui.tableWidget_mapping.columnCount() == 5
-    assert ui.tableWidget_mapping.horizontalHeaderItem(0).text() == "#"
+    assert ui.tableWidget_programFiles.columnCount() == ui.tableWidget_symbolFiles.columnCount() == 4
+    assert ui.tableWidget_programFiles.horizontalHeaderItem(0).text() == "#"
+    assert ui.label_flashBlocked.isHidden()
     assert ui.tabWidget_output.count() == 1 and ui.tabWidget_output.tabText(0) == "Information"
     assert ui.comboBox_logLevel.currentText() == "INFO"
     assert ui.label_rollbackWarning.isHidden()
