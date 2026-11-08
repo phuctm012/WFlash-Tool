@@ -215,6 +215,7 @@ class MainWindow(SourcePanelMixin, MappingTableMixin, FlashMixin, LogPanelMixin,
         self._closing = True
         self._close_in_progress = True
         self._gitlab_dialog.abort_for_close()
+        self._checkout_dialog.abort_for_close()
         flash_key = self._flash_key
         # The wait pumps events: lock the UI so no modal dialog (Preferences, file dialogs)
         # can open nested inside it and break the bound.

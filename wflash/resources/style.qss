@@ -235,7 +235,7 @@ QLabel#label_rollbackWarning, QLabel#label_commitWarning, QLabel#label_flashBloc
     font-weight: 600;
     padding: 6px 8px;
 }
-QLabel#label_error,
+QLabel#label_error, QLabel#label_checkoutError,
 QLabel#label_downloadStatus[state="error"] {
     color: #d32f2f;
 }

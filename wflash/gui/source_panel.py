@@ -26,6 +26,7 @@ from wflash.core.firmware_source import FirmwareSource
 from wflash.core.flash_plan import find_cal_files
 from wflash.core.logging_setup import get_logger
 from wflash.core.source_repo import RepoState, read_state
+from wflash.gui.checkout_dialog import CheckoutDialog
 from wflash.gui.workers import WorkerContext
 
 log = get_logger("ui.source")
@@ -60,6 +61,9 @@ class SourcePanelMixin:
         self._choose_menu.addAction("FFI (.s3)…").triggered.connect(partial(self._open_app_dialog, "ffi"))
         self._choose_menu.addAction("ELF (.elf)…").triggered.connect(partial(self._open_app_dialog, "elf"))
         ui.pushButton_chooseJob.setMenu(self._choose_menu)
+        self._checkout_dialog = CheckoutDialog(self)  # built here, on the GUI thread (rule 6)
+        self._checkout_dialog.checkedOut.connect(self.refresh_source_repo)
+        ui.pushButton_checkout.clicked.connect(self.open_checkout_dialog)
         ui.frame_developer.setVisible(False)
 
     # -- state ------------------------------------------------------------------------
@@ -198,6 +202,13 @@ class SourcePanelMixin:
         if loaded and state.commit not in loaded and not any(state.commit.startswith(c) for c in loaded):
             notes.append("Loaded firmware is from another commit.")
         self.ui.label_repoChanges.setText(" ".join(notes))
+
+    def open_checkout_dialog(self, *_args) -> None:
+        path = self.ui.lineEdit_sourceRepo.text().strip()
+        if not path or self.flash_active() or self._closing:
+            return
+        self._checkout_dialog.prepare(Path(path), self._app_project())
+        self._checkout_dialog.open()  # window-modal: nothing else can start while it is open
 
     # -- loading the build --------------------------------------------------------------
     def _on_build_changed(self, *_args) -> None:

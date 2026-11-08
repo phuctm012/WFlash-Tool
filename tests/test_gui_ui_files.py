@@ -15,8 +15,9 @@ UI_FILES = {
     "main_window.ui": "ui_main_window.py",
     "preferences_dialog.ui": "ui_preferences_dialog.py",
     "gitlab_dialog.ui": "ui_gitlab_dialog.py",
+    "checkout_dialog.ui": "ui_checkout_dialog.py",
 }
-TOP_LEVEL = {"MainWindow", "PreferencesDialog", "GitlabDialog"}
+TOP_LEVEL = {"MainWindow", "PreferencesDialog", "GitlabDialog", "CheckoutDialog"}
 # <kind>_<what>, e.g. verticalLayout_gitlabBrowser, tableWidget_mapping.
 MEANINGFUL = re.compile(r"^[a-z][A-Za-z]*_[a-z][A-Za-z0-9]*$")
 

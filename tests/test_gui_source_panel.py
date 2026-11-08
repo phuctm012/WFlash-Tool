@@ -184,3 +184,19 @@ def test_gui_missing_cal_blocks_flash(env, qtbot, repo):
     load_build(qtbot, window)
     assert "CAL" in window.flash_block_reason()
     assert not window.ui.pushButton_flash.isEnabled()
+
+
+def test_gui_checkout_button_switches_branch_and_refreshes_the_panel(env, qtbot, repo):
+    window, *_ = env
+    git(repo, "branch", "feature")
+    use_repo(qtbot, window, repo)
+    load_build(qtbot, window)
+    window.ui.pushButton_checkout.click()
+    dialog = window._checkout_dialog
+    qtbot.waitUntil(lambda: dialog.isVisible() and not dialog.busy() and dialog.ui.comboBox_branch.count() == 2, timeout=5000)
+    dialog.ui.comboBox_branch.setCurrentText("feature")
+    qtbot.waitUntil(lambda: not dialog.busy() and dialog.ui.tableWidget_commits.rowCount() == 1, timeout=5000)
+    dialog.ui.tableWidget_commits.selectRow(0)
+    dialog.ui.pushButton_checkout.click()
+    qtbot.waitUntil(lambda: window.ui.label_repoBranch.text() == "Branch: feature", timeout=5000)
+    assert not dialog.isVisible()

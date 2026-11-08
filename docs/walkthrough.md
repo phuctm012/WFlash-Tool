@@ -1410,3 +1410,20 @@ Profile có `builds` giờ hiện panel developer thay cho nút Load from GitLab
 
 - `pytest -q` (432 passed), `pytest -k thread -q` (42 passed), `tools/stress_test.py` (PASS, 0 cảnh báo threading).
 - Chụp cửa sổ offscreen ở 1280×820: bố cục hai bảng và panel cuộn đúng. Chưa xem màu QSS và chưa chạy trên Windows/ECU. Nút Checkout chưa có chức năng (Task 10).
+
+## Phase 3.12: Checkout branch hoặc commit từ WFlash
+
+Nút Checkout… trong panel developer mở hộp thoại liệt kê các branch (local và remote) và tối đa 50 commit mới nhất của branch đang chọn, kèm trạng thái pipeline trên GitLab. Cột Pipeline chỉ để tiện xem: nếu GitLab lỗi hoặc profile không có project thì cột hiện `-` và checkout vẫn chạy bình thường. Chọn commit đầu tiên thì checkout branch; chọn commit cũ hơn thì checkout commit đó ở trạng thái detached. Khi repo có thay đổi chưa commit, checkout bị từ chối, có giải thích và file của người dùng giữ nguyên; WFlash không bao giờ stash, reset hay force. Fetch chỉ chạy `git fetch --prune`. Sau khi checkout xong, panel đọc lại repo; nếu firmware đã nạp thuộc commit khác thì panel ghi chú "Loaded firmware is from another commit." nhưng không khoá Flash.
+
+### Thay đổi
+
+- **`wflash/gui/checkout_dialog.ui`** (mới) và **`ui_checkout_dialog.py`** (sinh bằng pyside6-uic).
+- **`wflash/gui/checkout_dialog.py`** (mới): `CheckoutDialog`. Worker dùng key `checkout-`, có guard `_generation`, `done()` chờ tối đa 10 s và chỉ đóng hộp thoại khi worker đã xong.
+- **`wflash/gui/source_panel.py`**: `open_checkout_dialog`; tín hiệu `checkedOut` gọi `refresh_source_repo`. **`main_window.py`**: `abort_for_close` khi đóng cửa sổ.
+- **`wflash/resources/style*.qss`**: chữ đỏ cho `label_checkoutError`.
+- **`tests/test_gui_checkout_dialog.py`** (mới), **`tests/test_gui_source_panel.py`**, **`tests/test_gui_ui_files.py`**.
+
+### Đã kiểm tra
+
+- `pytest -q` (442 passed), `pytest -k thread -q` (43 passed), `tools/stress_test.py` (PASS); app chạy được với `--adapter fake`.
+- Test dùng repo git thật trên macOS. Chưa thử với repo thật trên Windows: thời gian `git fetch` qua mạng nội bộ và cột Pipeline với GitLab thật.
