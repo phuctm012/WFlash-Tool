@@ -32,12 +32,13 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFontDatabase
 from PySide6.QtWidgets import QDialog, QFileDialog, QHeaderView, QPushButton, QTableWidgetItem
 
-from wflash.core.artifact_cache import ArtifactCache
+from wflash.core.artifact_cache import ArtifactCache, NamedArtifactCache, build_cache_path, debug_cache_path
 from wflash.core.errors import CancelledError, GitLabError
 from wflash.core.firmware_fetch import (
     JobRow,
     browse_jobs,
     fetch_ci_artifact,
+    fetch_named_artifact,
     find_latest_job,
 )
 from wflash.core.gitlab_client import GitLabClient
@@ -109,6 +110,8 @@ class GitlabDialog(QDialog):
         self._stopped: set[str] = set()  # keys cancelled by Stop/close: show "Cancelled"
         self._profile_key: str | None = None
         self._source_label: str | None = None  # which of the profile's sources is being loaded
+        self._fixed_project: str | None = None  # a project given by prepare(), never stored
+        self._cache_target: tuple | None = None
         self._job_filter: str | None = None
         self._base_title = self.windowTitle()
         self._token_saved_for: tuple[str, str] = ("", "")  # (url, token) known to be in the keyring
@@ -136,11 +139,20 @@ class GitlabDialog(QDialog):
         self._update_controls()
 
     # -- opening and closing ----------------------------------------------------------
-    def prepare(self, source_label: str | None = None, job_filter: str | None = None) -> None:
+    def prepare(
+        self,
+        source_label: str | None = None,
+        job_filter: str | None = None,
+        project: str | None = None,
+        cache: tuple | None = None,
+    ) -> None:
         """Load the current settings and profile into the fields; called before each open().
 
         With several sources, `source_label` says which one this download fills. Each has its
-        own jobs, so changing source starts the job list and job name afresh.
+        own jobs, so changing source starts the job list and job name afresh. `project` fixes the
+        project for this download (BM and FBL live in their own repos) and is not remembered.
+        `cache` stores the artifact in a folder named after it: ("build", part, build name) or
+        ("debug", role); None keeps the folder per job id.
         """
         settings = self._host.settings
         self.ui.lineEdit_gitlabUrl.setText(settings.gitlab_url)
@@ -167,6 +179,11 @@ class GitlabDialog(QDialog):
             self.ui.comboBox_jobName.setEditText("" if source_label else settings.ci_job_name)
             self._fill_jobs([], None)
         self._job_filter = job_filter
+        self._cache_target = cache
+        if project != self._fixed_project:
+            self._fixed_project = project
+            self.ui.lineEdit_ciProject.setText(project or self._remembered_project())
+            self._fill_jobs([], None)
         self.setWindowTitle(f"{self._base_title} — {source_label}" if source_label else self._base_title)
         self._update_ci_project_label()
         self._reset_progress()
@@ -262,7 +279,14 @@ class GitlabDialog(QDialog):
         self._note(logging.WARNING, text)
 
     # -- settings -----------------------------------------------------------------------
+    def _remembered_project(self) -> str:
+        profile = self._host.profile
+        key = self._profile_key or self._profile_key_now()
+        return self._host.settings.ci_project_overrides.get(key, "") or (profile.gitlab.project if profile else "")
+
     def _store_ci_project(self) -> None:
+        if self._fixed_project is not None:
+            return  # BM or FBL: their project is in the profile, not an override of the app's
         profile = self._host.profile
         key = self._profile_key or self._profile_key_now()
         if profile is None or not key:
@@ -532,15 +556,14 @@ class GitlabDialog(QDialog):
             return
         project, job_filter, job_name = self.ci_project(), self.current_job_filter(), self._job_name()
         factory, settings = self._host._client_factory, self._snapshot()
-        cache_root, max_jobs = settings.resolved_cache_dir(), settings.max_cached_jobs
+        fetch = self._fetcher(settings)
 
         def job(ctx: WorkerContext):
             client = factory(settings)
             project_id = client.get_project_id(project)
             row = find_latest_job(client, project_id, ref, job_filter, job_name, cancel=ctx.cancel)
             ctx.progress(None, f"Job #{row.job_id} {row.job_name} (pipeline #{row.pipeline_id})")
-            cache = ArtifactCache(cache_root, max_jobs)
-            return fetch_ci_artifact(client, project, project_id, row, cache, byte_progress(ctx), ctx.cancel)
+            return fetch(client, project, project_id, row, ctx)
 
         wanted = f"'{job_name}'" if job_name else f"matching '{job_filter}'"
         self._note(logging.INFO, f"Looking for the newest successful job {wanted} on {ref}")
@@ -550,17 +573,32 @@ class GitlabDialog(QDialog):
     def _start_job_download(self, row: JobRow, button: QPushButton | None) -> None:
         project, project_id = self._jobs_project
         factory, settings = self._host._client_factory, self._snapshot()
-        cache_root, max_jobs = settings.resolved_cache_dir(), settings.max_cached_jobs
+        fetch = self._fetcher(settings)
 
         def job(ctx: WorkerContext):
-            client = factory(settings)
-            cache = ArtifactCache(cache_root, max_jobs)
-            return fetch_ci_artifact(client, project, project_id, row, cache, byte_progress(ctx), ctx.cancel)
+            return fetch(factory(settings), project, project_id, row, ctx)
 
         self._mark_downloading(button)
         self._note(logging.INFO, f"Downloading the artifact of job #{row.job_id} {row.job_name}")
         self._busy_progress("Starting download…")
         self._start("download", job, self._on_download_succeeded, progress=True)
+
+    def _fetcher(self, settings: AppSettings):
+        """The download function for the current cache target, built on the GUI thread."""
+        cache_root, max_jobs, target = settings.resolved_cache_dir(), settings.max_cached_jobs, self._cache_target
+
+        def fetch(client, project, project_id, row: JobRow, ctx: WorkerContext):
+            if target is None:
+                cache = ArtifactCache(cache_root, max_jobs)
+                return fetch_ci_artifact(client, project, project_id, row, cache, byte_progress(ctx), ctx.cancel)
+            if target[0] == "debug":
+                rel = debug_cache_path(target[1], row.ref, row.commit, row.job_name)
+            else:
+                rel = build_cache_path(row.ref, row.commit, target[2], target[1])
+            cache = NamedArtifactCache(cache_root, max_jobs)
+            return fetch_named_artifact(client, project, project_id, row, cache, rel, byte_progress(ctx), ctx.cancel)
+
+        return fetch
 
     def _mark_downloading(self, button: QPushButton | None) -> None:
         self._downloading_button = button

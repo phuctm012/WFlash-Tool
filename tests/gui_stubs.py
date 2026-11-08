@@ -104,6 +104,18 @@ class _SlowRaw(io.BytesIO):
         return super().read(limit)
 
 
+DEV_PIPELINE_ID = 300
+DEV_FFI_JOB, DEV_ELF_JOB = 31, 32
+
+
+def zip_of(files: dict[str, bytes]) -> bytes:
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        for name, data in files.items():
+            zf.writestr(name, data)
+    return buf.getvalue()
+
+
 class FakeGitLabSession:
     """Answers the GitLab REST v4 calls GitLabClient makes. Thread-safe."""
 
@@ -120,6 +132,7 @@ class FakeGitLabSession:
         self.connection_error = connection_error
         self.chunk_delay_s = chunk_delay_s
         self.zip_bytes = artifact_zip_bytes()
+        self.commit_has_pipeline = True  # developer flow: pipelines?sha= finds one
         self.calls: list[str] = []
         self._lock = threading.Lock()
 
@@ -143,6 +156,24 @@ class FakeGitLabSession:
             return self._response(200, [{"name": "main"}])
         if path == f"/projects/{PROJECT_ID}/repository/tags":
             return self._response(200, [{"name": "v1.0"}])
+        if path == f"/projects/{PROJECT_ID}/pipelines" and "sha" in (params or {}):
+            found = [{"id": DEV_PIPELINE_ID, "ref": "main", "status": "manual", "sha": params["sha"],
+                      "created_at": "2026-11-08T10:00:00Z"}]
+            return self._response(200, found if self.commit_has_pipeline else [])
+        if path == f"/projects/{PROJECT_ID}/pipelines/{DEV_PIPELINE_ID}/jobs":
+            archive = [{"file_type": "archive"}]
+            return self._response(200, [
+                {"id": DEV_FFI_JOB, "name": "create_ffi_stingray_3p5mb_no_HTSM", "stage": "release",
+                 "status": "success", "finished_at": "2026-11-08T10:05:00Z", "artifacts": archive},
+                {"id": DEV_ELF_JOB, "name": "build", "stage": "build", "status": "success",
+                 "finished_at": "2026-11-08T10:04:00Z", "artifacts": archive},
+                {"id": 33, "name": "create_ffi_strx_3p5mb_no_HTSM", "stage": "release", "status": "skipped",
+                 "artifacts": []},
+            ])
+        if path == f"/projects/{PROJECT_ID}/jobs/{DEV_FFI_JOB}/artifacts":
+            return self._stream(url, zip_of({"out/FFI/RAD_SUZ05_FFI.s3": b"S0"}))
+        if path == f"/projects/{PROJECT_ID}/jobs/{DEV_ELF_JOB}/artifacts":
+            return self._stream(url, zip_of({"out/bin/Radar_SUZ05_Gen7.elf": b"ELF"}))
         if path == f"/projects/{PROJECT_ID}/pipelines":
             ref = (params or {}).get("ref", "main")
             return self._response(

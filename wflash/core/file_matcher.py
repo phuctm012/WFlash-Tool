@@ -22,6 +22,9 @@ class MappingRow:
     selected: Path | None = None
     source: str | None = None  # the profile's source id, when it declares sources
     root: Path | None = None  # that source's folder; files are shown relative to it
+    role: str | None = None  # ffi, cal, bm, fbl, elf (profiles with builds)
+    offset: int | None = None  # the profile's offset for a program row
+    missing_text: str = ""  # what the file cell says while nothing is selected
 
     @property
     def ok(self) -> bool:
@@ -37,6 +40,8 @@ class MappingRow:
         }
         if self.source is not None:
             data["source"] = self.source
+        if self.role is not None:
+            data["role"] = self.role
         return data
 
 
@@ -79,6 +84,23 @@ def build_mapping_for_source(profile: Profile, source_id: str, root: Path) -> li
         if source == source_id:
             row = _row(kind, target, pattern, root, files)
             row.source, row.root = source_id, root
+            rows.append(row)
+    return rows
+
+
+def build_mapping_for_role(profile: Profile, roles: set[str], root: Path) -> list[MappingRow]:
+    """The rows of those roles, matched only against this folder's files (one artifact)."""
+    files = _files(root)
+    rows = []
+    for spec in profile.programs:
+        if spec.role in roles and spec.winidea_entry:
+            row = _row("program", spec.winidea_entry, spec.pattern, root, files)
+            row.role, row.root, row.offset = spec.role, root, spec.offset
+            rows.append(row)
+    for spec in profile.applications:
+        if spec.role in roles:
+            row = _row("application", spec.winidea_app, spec.pattern, root, files)
+            row.role, row.root = spec.role, root
             rows.append(row)
     return rows
 

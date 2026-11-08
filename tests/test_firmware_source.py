@@ -10,6 +10,7 @@ def test_to_dict_has_every_field():
         "detail": "group/pkgs · 2026-10-04 09:20",
         "cache_note": "Downloaded · 1 file",
             "commit": "",
+            "job_name": "",
     }
 
 

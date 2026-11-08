@@ -41,11 +41,11 @@ def test_gui_starts_with_the_empty_source_card_and_hint(host):
 def test_gui_unique_matches_are_selected_and_the_card_filled(host, tmp_path):
     root = make_artifact_tree(tmp_path / "art")
     host.on_firmware_ready(root, SOURCE)
-    table = host.ui.tableWidget_mapping
-    assert table.rowCount() == 3
+    programs, symbols = host.ui.tableWidget_programFiles, host.ui.tableWidget_symbolFiles
+    assert (programs.rowCount(), symbols.rowCount()) == (1, 2)
     assert host.mapping_complete()
-    assert [table.item(0, c).text() for c in range(4)] == ["1", "Program", "App", "**/*App*.s3"]
-    assert [table.item(2, c).text() for c in range(3)] == ["3", "Symbols", "CM7_1"]
+    assert programs.item(0, 0).text() == "1" and symbols.item(1, 0).text() == "2"
+    assert "App" in host.mapping_combo(0).toolTip() and "CM7_1" in host.mapping_combo(2).toolTip()
     assert host.mapping_combo(0).currentText() == "out/App.s3"
     assert host.mapping_combo(0).styleSheet() == ""
     assert host.ui.label_sourceTitle.text() == SOURCE.title
@@ -90,14 +90,14 @@ def test_gui_red_rows_follow_the_theme(host, tmp_path):
     set_theme_name("dark")
     host.refresh_mapping_theme()
     assert THEMES["dark"]["missing_bg"] in program.styleSheet()
-    number = host.ui.tableWidget_mapping.item(0, 0)
+    number = host.ui.tableWidget_programFiles.item(0, 0)
     assert number.background().color().name() == THEMES["dark"]["soft"]
 
 
 def test_gui_clear_mapping(host, tmp_path):
     host.on_firmware_ready(make_artifact_tree(tmp_path / "art"), SOURCE)
     host.clear_mapping()
-    assert host.ui.tableWidget_mapping.rowCount() == 0
+    assert host.ui.tableWidget_programFiles.rowCount() == host.ui.tableWidget_symbolFiles.rowCount() == 0
     assert not host.mapping_complete()
     assert host.artifact_root is None and host.firmware_source is None
     assert host.ui.label_sourceTitle.text() == NO_FIRMWARE_TITLE
@@ -108,11 +108,11 @@ def test_gui_clear_mapping(host, tmp_path):
 def test_gui_no_profile_or_closing_ignores_firmware(host, tmp_path):
     host.profile = None
     host.on_firmware_ready(make_artifact_tree(tmp_path / "art"), SOURCE)
-    assert host.ui.tableWidget_mapping.rowCount() == 0
+    assert host.ui.tableWidget_programFiles.rowCount() == host.ui.tableWidget_symbolFiles.rowCount() == 0
     host.profile = load_profile(EXAMPLE_PROFILE)
     host._closing = True
     host.on_firmware_ready(make_artifact_tree(tmp_path / "art2"), SOURCE)
-    assert host.ui.tableWidget_mapping.rowCount() == 0
+    assert host.ui.tableWidget_programFiles.rowCount() == host.ui.tableWidget_symbolFiles.rowCount() == 0
     assert host.ui.label_sourceTitle.text() == NO_FIRMWARE_TITLE
 
 

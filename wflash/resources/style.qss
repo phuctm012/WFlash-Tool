@@ -227,7 +227,7 @@ QLabel#label_flashStats {
 QLabel#label_step {
     font-weight: 600;
 }
-QLabel#label_rollbackWarning, QLabel#label_commitWarning {
+QLabel#label_rollbackWarning, QLabel#label_commitWarning, QLabel#label_flashBlocked {
     background-color: #fdecea;
     border: 1px solid #e6a5a0;
     border-radius: 6px;
@@ -248,4 +248,17 @@ QStatusBar {
 QStatusBar QLabel {
     color: #5a6472;
     padding: 0 8px;
+}
+
+QFrame#frame_application, QFrame#frame_advancedDebug {
+    background-color: #e7f3f1;
+    border: none;
+    border-radius: 8px;
+}
+QLabel#label_applicationHeader, QCheckBox#checkBox_advancedDebug, QLabel#label_programFiles, QLabel#label_symbolFiles {
+    color: #0f6b63;
+    font-weight: 600;
+}
+QScrollArea#scrollArea_setting, QWidget#scrollAreaWidgetContents_setting {
+    background: transparent;
 }

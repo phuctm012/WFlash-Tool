@@ -168,6 +168,7 @@ def fetch_ci_artifact(
         detail=f"{project} · {job.ref} · pipeline #{job.pipeline_id}",
         cache_note=files_note(from_cache, count_files(path)),
         commit=job.commit,
+        job_name=job.job_name,
     )
     return path, source
 
@@ -200,5 +201,6 @@ def fetch_named_artifact(
         detail=f"{project} · {job.ref} · pipeline #{job.pipeline_id}",
         cache_note=files_note(from_cache, count_files(path) - 1),  # without the marker
         commit=job.commit,
+        job_name=job.job_name,
     )
     return path, source

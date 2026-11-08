@@ -80,7 +80,7 @@ def test_gui_flash_happy_path(qtbot, tmp_path):
     # The same button is now a red Cancel.
     assert w.ui.pushButton_flash.isEnabled() and w.ui.pushButton_flash.text() == "Cancel"
     assert w.ui.pushButton_flash.property("state") == "flashing"
-    assert not w.ui.tableWidget_mapping.isEnabled() and not w.ui.pushButton_exportBundle.isEnabled()
+    assert not w.ui.tableWidget_programFiles.isEnabled() and not w.ui.pushButton_exportBundle.isEnabled()
     assert not w.ui.pushButton_loadFromGitlab.isEnabled() and not w.ui.pushButton_preferences.isEnabled()
     qtbot.waitUntil(lambda: w.current_step() == Step.DONE.value, timeout=5000)
     wait_idle(w, qtbot)

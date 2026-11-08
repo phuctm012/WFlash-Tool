@@ -1390,3 +1390,23 @@ GitLab thật trả về pipeline đúng commit. Trạng thái chung của pipel
 ### Đã kiểm tra
 
 - Đối chiếu kết quả với logic `find_build_jobs` và test hiện có. Chỉ đổi tài liệu.
+
+## Phase 3.11: Giao diện developer: source repo, build, Advanced Debug, hai bảng file
+
+Profile có `builds` giờ hiện panel developer thay cho nút Load from GitLab. Người dùng chọn thư mục source repo, WFlash đọc branch, commit và cảnh báo khi có thay đổi chưa commit (chỉ cảnh báo, không chặn). Nút "Load firmware for <commit>" tìm pipeline của commit đó, rồi tải FFI và ELF theo build đã chọn vào thư mục cache đặt theo branch. CAL được tìm cạnh file `.xjrf`. Advanced Debug thêm dòng BM và FBL; khi tắt thì ẩn hai dòng này và lúc flash sẽ bỏ tick chúng. Bảng file tách thành Program Files (có cột Offset) và Symbol Files, bỏ cột winIDEA target. Flash bị khoá khi thiếu CAL hoặc BM lấy từ job khác với job của build, kèm lý do hiện trên banner.
+
+### Thay đổi
+
+- **`wflash/gui/main_window.ui`** và **`ui_main_window.py`** (sinh lại): `scrollArea_setting`, `frame_developer`, `frame_application`, `frame_advancedDebug`, `tableWidget_programFiles`, `tableWidget_symbolFiles`, `label_flashBlocked`.
+- **`wflash/gui/source_panel.py`** (mới): `SourcePanelMixin`; đọc repo và tải build chạy trên worker.
+- **`wflash/gui/mapping_table.py`**: hai bảng, cột Source theo role.
+- **`wflash/gui/flash_mixin.py`**: `source_busy`, `flash_block_reason`, `flash_request_extras`.
+- **`wflash/gui/gitlab_dialog.py`**: `prepare(..., project=, cache=)` cho BM/FBL và chọn job tay.
+- **`wflash/core/file_matcher.py`**, **`settings.py`**, **`firmware_source.py`**, **`fake_adapter.py`**: role, offset, `source_repos`, `last_build`, `job_name`, `workspace`.
+- **`wflash/resources/style*.qss`**: màu cho các khung mới.
+- **`tests/test_gui_source_panel.py`** (mới), **`tests/gui_stubs.py`**: pipeline theo commit giả.
+
+### Đã kiểm tra
+
+- `pytest -q` (432 passed), `pytest -k thread -q` (42 passed), `tools/stress_test.py` (PASS, 0 cảnh báo threading).
+- Chụp cửa sổ offscreen ở 1280×820: bố cục hai bảng và panel cuộn đúng. Chưa xem màu QSS và chưa chạy trên Windows/ECU. Nút Checkout chưa có chức năng (Task 10).

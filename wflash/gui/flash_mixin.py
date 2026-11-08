@@ -80,6 +80,16 @@ class FlashMixin:
     def flash_active(self) -> bool:
         return self._workers.is_running(self._flash_key)
 
+    # Hooks a developer panel (SourcePanelMixin) overrides; harmless defaults otherwise.
+    def source_busy(self) -> bool:
+        return False
+
+    def flash_block_reason(self) -> str:
+        return ""
+
+    def flash_request_extras(self) -> dict:
+        return {}
+
     def flash_locked(self) -> bool:
         """Programming has started and cannot be stopped safely; Cancel stays disabled."""
         return self._flash_locked
@@ -120,6 +130,8 @@ class FlashMixin:
             and self.profile is not None
             and self.mapping_complete()
             and self.selected_instance() is not None
+            and not self.source_busy()
+            and not self.flash_block_reason()
         )
         self._set_flash_button(flashing)
         # While flashing the same button cancels; after one cancel it waits for the rollback.
@@ -130,12 +142,14 @@ class FlashMixin:
             self.ui.comboBox_profile,
             self.ui.pushButton_reloadProfiles,
             self.ui.pushButton_preferences,
-            self.ui.tableWidget_mapping,
+            self.ui.tableWidget_programFiles,
+            self.ui.tableWidget_symbolFiles,
             self.ui.comboBox_instance,
             self.ui.pushButton_refreshInstances,
             self.ui.checkBox_reset,
             self.ui.checkBox_verifyFlash,
             self.ui.pushButton_exportBundle,
+            self.ui.frame_developer,
         ):
             widget.setEnabled(not flashing)
         self.ui.pushButton_loadFromGitlab.setEnabled(not flashing and self.profile is not None)
@@ -218,6 +232,7 @@ class FlashMixin:
             run=self.ui.checkBox_reset.isChecked() and self.ui.checkBox_run.isChecked(),
             timeout_s=self.profile.timeouts.download_s,
             verify=self.ui.checkBox_verifyFlash.isChecked(),
+            **self.flash_request_extras(),
         )
         adapter, debug_ctx = self.adapter, self.ctx
 

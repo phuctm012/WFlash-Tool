@@ -43,6 +43,7 @@ class FakeWinIDEAAdapter:
         fail_on: Iterable[str] = (),
         cancellable: bool = True,
         rows: tuple[list[ProgramRow], list[SymbolRow]] | None = None,
+        workspace: str = WORKSPACE,
     ) -> None:
         self.programs = dict(programs if programs is not None else {"App": r"C:\fake\old\App.s3"})
         self.applications = dict(
@@ -61,7 +62,8 @@ class FakeWinIDEAAdapter:
             )
         self.program_rows = list(rows[0])
         self.symbol_rows = list(rows[1])
-        self.workspace = Path(WORKSPACE).parent
+        self.workspace_file = workspace
+        self.workspace = Path(workspace).parent
         self.connected_to: str | None = None
         self.target_state = "unknown"
         self.calls: list[str] = []
@@ -88,7 +90,7 @@ class FakeWinIDEAAdapter:
         self._call("list_instances")
         if "list_instances" in self.fail_on:
             return []
-        return [InstanceInfo(INSTANCE_ID, WORKSPACE, 5313)]
+        return [InstanceInfo(INSTANCE_ID, self.workspace_file, 5313)]
 
     def connect(self, instance_id: str) -> None:
         self._call("connect", instance_id)
@@ -102,7 +104,7 @@ class FakeWinIDEAAdapter:
 
     def get_info(self) -> dict[str, str]:
         self._require_connected()
-        return {"winidea_version": "9.21.0 (fake)", "workspace": WORKSPACE, "adapter": "fake"}
+        return {"winidea_version": "9.21.0 (fake)", "workspace": self.workspace_file, "adapter": "fake"}
 
     def read_programs(self) -> list[FileEntry]:
         self._require_connected()
