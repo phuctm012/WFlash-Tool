@@ -518,3 +518,28 @@ Gửi kết quả phần A trước. Nếu không ghi được dấu tick thì *
 6. Xóa Output, chạy `python 12_begin_program.py`, xem danh sách file rồi gõ `YES`. Chép Output vào `results\v8_api_output.txt`. Tắt bật nguồn, kiểm tra ECU, và kiểm tra ECU đúng là đang chạy BM và FBL đã chọn nếu có cách phân biệt.
 
 Gửi lại `spike\results\`, kèm: Output có đúng 1 `ERASING` không, và ECU có chạy đúng không.
+
+## Vòng 9: thử chế độ developer trong WFlash
+
+Làm **sau khi phần B của Vòng 8 đạt**. Phần đó chứng minh winIDEA flash được bốn dòng FFI, CAL, BM, FBL trong một lần. Lấy bản mới của nhánh `feat/developer-debug`, cài lại (`python -m pip install -e ".[dev]"`), chạy `python main.py --verbose` từ thư mục repo. Mở một winIDEA duy nhất với workspace SUZ05 M7; file CAL `.sre` nằm cùng thư mục với file `.xjrf`.
+
+⚠️ Các bước ghi **(FLASH)** sẽ ghi vào flash. Cách khôi phục: trong winIDEA bỏ tick BM và FBL, chỉ tick FFI và CAL, chọn lại các file tốt đã biết, rồi Debug → Download bấm tay. Gặp `Error loading monitor` thì tắt bật nguồn ECU rồi làm lại.
+
+**Phần A: không ghi flash**
+
+1. Chọn profile `SUZ05_M7_FFI`. Vùng Setting phải hiện panel developer (Source repo, Application, Advanced Debug), không còn nút Load from GitLab. Bảng bên phải tách thành **Program Files** (FFI, CAL; cột Offset) và **Symbol Files** (ELF).
+2. **Browse…** chọn thư mục gốc source SUZ05. Kiểm tra Branch, Commit đúng với `git log -1` trong repo, và dòng "No local changes".
+3. Sửa tạm một file trong repo (chưa commit). Bấm vào ô Source repo rồi nhấn Enter. Mong đợi: cảnh báo "local changes" nhưng nút Load vẫn bấm được.
+4. Vẫn còn thay đổi đó, bấm **Checkout…**, chọn branch khác, chọn commit đầu, bấm Checkout. Mong đợi: bị **từ chối**, có thông báo đỏ, file đã sửa giữ nguyên. Trả file về như cũ (`git checkout -- <file>` do bạn tự làm).
+5. **Checkout…** lần nữa: thử **Fetch**, chọn branch có pipeline, kiểm tra cột Pipeline (Passed/Failed/Manual…). Chọn commit đầu, bấm Checkout. Panel phải hiện branch mới. Rồi Checkout lại về branch ban đầu.
+6. Chọn Build `stingray_3p5mb_no_HTSM`, bấm **Load firmware for <commit>**. Mong đợi: tải FFI và ELF, dòng trạng thái ghi job và commit; thư mục cache có dạng `<cache>\<branch>\<commit>_stingray_3p5mb_no_HTSM\FFI` và `...\ELF`. Dòng CAL tự lấy file `.sre` cạnh workspace.
+7. Chọn Build mà job chưa chạy (ví dụ `strx_3p5mb_no_HTSM`, job `create_ffi_strx_3p5mb_no_HTSM` đang `skipped`), bấm Load. Mong đợi: thông báo rõ job chưa chạy, không tải gì. Chọn lại build stingray.
+8. Đổi tạm tên file CAL `.sre` cạnh workspace, chọn lại instance winIDEA. Mong đợi: dòng CAL đỏ, Flash bị khóa với lý do thiếu CAL. Đổi lại tên file, chọn lại instance.
+9. Tick **Advanced Debug**. Bảng có thêm dòng BM, FBL (offset `0x0` và `0xF1000`) và ELF của BM, FBL. Load BM từ job **sai** (ví dụ `build_STRX_3P5MB` nếu có, hoặc job khác `build_STINGRAY_3P5MB`). Mong đợi: Flash bị khóa, dải đỏ nêu job cần dùng. Load lại BM từ `build_STINGRAY_3P5MB` và FBL từ job `build`: Flash bật lại.
+
+**Phần B: có ghi flash**
+
+10. **(FLASH)** Bỏ tick Advanced Debug, bấm Flash. Mong đợi: Output winIDEA có đúng 1 `ERASING`; xong thì trong workspace dòng BM, FBL và ELF của BM, FBL **không tick**, dòng FFI trỏ vào thư mục cache theo branch. Tắt bật nguồn, kiểm tra ECU chạy.
+11. **(FLASH)** Tick Advanced Debug (BM, FBL đã nạp ở bước 9), bấm Flash. Mong đợi: 1 `ERASING`; dòng BM, FBL và ELF của chúng **được tick** và trỏ vào cache. Tắt bật nguồn, kiểm tra ECU chạy, và nếu có cách thì kiểm tra đúng BM, FBL vừa chọn.
+12. **(FLASH)** Checkout một commit khác có pipeline (firmware khác), Load firmware, bỏ Advanced Debug, Flash. Tắt bật nguồn, kiểm tra ECU đúng là chạy firmware mới.
+13. Export debug bundle, gửi lại cùng Output winIDEA của các bước 10–12 và ảnh chụp panel developer.

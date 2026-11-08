@@ -19,9 +19,11 @@ import os
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import argparse  # noqa: E402
+import dataclasses  # noqa: E402
 import faulthandler  # noqa: E402
 import logging  # noqa: E402
 import shutil  # noqa: E402
+import subprocess  # noqa: E402
 import sys  # noqa: E402
 import tempfile  # noqa: E402
 import threading  # noqa: E402
@@ -42,6 +44,7 @@ from PySide6.QtWidgets import QApplication, QMessageBox  # noqa: E402
 from tests.gui_stubs import (  # noqa: E402
     GITLAB_URL,
     JOB_ID,
+    PROJECT,
     OLD_APP,
     OLD_CM7_0,
     OLD_CM7_1,
@@ -54,6 +57,7 @@ from tests.gui_stubs import (  # noqa: E402
 )
 from wflash.core.errors import WinIDEAError  # noqa: E402
 from wflash.core.fake_adapter import FakeWinIDEAAdapter  # noqa: E402
+from wflash.core.flash_plan import ProgramRow, SymbolRow  # noqa: E402
 from wflash.core.flash_workflow import Step  # noqa: E402
 from wflash.core.logging_setup import close_file_handler, get_logger, setup_logging  # noqa: E402
 from wflash.core.settings import AppSettings  # noqa: E402
@@ -83,6 +87,25 @@ THREADING_PATTERNS = (
 )
 CANCEL_DELAYS_S = (0.0, 0.005, 0.02, 0.06, 0.15, 0.4)
 NEW_APP_SUFFIX = "App.s3"
+DEV_CAL = "20260623_142557_2018688_CAL_T008_v0_0.sre"
+DEV_BM, DEV_FBL = "FBL_M7_LIP_RfeClock_Image.bin", "Radar_SUZ05_Gen7_FBL.bin"
+
+
+def suz05_rows():
+    """The SUZ05 workspace as observed: five download rows (the first unticked), three symbol files."""
+    programs = [
+        ProgramRow(0, "Radar_SUZ05_Gen7.s3", "Radar_SUZ05_Gen7.s3", False, 0x1AA000),
+        ProgramRow(1, "RAD_SUZ05_FFI.s3", "old/RAD_SUZ05_FFI.s3", True, 0),
+        ProgramRow(2, DEV_CAL, DEV_CAL, True, 0),
+        ProgramRow(3, DEV_BM, f"old/{DEV_BM}", True, 0),
+        ProgramRow(4, DEV_FBL, f"old/{DEV_FBL}", True, 0xF1000),
+    ]
+    symbols = [
+        SymbolRow(0, 0, "App_M7/Radar_SUZ05_Gen7.elf", "old/a.elf", True),
+        SymbolRow(0, 1, "App_M7/Radar_SUZ05_Gen7_BM.elf", "old/b.elf", True),
+        SymbolRow(0, 2, "App_M7/Radar_SUZ05_Gen7_FBL.elf", "old/c.elf", True),
+    ]
+    return programs, symbols
 
 
 class DropsMidTransfer(FakeWinIDEAAdapter):
@@ -275,7 +298,92 @@ class Stress:
         self.check("two_m7" in adapter.applications["CM7_0"], f"{label}: symbol file from the M7 artifact")
         self.close_window(window, label)
 
+    # -- developer flow (profile with builds) --------------------------------------------
+    def make_repo(self, folder: Path) -> Path:
+        folder.mkdir(parents=True)
+        for args in (("init", "-q", "-b", "main"), ("config", "user.email", "s@example.com"), ("config", "user.name", "S")):
+            subprocess.run(["git", "-C", str(folder), *args], check=True, capture_output=True)
+        (folder / "a.c").write_text("1")
+        subprocess.run(["git", "-C", str(folder), "add", "."], check=True, capture_output=True)
+        subprocess.run(["git", "-C", str(folder), "commit", "-q", "-m", "first"], check=True, capture_output=True)
+        return folder
+
+    def new_dev_window(self, label: str, session: FakeGitLabSession | None = None, read_repo: bool = True):
+        self._window_count += 1
+        folder = self.workdir / f"dev{self._window_count}"
+        profiles = folder / "profiles"
+        profiles.mkdir(parents=True)
+        text = (REPO / "profiles" / "suz05_m7_ffi.yaml").read_text(encoding="utf-8")
+        project = text.split("project: ", 1)[1].split("\n", 1)[0]
+        (profiles / "suz05_m7_ffi.yaml").write_text(text.replace(project, PROJECT, 1), encoding="utf-8")
+        workspace = folder / "ws"
+        workspace.mkdir()
+        (workspace / DEV_CAL).write_text("S0")
+        adapter = FakeWinIDEAAdapter(download_seconds=0.2, rows=suz05_rows(), workspace=str(workspace / "SUZ_7G5_M7.xjrf"))
+        settings = AppSettings(gitlab_url=GITLAB_URL, profiles_dir=str(profiles), cache_dir=str(folder / "cache"))
+        window = MainWindow(settings, adapter, client_factory=SessionClientFactory(session or FakeGitLabSession()),
+                            log_file=self.log_file, settings_path=folder / "settings.json")
+        window.resize(1280, 820)
+        window.show()
+        self.check(self.pump_until(lambda: window.ui.comboBox_instance.count() == 1, 5.0), f"{label}: instance listed")
+        self.check(window.developer_mode(), f"{label}: developer panel for a profile with builds")
+        window.ui.comboBox_build.setCurrentText("stingray_3p5mb_no_HTSM")
+        window.ui.lineEdit_sourceRepo.setText(str(self.make_repo(folder / "src")))
+        if read_repo:
+            window._on_repo_edited()
+            self.check(self.pump_until(lambda: window.ui.label_repoBranch.text() == "Branch: main", 5.0),
+                       f"{label}: repo read")
+        return window, adapter
+
+    def deliver_debug(self, window, role: str, job: str) -> None:
+        name = DEV_BM if role == "bm" else DEV_FBL
+        root = self.workdir / f"debug_{role}_{self._window_count}_{job}"
+        (root / "out" / "bin").mkdir(parents=True, exist_ok=True)
+        (root / "out" / "bin" / name).write_bytes(b"B")
+        (root / "out" / "bin" / f"Radar_SUZ05_Gen7_{role.upper()}.elf").write_bytes(b"E")
+        window._loading_source = f"debug:{role}"
+        window.on_firmware_ready(root, dataclasses.replace(SOURCE, job_name=job, commit="41c7a0de"))
+
+    def check_developer_flow(self, label: str) -> None:
+        """Repo -> build loaded by commit -> Advanced Debug off/on -> two flashes: BM unticked, then ticked."""
+        window, adapter = self.new_dev_window(label)
+        window.load_build_firmware()
+        window.load_build_firmware()  # double click: one load
+        loads = [k for k in window._workers.running_keys() if k.startswith("source-load")]
+        self.check(len(loads) <= 1, f"{label}: double Load runs one worker, got {loads}")
+        self.check(self.pump_until(lambda: window.ui.label_loadStatus.text().startswith("FFI:"), 8.0),
+                   f"{label}: build loaded")
+        for _ in range(3):
+            window.ui.checkBox_advancedDebug.toggle()
+            self.pump(0.01)
+        self.check(window.advanced_debug(), f"{label}: Advanced Debug on after three toggles")
+        window.ui.checkBox_advancedDebug.setChecked(False)
+        self.check(self.pump_until(window.ui.pushButton_flash.isEnabled, 3.0), f"{label}: Flash enabled without BM/FBL")
+        window.start_flash()
+        self.check(self.wait_step(window, Step.DONE.value, 10.0), f"{label}: flash (Advanced Debug off) reached Done")
+        self.check(self.wait_flash_idle(window), f"{label}: worker released")
+        rows = {r.name: r for r in adapter.program_rows}
+        self.check(not rows[DEV_BM].enabled and not rows[DEV_FBL].enabled, f"{label}: BM/FBL unticked when off")
+        self.check("main" in rows["RAD_SUZ05_FFI.s3"].path, f"{label}: FFI path in the branch folder")
+
+        window.ui.checkBox_advancedDebug.setChecked(True)
+        self.deliver_debug(window, "bm", "build_STINGRAY_3P5MB")
+        self.deliver_debug(window, "fbl", "build")
+        self.check(window.flash_block_reason() == "", f"{label}: nothing blocks with the right BM job")
+        self.check(self.pump_until(window.ui.pushButton_flash.isEnabled, 3.0), f"{label}: Flash enabled with BM/FBL")
+        window.start_flash()
+        self.check(self.wait_step(window, Step.DONE.value, 10.0), f"{label}: flash (Advanced Debug on) reached Done")
+        self.check(self.wait_flash_idle(window), f"{label}: second worker released")
+        rows = {r.name: r for r in adapter.program_rows}
+        self.check(rows[DEV_BM].enabled and rows[DEV_FBL].enabled, f"{label}: BM/FBL ticked when on")
+        self.check(rows[DEV_FBL].path.endswith(DEV_FBL) and "old/" not in rows[DEV_FBL].path, f"{label}: FBL path set")
+        symbols = [r for r in adapter.symbol_rows if r.name.endswith("_BM.elf")]
+        self.check(symbols and symbols[0].enabled and "old/" not in symbols[0].path, f"{label}: BM ELF ticked and set")
+        self.check(self.dialogs == [], f"{label}: no error dialog: {self.dialogs}")
+        self.close_window(window, label)
+
     def section_flash(self) -> None:
+        self.check_developer_flow("flash[developer]")
         self.check_locked_flash("flash[locked]")
         self.check_two_sources("flash[two-sources]")
         for i in range(self.iterations):
@@ -530,6 +638,15 @@ class Stress:
         self.check(not window.flash_active(), "races: no flash worker before close")
         self.close_window(window, "races: closed during GitLab fetch", max_s=3.0)
 
+        # Developer flow: closed while a build loads, and while the repo is being read.
+        window, _adapter = self.new_dev_window("races[dev-load]", FakeGitLabSession(delay_s=0.4))
+        window.load_build_firmware()
+        self.check(window.source_busy(), "races: build load in flight before close")
+        self.close_window(window, "races: closed during build load", max_s=3.0)
+        window, _adapter = self.new_dev_window("races[dev-repo]", read_repo=False)
+        window._on_repo_edited()
+        self.close_window(window, "races: closed during repo read", max_s=3.0)
+
     def section_theme(self) -> None:
         app = QApplication.instance()
         adapter = FakeWinIDEAAdapter(download_seconds=6.0)
@@ -596,11 +713,11 @@ class Stress:
 
 
 SECTIONS = {
-    "flash": ("full fetch->map->flash, cancel mid-download, resize + log filter while live", Stress.section_flash),
+    "flash": ("developer flow by commit + Advanced Debug; full fetch->map->flash, cancel mid-download, resize + log filter", Stress.section_flash),
     "rollback": ("every failure branch; workspace paths restored, failed rollback shown", Stress.section_rollback),
     "gitlab": ("dialog: CI artifact, 401/403/404/connection, double-click, Stop, close mid-fetch",
                Stress.section_gitlab),
-    "races": ("cancel at 0..400 ms, double Flash/Cancel, close mid-download / mid-fetch", Stress.section_races),
+    "races": ("cancel at 0..400 ms, double Flash/Cancel, close mid-download / mid-fetch / build load / repo read", Stress.section_races),
     "theme": ("light/dark switched while flashing and with the dialog open", Stress.section_theme),
     "secrets": ("a realistic PAT through panel, log file and debug bundle", Stress.section_secrets),
 }

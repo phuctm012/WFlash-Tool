@@ -1427,3 +1427,19 @@ Nút Checkout… trong panel developer mở hộp thoại liệt kê các branch
 
 - `pytest -q` (442 passed), `pytest -k thread -q` (43 passed), `tools/stress_test.py` (PASS); app chạy được với `--adapter fake`.
 - Test dùng repo git thật trên macOS. Chưa thử với repo thật trên Windows: thời gian `git fetch` qua mạng nội bộ và cột Pipeline với GitLab thật.
+
+## Phase 3.13: Stress test cho luồng developer, tài liệu và Vòng 9
+
+Stress test giờ chạy cả luồng developer trên một cửa sổ thật: dùng repo git tạm, nạp build theo commit qua GitLab giả, bật/tắt Advanced Debug ba lần, rồi flash hai lần. Lần đầu tắt Advanced Debug thì BM, FBL bị bỏ tick; lần hai bật thì BM, FBL và ELF của chúng được tick và trỏ vào file mới. Phần races có thêm hai trường hợp: đóng cửa sổ khi đang tải build, và khi đang đọc repo. Tài liệu cập nhật luồng developer, và có hướng dẫn Vòng 9 cho máy Windows.
+
+### Thay đổi
+
+- **`tools/stress_test.py`**: `new_dev_window`, `check_developer_flow`, `deliver_debug`; thêm race đóng cửa sổ trong lúc tải build và đọc repo.
+- **`README.md`**: mục "Chế độ developer", hai bảng file, lệnh uic cho `checkout_dialog.ui`.
+- **`CLAUDE.md`**: ngoại lệ của Approach A cho profile có `builds` (tick BM/FBL, đường dẫn CAL, lỗi thì chỉ trả lại path, không trả lại tick); `source_repo` không bao giờ stash, reset hay force; danh sách file GUI mới.
+- **`docs/windows_test_guide.md`**: Vòng 9.
+
+### Đã kiểm tra
+
+- `pytest -q` (442 passed), `pytest -k thread -q` (43 passed), `tools/stress_test.py` (393 checkpoint, PASS, 0 cảnh báo threading), `main.py --adapter fake --smoke` (exit 0).
+- Chưa có kết quả trên phần cứng: chờ Vòng 8 phần B và Vòng 9.

@@ -48,7 +48,7 @@ Fake adapter giả lập lỗi qua biến môi trường `WFLASH_FAKE_FAIL` (n�
 
 - Một cửa sổ duy nhất. Phần đầu: nút **Flash** lớn (khi đang flash, chính nút đó thành **Cancel** màu đỏ), thanh tiến trình, nhãn `phần trăm | ETA | Speed` và `Step: …`.
 - Vùng **Setting** (trái): profile, nguồn firmware (**Load from GitLab…** và thẻ cho biết đang dùng artifact nào), instance winIDEA, Reset/Run sau khi flash, **Preferences…**.
-- Bảng mapping (phải) có cột `#`; dòng đỏ là dòng chưa có file. Dưới cùng là tab **Information** (log). Thanh trạng thái hiện version và tác giả.
+- Hai bảng bên phải: **Program Files** (cột Offset) và **Symbol Files**, mỗi bảng có cột `#` và cột Source (FFI, CAL, BM, FBL, ELF…); dòng đỏ là dòng chưa có file. Dưới cùng là tab **Information** (log). Thanh trạng thái hiện version và tác giả.
 - Theme **Teal** sáng (mặc định) hoặc tối. Speed/ETA chỉ là **ước lượng**: winIDEA chỉ báo phần trăm, còn số byte lấy từ kích thước file `.s3` trên đĩa.
 
 ## Quy trình
@@ -60,6 +60,18 @@ Fake adapter giả lập lỗi qua biến môi trường `WFLASH_FAKE_FAIL` (n�
 3. Chọn instance winIDEA đang mở → **Flash**. Lỗi hoặc **Cancel** trong lúc đổi path/download sẽ khôi phục đường dẫn cũ trong workspace. Nếu chính việc khôi phục thất bại, cửa sổ hiện dải đỏ **ROLLBACK FAILED**: kiểm tra lại danh sách download/symbol file trong winIDEA trước khi flash tiếp.
 4. Đóng cửa sổ khi đang flash: tool hỏi xác nhận, hủy flash, chờ rollback xong rồi mới đóng.
 
+## Chế độ developer (profile có `builds`)
+
+Profile khai báo `builds` (ví dụ `profiles/suz05_m7_ffi.yaml`) thì vùng Setting thay nút Load from GitLab bằng panel developer:
+
+1. **Source repo**: chọn thư mục gốc của source (git). App hiện branch, commit và cảnh báo nếu có thay đổi chưa commit (chỉ cảnh báo, vẫn cho tải và flash).
+2. **Checkout…**: chọn branch hoặc commit, kèm trạng thái pipeline trên GitLab. App **từ chối** checkout khi repo có thay đổi chưa commit, và không bao giờ stash, reset hay force. **Fetch** chỉ chạy `git fetch --prune`.
+3. **Application**: chọn Build (cấu hình), bấm **Load firmware for <commit>**: app tìm pipeline của đúng commit đó, tải job FFI và job ELF của build vào cache `cache/<branch>/<commit>_<build>/FFI|ELF`. Commit chưa có pipeline, hoặc job chưa chạy (`manual`, `skipped`) thì app báo rõ. **Choose job in GitLab…** cho phép chọn job bằng tay.
+4. **CAL**: bắt buộc, lấy từ thư mục chứa file `.xjrf` của workspace. Không có thì Flash bị khóa.
+5. **Advanced Debug**: thêm dòng BM và FBL (repo riêng trong `debug_sources`, tải bằng nút Load của từng dòng). Bật thì app tick dòng `.bin` và ELF của BM, FBL trong workspace; tắt thì bỏ tick và **giữ nguyên trạng thái đó sau khi flash**. BM lấy từ job khác với job của Build thì Flash bị khóa.
+
+Thứ tự trong workspace là FFI → CAL → BM → FBL; BM và FBL ghi đè lên vùng của FFI. Khi flash lỗi, app trả lại đường dẫn cũ nhưng giữ dấu tick đã đặt.
+
 ## Log và gửi lỗi
 
 - Tab **Information** ở dưới cửa sổ (màu theo level và theo theme, lọc level, Copy, Clear). Popup GitLab có ô **GitLab log** riêng; các dòng đó cũng nằm trong log file.
@@ -68,11 +80,12 @@ Fake adapter giả lập lỗi qua biến môi trường `WFLASH_FAKE_FAIL` (n�
 
 ## Phát triển
 
-- Layout GUI nằm trong các file Qt Designer `wflash/gui/main_window.ui`, `wflash/gui/gitlab_dialog.ui`, `wflash/gui/preferences_dialog.ui`. Sau khi sửa `.ui`:
+- Layout GUI nằm trong các file Qt Designer `wflash/gui/main_window.ui`, `wflash/gui/gitlab_dialog.ui`, `wflash/gui/preferences_dialog.ui`, `wflash/gui/checkout_dialog.ui`. Sau khi sửa `.ui`:
 
       ~/.venvs/wflash/bin/pyside6-uic wflash/gui/main_window.ui -o wflash/gui/ui_main_window.py
       ~/.venvs/wflash/bin/pyside6-uic wflash/gui/gitlab_dialog.ui -o wflash/gui/ui_gitlab_dialog.py
       ~/.venvs/wflash/bin/pyside6-uic wflash/gui/preferences_dialog.ui -o wflash/gui/ui_preferences_dialog.py
+      ~/.venvs/wflash/bin/pyside6-uic wflash/gui/checkout_dialog.ui -o wflash/gui/ui_checkout_dialog.py
 
   Không sửa tay `ui_*.py`.
 - Theme: `wflash/resources/style.qss` (sáng) và `style_dark.qss` (tối) dùng đúng các màu trong `wflash/gui/theme.py` (`THEMES`); sửa màu thì sửa cả ba.
