@@ -379,7 +379,11 @@ Symbol files: the tick is **`/IDE/System.Debug.Applications[i].SymbolFiles.File[
 
 Workspace observed: rows FFI (1), CAL (2, relative name), BM `FBL_M7_LIP_RfeClock_Image.bin` (3, offset `0x0`), FBL `Radar_SUZ05_Gen7_FBL.bin` (4, first read `0x0`, then `0xF1000` after the user corrected it). `App_M7` symbol files: app ELF, `Radar_SUZ05_Gen7_BM.elf`, `Radar_SUZ05_Gen7_FBL.elf`.
 
-Not yet observed: how winIDEA programs overlapping rows (Vòng 8 part B) and pipelines by `sha` (spike 15).
+Not yet observed: how winIDEA programs overlapping rows (Vòng 8 part B).
+
+### GitLab: pipelines by commit (spike 15, 2026-11-08)
+
+`GET /projects/:id/pipelines?sha=<full sha>` on gitlab.hella.com returned HTTP 200 and pipeline `1579882`, `ref=Release_DD_05_03_01`, for `8ebd595d…`. The pipeline's own status was `manual` because manual jobs had not run, so WFlash must look at the two jobs, never at the pipeline status. Jobs seen: `build` success with archive, `create_ffi_stingray_3p5mb_no_HTSM` success with archive, `create_ffi_stingray_3p5mb`, `build_STRX_3P5MB`, `build_STINGRAY_3P5MB_UDS27_BYPASS` `manual` without archive, `create_ffi_stingray_uds27_bypass` and `create_ffi_strx_3p5mb_no_HTSM` `skipped`. `find_build_jobs` reports these states by name.
 
 ### Matching SDK location
 

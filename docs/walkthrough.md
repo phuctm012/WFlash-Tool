@@ -1378,3 +1378,15 @@ Spike 14 cho thấy ghi được dấu tick của dòng Download Files (`.Enable
 ### Đã kiểm tra
 
 - RED rồi GREEN; `pytest -q`, `pytest -k thread -q`, `tools/stress_test.py`. Chưa chạy luồng mới trên ECU.
+
+## Phase 3.10: Spike 15: tìm pipeline theo commit chạy được
+
+GitLab thật trả về pipeline đúng commit. Trạng thái chung của pipeline là `manual` vì còn job chạy tay, nên tool chỉ xét hai job cần dùng, đúng như `find_build_jobs` đang làm. Các job `manual` và `skipped` không có artifact, và thông báo lỗi nêu rõ trạng thái đó.
+
+### Thay đổi
+
+- **`docs/winidea_api_notes.md`**: kết quả spike 15.
+
+### Đã kiểm tra
+
+- Đối chiếu kết quả với logic `find_build_jobs` và test hiện có. Chỉ đổi tài liệu.
