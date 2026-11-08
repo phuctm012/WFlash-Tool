@@ -1443,3 +1443,15 @@ Stress test giờ chạy cả luồng developer trên một cửa sổ thật: d
 
 - `pytest -q` (442 passed), `pytest -k thread -q` (43 passed), `tools/stress_test.py` (393 checkpoint, PASS, 0 cảnh báo threading), `main.py --adapter fake --smoke` (exit 0).
 - Chưa có kết quả trên phần cứng: chờ Vòng 8 phần B và Vòng 9.
+
+## Phase 3.14: Vòng 8 phần B đạt: flash bốn dòng chồng nhau
+
+Người dùng chạy trên ECU thật với bốn dòng FFI, CAL, BM (`.bin`, offset `0x0`), FBL (`.bin`, offset `0xF1000`). Cả Debug → Download bấm tay và `begin_program()` đều chỉ có một lần `ERASING`, rồi ghi 79 sector và báo `OK`. Sau mỗi lần, tắt bật nguồn thì ECU chạy đúng. winIDEA chỉ cảnh báo vùng chồng nhau, và dòng nạp sau ghi đè dòng trước: spike 09 đọc được giá trị của BM ở vùng FFI bị BM che. Đây đúng là giả định `visible_segments` đang dùng. Vì vậy có thể làm tiếp Vòng 9.
+
+### Thay đổi
+
+- **`docs/winidea_api_notes.md`**: mục "Round 8 part B".
+
+### Đã kiểm tra
+
+- Đọc Output tay và Output API, `12_begin_program` (99.8 s, trả về `None`), `09_flash_compare` (FFI khớp trừ vùng BM ghi đè, CAL khớp). Chỉ đổi tài liệu. Dòng `PROGRAMMING 0 bytes` ở cuối Output của lần chạy API chưa giải thích được.

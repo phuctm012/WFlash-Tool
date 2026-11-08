@@ -394,6 +394,16 @@ Not yet observed: how winIDEA programs overlapping rows (Vòng 8 part B).
 - Replace only **row 1** of the Winbond Download Files (the `.s3`). Row 2 (CAL `.sre`) stays as it is.
 - Replace only the **`App_M7`** symbol file. `App_BBE` and `App_A53` stay as they are.
 
+## Round 8 part B: four overlapping rows (2026-11-09)
+
+Workspace rows: [0] `Radar_SUZ05_Gen7.s3` unticked; [1] FFI `.s3` offset 0x0; [2] CAL `.sre` offset 0x0; [3] BM `FBL_M7_LIP_RfeClock_Image.bin` offset 0x0; [4] FBL `Radar_SUZ05_Gen7_FBL.bin` offset 0xF1000. All of [1]–[4] ticked.
+
+- **Debug → Download by hand** and **`CSessionCtrl.begin_program()`** gave the same Output: the four files load in row order, then **one** `ERASING Winbond W25Q64JW SPI`, then `PROGRAMMING ... (79 sectors)`, `OK`. `begin_program` returned `None` after 99.8 s; the CPU was `isStopped=1` before and after. The user power-cycled the ECU after each run and it ran correctly both times.
+- A `.bin` row loads raw at its row offset: `LOADED Offset=0x0000, Size=0x15'6340` (BM) and `Offset=0x0F'1000, Size=0x02'40C0` (FBL).
+- Overlaps only warn (`Load WARNING Overlap detected at 0000` and `at 0F'1000`), and **the later row wins**: spike 09 read `0x00` at 0x15617C where the FFI file has `0xFF` and the BM image (0x0..0x156340) covers it. Every other sampled FFI region and the CAL matched. This is the evidence for `srec.visible_segments` (later images overwrite earlier ones) and for `read_image` placing a `.bin` at its row offset.
+- The API run's Output ends with an extra `PROGRAMMING 0 bytes` line after `OK`. It did not affect the result. Not explained yet.
+- Spike 09 parses every row as S-record, so it fails on the BM `.bin` and reads 0 segments from the FBL `.bin`. That is a limit of the spike only; WFlash's verify uses `read_image`.
+
 ## Open questions
 
 1. **Version mismatch.** `isystem.connect` 9.26.11 against winIDEA 9.21.408. Connect, read, download, reset and run all worked, but `CLAUDE.md` requires the versions to match. Is there a Python SDK package under `C:/Data/_Devtools/Winidea408/` (9.21.408)? If yes, install it and re-run 01 to confirm nothing changes.
