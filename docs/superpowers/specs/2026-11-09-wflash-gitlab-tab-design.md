@@ -162,6 +162,20 @@ Mở app:
 - **Check winIDEA cores:** kết nối instance đang chọn, đọc `CSessionCtrl.get_status()` và `get_topology()` (đã kiểm chứng ở spike 16, đang dùng mỗi lần flash), in trạng thái từng core, rồi ngắt. **Chỉ đọc:** không reset, không lập trình. Không chạy khi đang flash. Phương thức mới `core_states()` thêm vào Protocol, adapter giả trước, rồi adapter thật.
 - **Refresh winIDEA instances:** như nút Refresh.
 
+### 4.8 Chờ pipeline đang chạy (user, 2026-11-09)
+
+- Chỉ ở chế độ From checked-out commit. Job của commit đang `created`, `pending` hoặc `running`: dòng trạng thái ghi `Waiting for pipeline: <job> is <trạng thái>…`, WFlash hỏi lại GitLab mỗi 30 giây và tự nạp khi job `success`.
+- `manual`, `skipped`: không chờ (cần người bấm), chỉ báo. `failed`, `canceled`: báo lỗi, không chờ.
+- Dừng chờ khi: commit đổi, chuyển sang Manual, đổi profile hoặc build, đóng app, hoặc sau 60 phút (báo "Stopped waiting after 60 min").
+- Job xong khi đang flash: chỉ nạp sau khi flash kết thúc, để bảng file không đổi giữa chừng.
+- Việc hỏi lại chạy nền như các lần tải khác (WorkerRegistry, generation guard); một bộ đếm thời gian trên luồng GUI khởi động mỗi lần hỏi.
+
+### 4.9 Thông báo khi xong (user, 2026-11-09)
+
+- Khi flash **Done**, **lỗi** hoặc **bị hủy**, và khi firmware nạp xong sau lúc chờ pipeline: hiện thông báo Windows (`QSystemTrayIcon.showMessage`) và làm biểu tượng taskbar nhấp nháy (`QApplication.alert`).
+- Chỉ khi cửa sổ WFlash **không** được kích hoạt; đang nhìn WFlash thì không báo.
+- Nội dung ngắn: "Flash done — SUZ05", "Flash failed: <lỗi ngắn>", "Firmware ready: App 2885986f". Hệ thống không hỗ trợ khay thông báo thì chỉ nhấp nháy taskbar.
+
 ## 5. Dữ liệu
 
 ### 5.1 Profile
@@ -223,5 +237,6 @@ Tuân theo các quy tắc trong `CLAUDE.md`: `.ui` trước, tên widget rõ ngh
 - Adapter: `core_states()` trên adapter giả và `fake_isystem` (đọc được, không đọc được).
 - GUI: từng khung (có/không repo, hai chế độ), tự nạp khi đổi commit, không nạp khi đang flash, Manual giữ lựa chọn, khôi phục khi mở lại, menu (Dark mode, chuyển tab, Exit đi qua `closeEvent`), Setting có hiệu lực ngay, tiến trình trên thanh Flash.
 - Luồng: đóng cửa sổ khi đang đọc repo/tải ở cả ba phần; kích hoạt cửa sổ liên tục; đổi chế độ khi đang tải (kết quả cũ bị bỏ).
-- Stress test: thêm luồng ba phần, Advanced Debug bật/tắt, kích hoạt cửa sổ, menu.
+- Chờ pipeline: chuyển `running` → `success` thì tự nạp; dừng khi commit đổi, khi đóng app, khi quá hạn; job xong lúc đang flash thì nạp sau. Thông báo: chỉ khi cửa sổ không active.
+- Stress test: thêm luồng ba phần, Advanced Debug bật/tắt, kích hoạt cửa sổ, menu, chờ pipeline rồi đóng app.
 - Windows (Vòng 13): chọn profile SUZ05 trên máy mới (chỉ nhập token), Test GitLab connection, Check winIDEA cores, hai chế độ Firmware cho BM và FBL, mở lại app và flash ngay. Phần flash không đổi, nên chỉ một lần flash để xác nhận.
