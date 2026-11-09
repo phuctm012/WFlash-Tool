@@ -541,3 +541,49 @@ def test_a_tick_winidea_does_not_keep_is_an_error(connected, world):
     world.set_stores = "true"
     with pytest.raises(WinIDEAError):
         connected.set_program_row(1, tick=False)
+
+
+INACCESSIBLE = [("M7_0", 2, "STOP"), ("M7_RFE", 3, "RUN"), ("A53", 1, "NOT ACCESSIBLE"),
+                ("SPT", 5, "IDLE"), ("BBE32EP", 1, "NOT ACCESSIBLE")]  # spike 16, flashing failed
+
+
+def test_download_logs_the_core_states_and_programs_when_none_is_inaccessible(connected, world, caplog):
+    with caplog.at_level(logging.INFO):
+        connected.download(lambda p, m: None, CancelToken(), 600)
+    assert world.calls.index("reset") < world.calls.index("get_status") < world.calls.index("begin_program")
+    assert any("M7_0 STOP" in r.getMessage() and "BBE32EP RUN" in r.getMessage() for r in caplog.records)
+
+
+def test_download_refuses_when_a_core_is_not_accessible_after_the_reset(connected, world, monkeypatch, caplog):
+    monkeypatch.setattr(winidea_adapter, "CORE_WAIT_S", 0.05)
+    monkeypatch.setattr(winidea_adapter, "HALT_POLL_S", 0.01)
+    world.cores_after_reset = INACCESSIBLE
+    with caplog.at_level(logging.ERROR), pytest.raises(FlashError) as err:
+        connected.download(lambda p, m: None, CancelToken(), 600)
+    assert str(err.value) == "Flash not started: A53, BBE32EP not accessible."
+    assert "Session Explorer" in err.value.hint and "Nothing was written" in err.value.hint
+    assert "begin_program" not in world.calls
+    assert any("NOT ACCESSIBLE" in r.getMessage() for r in caplog.records)
+
+
+def test_download_programs_when_the_cores_become_accessible_within_the_grace(connected, world, monkeypatch):
+    monkeypatch.setattr(winidea_adapter, "CORE_WAIT_S", 5.0)
+    monkeypatch.setattr(winidea_adapter, "HALT_POLL_S", 0.01)
+    world.cores_after_reset = INACCESSIBLE
+
+    def recover_on_third_read():
+        if world.calls.count("get_status") == 3:
+            world.cores = [("M7_0", 2, "STOP"), ("A53", 2, "STOP")]
+
+    world.get_status_hook = recover_on_third_read
+    connected.download(lambda p, m: None, CancelToken(), 600)
+    assert world.calls.count("begin_program") == 1
+    assert world.calls.count("get_status") == 3
+
+
+def test_download_programs_anyway_when_the_core_states_cannot_be_read(connected, world, caplog):
+    world.core_status_error = OSError("get_status not supported")
+    with caplog.at_level(logging.WARNING):
+        connected.download(lambda p, m: None, CancelToken(), 600)
+    assert world.calls.count("begin_program") == 1
+    assert any("Cannot read the core states" in r.getMessage() for r in caplog.records)

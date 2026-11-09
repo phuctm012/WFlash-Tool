@@ -543,3 +543,16 @@ Làm **sau khi phần B của Vòng 8 đạt**. Phần đó chứng minh winIDEA
 11. **(FLASH)** Tick Advanced Debug (BM, FBL đã nạp ở bước 9), bấm Flash. Mong đợi: 1 `ERASING`; dòng BM, FBL và ELF của chúng **được tick** và trỏ vào cache. Tắt bật nguồn, kiểm tra ECU chạy, và nếu có cách thì kiểm tra đúng BM, FBL vừa chọn.
 12. **(FLASH)** Checkout một commit khác có pipeline (firmware khác), Load firmware, bỏ Advanced Debug, Flash. Tắt bật nguồn, kiểm tra ECU đúng là chạy firmware mới.
 13. Export debug bundle, gửi lại cùng Output winIDEA của các bước 10–12 và ảnh chụp panel developer.
+
+## Vòng 10: kiểm tra core trước khi flash
+
+Vòng 9 đã đạt (3 lần flash, ECU chạy đúng). Nhưng trước đó có 34 lần flash hỏng sau 5–9 giây, và lần nào cũng có core **NOT ACCESSIBLE** trong Session Explorer. Spike 16 đọc được trạng thái đó qua API. Bây giờ WFlash reset, đọc trạng thái mọi core, và **chỉ chạy `begin_program` khi không có core nào NOT ACCESSIBLE**. Nếu có, WFlash dừng, báo tên core, trả đường dẫn về như cũ, và không ghi gì vào flash.
+
+Lấy branch `feat/core-check`, chạy `python main.py --verbose`.
+
+⚠️ Bước 2 và 3 có ghi flash. Bằng chứng: chuỗi gọi xuống winIDEA giống Vòng 9 (đặt path, reset, `begin_program`), chỉ thêm hai lệnh đọc `get_topology`/`get_status` mà spike 16 đã chạy. Cách khôi phục vẫn là Debug → Download bấm tay, và tắt bật nguồn khi có core NOT ACCESSIBLE.
+
+1. **(không ghi flash)** Làm cho có core NOT ACCESSIBLE (như ảnh 2 của bạn, ví dụ để ECU chạy sau một lần flash). Bấm Flash. Mong đợi: sau khoảng 2 giây báo "Flash not started: A53, BBE32EP not accessible." (tên core theo thực tế), gợi ý tắt bật nguồn; Output winIDEA **không** có `ERASING`; workspace giữ đường dẫn cũ. Trong log có dòng `Not programming, cores not accessible: ...`.
+2. **(FLASH)** Tắt bật nguồn ECU cho tới khi Session Explorer không còn NOT ACCESSIBLE, bấm Flash. Mong đợi: log có `Cores before programming: M7_0 STOP, ...`, flash xong như Vòng 9 (1 `ERASING`), ECU chạy.
+3. **(FLASH)** Bấm Flash lần nữa ngay sau bước 2, không tắt nguồn. Ghi lại WFlash báo gì: flash được, hay bị chặn vì core NOT ACCESSIBLE.
+4. Gửi debug bundle, Output winIDEA của bước 2–3, và ảnh Session Explorer ở bước 1 và 3.

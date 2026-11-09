@@ -89,6 +89,16 @@ def test_download_failure_rolls_back(rows):
     assert "after_rollback" in ctx.snapshots
 
 
+def test_inaccessible_core_refuses_programming_and_rolls_back(rows):
+    adapter = FakeWinIDEAAdapter(download_seconds=0.02, fail_on={"core_inaccessible"})
+    _ctx, steps, _, error = run(adapter, rows)
+    assert isinstance(error, FlashError)
+    assert "A53, BBE32EP not accessible" in str(error)
+    assert "Nothing was written" in error.hint
+    assert adapter.programs["App"] == OLD_APP
+    assert Step.ROLLBACK in steps and Step.DONE not in steps
+
+
 def test_cancel_during_download_rolls_back(rows):
     adapter = FakeWinIDEAAdapter(download_seconds=0.5)
     token = CancelToken()

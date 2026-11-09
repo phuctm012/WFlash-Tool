@@ -109,6 +109,20 @@ MONITOR_ERROR_TEXT = "error loading monitor"
 PROBE_BYTES = 16
 # Observed on the user's ECU: only a power cycle clears it, a reset from winIDEA does not.
 POWER_CYCLE_HINT = "Turn the ECU power off and on, then flash again."
+# Spike 16 (2026-11-09): EStatus_Core_stInaccessible. Flashing failed with "Error loading monitor" whenever
+# a core showed NOT ACCESSIBLE in the Session Explorer, and worked when none did (a core in RUN was fine).
+CORE_INACCESSIBLE = 1
+CORE_WAIT_S = 2.0  # not measured: a short grace after the reset, before refusing to program
+CORE_HINT = (
+    "Nothing was written to the flash. Turn the ECU power off and on until no core in winIDEA's "
+    "Session Explorer shows NOT ACCESSIBLE, then flash again."
+)
+
+
+def inaccessible_cores_error(names: list[str]) -> FlashError:
+    return FlashError(f"Flash not started: {', '.join(names)} not accessible.", hint=CORE_HINT)
+
+
 BITNESS_HINT = (
     "Install isystem.connect from the winIDEA installation, and use Python with the same bitness "
     "as winIDEA. Meanwhile start WFlash with --adapter fake."
@@ -353,6 +367,7 @@ class RealWinIDEAAdapter:
         """
         ic, cmgr, _ide = self._session()
         self._reset_before_programming(ic, cmgr)
+        self._check_cores(ic, cmgr)
         done = threading.Event()
         started = time.monotonic()
 
@@ -423,6 +438,41 @@ class RealWinIDEAAdapter:
                 time.sleep(HALT_POLL_S)
         except Exception as exc:
             log.warning("The reset before programming failed; programming anyway: %s", exc)
+
+    def _core_states(self, ic, cmgr) -> list[tuple[str, int, str]]:
+        """(name, status, text) per core, as winIDEA's Session Explorer shows them (spike 16)."""
+        session = ic.CSessionCtrl(cmgr)
+        calls_log.debug("CSessionCtrl.get_topology / get_status")
+        names = [core.name() for core in session.get_topology().SoCs()[0].cores()]
+        states = []
+        for i, core in enumerate(session.get_status().SoCs()[0].cores()):
+            name = names[i] if i < len(names) else f"core {i}"
+            states.append((name, int(core.status()), core.status_string()))
+        return states
+
+    def _check_cores(self, ic, cmgr) -> None:
+        """Refuse to program while a core is NOT ACCESSIBLE: begin_program then fails silently.
+
+        Runs after the reset and before begin_program. If the states cannot be read, it only warns:
+        an unknown state is not a bad one, and programming worked before this check existed.
+        """
+        inaccessible = getattr(ic, "EStatus_Core_stInaccessible", CORE_INACCESSIBLE)
+        deadline = time.monotonic() + CORE_WAIT_S
+        while True:
+            try:
+                states = self._core_states(ic, cmgr)
+            except Exception as exc:
+                log.warning("Cannot read the core states before programming; programming anyway: %s", exc)
+                return
+            summary = ", ".join(f"{name} {text}" for name, _status, text in states)
+            bad = [name for name, status, _text in states if status == inaccessible]
+            if not bad:
+                log.info("Cores before programming: %s", summary)
+                return
+            if time.monotonic() >= deadline:
+                log.error("Not programming, cores not accessible: %s", summary)
+                raise inaccessible_cores_error(bad)
+            time.sleep(HALT_POLL_S)
 
     def reset(self, run: bool) -> None:
         ic, cmgr, _ide = self._session()

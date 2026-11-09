@@ -11,6 +11,8 @@ WFLASH_FAKE_FAIL="download,reset"):
   download         - FlashError half way through (progress stops below 100)
   verify           - verify_flash() raises FlashError
   no_cancel        - download ignores cancel, like the real adapter
+  core_inaccessible - download refuses to start, as the real adapter does when a
+                     core is NOT ACCESSIBLE after the reset (nothing programmed)
 """
 from __future__ import annotations
 
@@ -25,12 +27,12 @@ from wflash.core.cancel import CancelToken
 from wflash.core.errors import FlashError, WinIDEAError
 from wflash.core.flash_plan import ProgramRow, SymbolRow
 from wflash.core.logging_setup import CALLS_LOGGER
-from wflash.core.winidea_adapter import FileEntry, InstanceInfo, ProgressCallback
+from wflash.core.winidea_adapter import FileEntry, InstanceInfo, ProgressCallback, inaccessible_cores_error
 
 calls_log = logging.getLogger(CALLS_LOGGER)
 INSTANCE_ID = "fake-1"
 # Ops whose injection is handled by the method itself rather than in _call.
-_NON_RAISING = {"download", "list_instances", "connection_lost", "verify", "no_cancel"}
+_NON_RAISING = {"download", "list_instances", "connection_lost", "verify", "no_cancel", "core_inaccessible"}
 WORKSPACE = r"C:\fake\SAF85xx\SAF85xx.xjrf"
 
 
@@ -133,6 +135,8 @@ class FakeWinIDEAAdapter:
     def download(self, progress: ProgressCallback, cancel: CancelToken, timeout_s: int) -> None:
         self._require_connected()
         self._call("download")
+        if "core_inaccessible" in self.fail_on:
+            raise inaccessible_cores_error(["A53", "BBE32EP"])
         steps = 20
         start = time.monotonic()
         for i in range(1, steps + 1):

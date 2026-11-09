@@ -42,6 +42,7 @@ Each of these was learned on the real ECU. Read `docs/winidea_api_notes.md` befo
 - **Never call `getOptionJSON` on a list or tree.** It broke the connection (`ICONNECT_E_ROUTING`).
 - `umi.read` needs a presized vector (`ic.ByteVector(n)`), costs about 4.4 s per call whatever the size, and loads a monitor into the target, so it is not a passive read. Compare samples, never a whole image.
 - After reset, check `isStopped()`, not `isHalted()`, which stays 0.
+- **`isStopped()` of the default core cannot see the failing state.** Programming fails silently whenever a core in the Session Explorer is `NOT ACCESSIBLE` (A53, BBE32EP seen), while M7_0 still reports stopped. `_check_cores` reads `CSessionCtrl.get_status()` after the reset and refuses to program in that state (spike 16); RUN, STOP and IDLE are fine.
 
 Two specific hazards in the environment diagnostics:
 - **`isystem.connect`'s version may differ from winIDEA's.** The user's working setup is 9.26.11 against winIDEA 9.21.408. Decision: log a warning, do not block. winIDEA's own Python has 9.21.408.1, and no wheel to install.

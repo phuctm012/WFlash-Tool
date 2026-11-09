@@ -57,6 +57,13 @@ class World:
         self.flash: dict[int, int] = {}
         self.read_error: Exception | None = None
         self.umi_last_error = "001 - Operation failed!"
+        # Spike 16 (2026-11-09), the state in which flashing worked: (name, status, status_string).
+        self.cores: list[tuple[str, int, str]] = [
+            ("M7_0", 2, "STOP"), ("M7_RFE", 2, "STOP"), ("A53", 2, "STOP"), ("SPT", 5, "IDLE"), ("BBE32EP", 3, "RUN"),
+        ]
+        self.cores_after_reset: list[tuple[str, int, str]] | None = None  # replaces `cores` on reset
+        self.core_status_error: Exception | None = None
+        self.get_status_hook = lambda: None
         self.calls: list[str] = []
 
 
@@ -168,6 +175,8 @@ def build_module(world: World) -> types.ModuleType:
             if world.reset_error:
                 raise world.reset_error
             world.running = not world.stopped_after_reset
+            if world.cores_after_reset is not None:
+                world.cores = world.cores_after_reset
 
         def run(self):
             world.calls.append("run")
@@ -177,9 +186,45 @@ def build_module(world: World) -> types.ModuleType:
         def getCPUStatus(self):
             return Status()
 
+    class _Core:
+        def __init__(self, entry):
+            self._entry = entry
+
+        def name(self):
+            return self._entry[0]
+
+        def status(self):
+            return self._entry[1]
+
+        def status_string(self):
+            return self._entry[2]
+
+    class _SoC:
+        def cores(self):
+            return [_Core(entry) for entry in world.cores]
+
+        def name(self):
+            return "MCU"
+
+    class _Session:
+        def SoCs(self):
+            return [_SoC()]
+
     class CSessionCtrl:
         def __init__(self, _cmgr):
             pass
+
+        def get_status(self):
+            world.calls.append("get_status")
+            world.get_status_hook()
+            if world.core_status_error:
+                raise world.core_status_error
+            return _Session()
+
+        def get_topology(self):
+            if world.core_status_error:
+                raise world.core_status_error
+            return _Session()
 
         def begin_program(self):
             world.calls.append("begin_program")
@@ -216,6 +261,9 @@ def build_module(world: World) -> types.ModuleType:
                  CIDEController, CDebugFacade, CSessionCtrl, CUMIController):
         setattr(mod, item.__name__, item)
     mod.getModuleVersion = lambda: world.module_version
+    for name, value in (("stDetached", 0), ("stInaccessible", 1), ("stStopped", 2), ("stRunning", 3),
+                        ("stHalted", 4), ("stIdle", 5), ("stSuspended", 6)):
+        setattr(mod, f"EStatus_Core_{name}", value)
     return mod
 
 

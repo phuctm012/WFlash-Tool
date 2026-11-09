@@ -1455,3 +1455,21 @@ Người dùng chạy trên ECU thật với bốn dòng FFI, CAL, BM (`.bin`, o
 ### Đã kiểm tra
 
 - Đọc Output tay và Output API, `12_begin_program` (99.8 s, trả về `None`), `09_flash_compare` (FFI khớp trừ vùng BM ghi đè, CAL khớp). Chỉ đổi tài liệu. Dòng `PROGRAMMING 0 bytes` ở cuối Output của lần chạy API chưa giải thích được.
+
+## Phase 3.15: Kết quả Vòng 9 và kiểm tra core trước khi flash
+
+Vòng 9 đạt: ba lần flash qua luồng developer đều có một `ERASING`, và ECU chạy đúng. Debug bundle còn cho thấy 34 lần flash hỏng: `begin_program` trả về sau 5–9 giây, rồi lần đọc kiểm tra báo `Error loading monitor`. WFlash báo lỗi đúng và trả đường dẫn về như cũ, nhưng người dùng phải bấm lại nhiều lần. Người dùng nhận ra flash chỉ được khi không có core nào NOT ACCESSIBLE trong Session Explorer. Spike 16 (chỉ đọc) tìm được cách đọc trạng thái đó: `CSessionCtrl.get_status().SoCs()[0].cores()`, tên lấy từ `get_topology()`. Kiểm tra cũ bằng `getCPUStatus()` của M7_0 báo `isStopped` như nhau ở cả hai trạng thái, nên không phát hiện được. Theo quyết định của người dùng, adapter thật reset, đọc trạng thái các core, và chỉ chạy `begin_program` khi không có core nào NOT ACCESSIBLE. Trạng thái RUN, STOP, IDLE đều được chấp nhận, vì BBE32EP đang RUN mà vẫn flash được. Nếu bị chặn, `download()` báo lỗi nên workflow tự trả đường dẫn về như cũ. Nếu không đọc được trạng thái thì chỉ cảnh báo rồi vẫn flash, vì không đọc được khác với core hỏng.
+
+### Thay đổi
+
+- **`spike/16_core_status.py`**, **`spike/README.md`**: spike chỉ đọc, in trạng thái từng core, topology và các hằng `EStatus_*`.
+- **`wflash/core/winidea_adapter.py`**: `_core_states`, `_check_cores` (đọc lại trong `CORE_WAIT_S` = 2 s, con số chưa đo), `inaccessible_cores_error`, `CORE_HINT`; gọi giữa reset và `begin_program`.
+- **`wflash/core/fake_adapter.py`**: chế độ lỗi `core_inaccessible`.
+- **`tests/fake_isystem.py`**: `CSessionCtrl.get_status/get_topology`, các core theo kết quả spike 16, `cores_after_reset`, `core_status_error`, `get_status_hook`.
+- **`tests/test_real_adapter.py`**, **`tests/test_flash_workflow.py`**: bị chặn khi core NOT ACCESSIBLE (không gọi `begin_program`, trả đường dẫn về như cũ), core hồi lại trong khoảng chờ, không đọc được trạng thái thì vẫn flash, có ghi log trạng thái.
+- **`docs/winidea_api_notes.md`**: mục "Round 9 and per-core state". **`docs/windows_test_guide.md`**: Vòng 10. **`CLAUDE.md`**: thêm mục về NOT ACCESSIBLE.
+
+### Đã kiểm tra
+
+- Spike 16 trên ECU thật, hai trạng thái (mọi core STOP, và có core NOT ACCESSIBLE), kết quả như bảng trong `winidea_api_notes.md`.
+- Toàn bộ test, `-k thread`, stress test (kết quả ở commit). Kiểm tra trong adapter thật **chưa chạy trên phần cứng**: chờ Vòng 10. Chưa biết reset thêm lần nữa có làm hết NOT ACCESSIBLE không: 34 lần hỏng ở Vòng 9 đều đã reset một lần trước đó.
