@@ -44,6 +44,7 @@
 | Download | Đổi tên từ Cache; để trống = thư mục mặc định; bỏ Clear downloads và Downloads to keep (vẫn tự giữ 10 bản) |
 | Dark mode | Chỉ ở menu View |
 | Menu Tools | Test GitLab connection, Check winIDEA cores, Refresh winIDEA instances (F5) |
+| Menu Help | User Guide (F1): hướng dẫn tiếng Anh, HTML có hình minh họa, từng bước; About WFlash |
 | Profile | File `profiles/suz05.yaml`, `name: SUZ05`; mặc định GitLab URL và Project lấy từ profile |
 | Lưu cấu hình | Lưu toàn bộ lựa chọn; mở lại app thì khôi phục và tự nạp lại firmware |
 | Ghi chú trên giao diện | Bỏ các dòng giải thích (gợi ý Verify, chứng chỉ, "Updated when…", v.v.) |
@@ -56,7 +57,7 @@
   - **File:** Export debug bundle… (Ctrl+E), Open flash history, Open log folder, Open download folder, Exit (Ctrl+Q).
   - **View:** Dark mode (checkable), Flash / GitLab / Setting (Ctrl+1/2/3).
   - **Tools:** Test GitLab connection, Check winIDEA cores, Refresh winIDEA instances (F5).
-  - **Help:** About WFlash.
+  - **Help:** User Guide (F1), About WFlash.
 - Phần đầu (nút Flash, thanh tiến trình, dòng Step, các dải cảnh báo) và khung Information nằm ngoài tab, như hiện nay.
 - Tab GitLab chỉ hiện với profile có `builds`. Profile thường giữ tab Flash cũ (nút Load from GitLab, thẻ nguồn).
 
@@ -162,6 +163,13 @@ Mở app:
 - **Check winIDEA cores:** kết nối instance đang chọn, đọc `CSessionCtrl.get_status()` và `get_topology()` (đã kiểm chứng ở spike 16, đang dùng mỗi lần flash), in trạng thái từng core, rồi ngắt. **Chỉ đọc:** không reset, không lập trình. Không chạy khi đang flash. Phương thức mới `core_states()` thêm vào Protocol, adapter giả trước, rồi adapter thật.
 - **Refresh winIDEA instances:** như nút Refresh.
 
+### 4.7b User Guide (user, 2026-11-09)
+
+- File `wflash/resources/help/user_guide.html`, tiếng Anh, tự chứa (CSS và hình minh họa vẽ bằng HTML ngay trong file, không cần mạng, không ảnh rời), sáng/tối theo hệ thống.
+- **Help → User Guide** (F1) mở file bằng trình duyệt mặc định (`QDesktopServices.openUrl`). Thiếu file thì báo trong khung Information.
+- Gói kèm qua `pyproject.toml` (`resources/help/*`) và `wflash.spec` (thư mục `wflash/resources` đã được gói).
+- Nội dung từng bước, ngắn: chuẩn bị, cấu hình lần đầu (Setting), chọn firmware (GitLab), flash (Flash), khi gặp lỗi, gửi lỗi (debug bundle, lịch sử flash), phím tắt. Cập nhật khi giao diện đổi.
+
 ### 4.8 Chờ pipeline đang chạy (user, 2026-11-09)
 
 - Chỉ ở chế độ From checked-out commit. Job của commit đang `created`, `pending` hoặc `running`: dòng trạng thái ghi `Waiting for pipeline: <job> is <trạng thái>…`, WFlash hỏi lại GitLab mỗi 30 giây và tự nạp khi job `success`.
@@ -244,6 +252,7 @@ debug_sources:
 | `wflash/core/gitlab_client.py` | Tách máy chủ/group từ URL; token theo máy chủ |
 | `wflash/core/logging_setup.py`, `wflash/main.py` | Luôn ghi lệnh winIDEA |
 | `wflash/core/winidea_adapter.py`, `fake_adapter.py`, `tests/fake_isystem.py` | `core_states()`, `program_stats` |
+| `wflash/resources/help/user_guide.html` (mới) | Hướng dẫn sử dụng tiếng Anh |
 | `wflash/core/flash_history.py` (mới) | Ghi và cắt bớt `flash_history.csv`; không import Qt |
 | `wflash/core/debug_bundle.py` | Kèm `flash_history.csv` |
 
