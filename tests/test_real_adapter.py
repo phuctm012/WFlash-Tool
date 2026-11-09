@@ -563,7 +563,7 @@ def test_download_resets_again_until_no_core_is_inaccessible(connected, world, m
     assert world.calls.count("reset") == 3
     assert world.calls.count("begin_program") == 1
     assert world.calls.index("begin_program") > max(i for i, c in enumerate(world.calls) if c == "reset")
-    assert sum("resetting again" in r.getMessage() for r in caplog.records) == 2
+    assert sum("resetting again" in r.getMessage() for r in caplog.records) == 2  # after resets 1 and 2
     assert any("Cores before programming: M7_0 STOP" in r.getMessage() for r in caplog.records)
 
 
@@ -573,9 +573,9 @@ def test_download_gives_up_after_the_maximum_resets(connected, world, monkeypatc
     world.cores_after_reset = [INACCESSIBLE]
     with caplog.at_level(logging.ERROR), pytest.raises(FlashError) as err:
         connected.download(lambda p, m: None, CancelToken(), 600)
-    assert world.calls.count("reset") == 1 + winidea_adapter.MAX_CORE_RESETS
+    assert world.calls.count("reset") == winidea_adapter.MAX_CORE_RESETS == 10
     assert "begin_program" not in world.calls
-    assert str(err.value) == "Flash not started: A53, BBE32EP still not accessible after 3 more resets."
+    assert str(err.value) == "Flash not started: A53, BBE32EP still not accessible after 10 resets."
     assert "Session Explorer" in err.value.hint and "Nothing was written" in err.value.hint
     assert any("NOT ACCESSIBLE" in r.getMessage() for r in caplog.records)
 

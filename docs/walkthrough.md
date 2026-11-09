@@ -1488,3 +1488,16 @@ Người dùng thử reset bằng winIDEA thì các core hết NOT ACCESSIBLE. T
 ### Đã kiểm tra
 
 - Toàn bộ test, `-k thread`, stress test (kết quả ở commit). Chưa chạy trên phần cứng. Lệnh reset dùng ở đây là `CDebugFacade.reset()`, chính lệnh đã chạy trước 34 lần hỏng ở Vòng 9. Có thể nó không giống thao tác reset bạn bấm tay trong winIDEA. Vòng 10 sẽ cho biết. Nếu nó không làm hết NOT ACCESSIBLE thì lệnh nên thử tiếp là `CSessionCtrl.begin_reset()`.
+
+## Phase 3.17: Tối đa 10 lần reset cho mỗi lần bấm Flash
+
+Người dùng đổi giới hạn: mỗi lần bấm Flash có tối đa 10 lần reset, tính cả lần reset đầu tiên (trước đây là 1 lần đầu cộng 3 lần thêm). Lần reset sau khi flash xong (bước Reset target) không tính vào đây. Trường hợp xấu nhất, khi không lần reset nào làm hết NOT ACCESSIBLE, WFlash chờ khoảng 30–35 giây rồi mới báo lỗi. Mỗi lần reset mất khoảng 1,3 giây, cộng tối đa 2 giây chờ trạng thái.
+
+### Thay đổi
+
+- **`wflash/core/winidea_adapter.py`**: `MAX_CORE_RESETS = 10` là tổng số lần reset; vòng lặp của `_prepare_cores` đếm cả lần đầu; lời nhắn "still not accessible after 10 resets".
+- **`tests/test_real_adapter.py`**, **`docs/winidea_api_notes.md`**, **`docs/windows_test_guide.md`**, **`CLAUDE.md`**.
+
+### Đã kiểm tra
+
+- Toàn bộ test, `-k thread`, stress test (kết quả ở commit). Chưa chạy trên phần cứng.

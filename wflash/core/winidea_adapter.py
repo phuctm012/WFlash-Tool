@@ -113,8 +113,9 @@ POWER_CYCLE_HINT = "Turn the ECU power off and on, then flash again."
 # a core showed NOT ACCESSIBLE in the Session Explorer, and worked when none did (a core in RUN was fine).
 CORE_INACCESSIBLE = 1
 CORE_WAIT_S = 2.0  # not measured: a short grace after each reset before the states count
-# User decision (2026-11-09): a reset from winIDEA cleared NOT ACCESSIBLE, so reset again, a bounded number of times.
-MAX_CORE_RESETS = 3
+# User decision (2026-11-09): a reset from winIDEA cleared NOT ACCESSIBLE, so reset again while a core is in
+# that state, at most this many resets in all for one press of Flash (the first reset included).
+MAX_CORE_RESETS = 10
 CORE_HINT = (
     "Nothing was written to the flash. Turn the ECU power off and on until no core in winIDEA's "
     "Session Explorer shows NOT ACCESSIBLE, then flash again."
@@ -123,7 +124,7 @@ CORE_HINT = (
 
 def inaccessible_cores_error(names: list[str]) -> FlashError:
     return FlashError(
-        f"Flash not started: {', '.join(names)} still not accessible after {MAX_CORE_RESETS} more resets.",
+        f"Flash not started: {', '.join(names)} still not accessible after {MAX_CORE_RESETS} resets.",
         hint=CORE_HINT,
     )
 
@@ -457,19 +458,18 @@ class RealWinIDEAAdapter:
     def _prepare_cores(self, ic, cmgr) -> None:
         """Reset, read every core, and reset again while one is NOT ACCESSIBLE (user decision).
 
-        begin_program fails silently in that state. After MAX_CORE_RESETS more resets it gives up and
+        begin_program fails silently in that state. After MAX_CORE_RESETS resets in all it gives up and
         raises, so download() fails before programming and the workflow restores the paths.
         """
-        self._reset_before_programming(ic, cmgr)
-        for attempt in range(1, MAX_CORE_RESETS + 2):
+        for resets in range(1, MAX_CORE_RESETS + 1):
+            self._reset_before_programming(ic, cmgr)
             bad, summary = self._inaccessible_cores(ic, cmgr)
             if not bad:
                 return
-            if attempt > MAX_CORE_RESETS:
-                log.error("Not programming, cores not accessible after %d more resets: %s", MAX_CORE_RESETS, summary)
-                raise inaccessible_cores_error(bad)
-            log.warning("Cores not accessible (%s); resetting again (%d of %d)", summary, attempt, MAX_CORE_RESETS)
-            self._reset_before_programming(ic, cmgr)
+            if resets < MAX_CORE_RESETS:
+                log.warning("Cores not accessible (%s) after reset %d of %d; resetting again", summary, resets, MAX_CORE_RESETS)
+        log.error("Not programming, cores not accessible after %d resets: %s", MAX_CORE_RESETS, summary)
+        raise inaccessible_cores_error(bad)
 
     def _inaccessible_cores(self, ic, cmgr) -> tuple[list[str], str]:
         """Names of NOT ACCESSIBLE cores, re-read for up to CORE_WAIT_S; [] when none, or when unreadable.

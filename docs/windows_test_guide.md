@@ -546,15 +546,15 @@ Làm **sau khi phần B của Vòng 8 đạt**. Phần đó chứng minh winIDEA
 
 ## Vòng 10: kiểm tra core trước khi flash
 
-Vòng 9 đã đạt (3 lần flash, ECU chạy đúng). Nhưng trước đó có 34 lần flash hỏng sau 5–9 giây, và lần nào cũng có core **NOT ACCESSIBLE** trong Session Explorer. Spike 16 đọc được trạng thái đó qua API. Bây giờ WFlash: đặt đường dẫn → reset → đọc trạng thái mọi core → nếu có core NOT ACCESSIBLE thì **reset lại** (tối đa 3 lần), nếu không thì flash. Hết 3 lần mà vẫn còn thì WFlash dừng, báo tên core, trả đường dẫn về như cũ, và không ghi gì vào flash.
+Vòng 9 đã đạt (3 lần flash, ECU chạy đúng). Nhưng trước đó có 34 lần flash hỏng sau 5–9 giây, và lần nào cũng có core **NOT ACCESSIBLE** trong Session Explorer. Spike 16 đọc được trạng thái đó qua API. Bây giờ WFlash: đặt đường dẫn → reset → đọc trạng thái mọi core → nếu có core NOT ACCESSIBLE thì **reset lại**, nếu không thì flash. Mỗi lần bấm Flash có tối đa **10 lần reset**, tính cả lần đầu. Hết 10 lần mà vẫn còn thì WFlash dừng, báo tên core, trả đường dẫn về như cũ, và không ghi gì vào flash.
 
 Lấy branch `feat/core-check`, chạy `python main.py --verbose`.
 
 ⚠️ Bước 2 và 3 có ghi flash. Bằng chứng: chuỗi gọi xuống winIDEA giống Vòng 9 (đặt path, reset, `begin_program`), chỉ thêm hai lệnh đọc `get_topology`/`get_status` mà spike 16 đã chạy. Cách khôi phục vẫn là Debug → Download bấm tay, và tắt bật nguồn khi có core NOT ACCESSIBLE.
 
 1. **(FLASH nếu reset làm hết NOT ACCESSIBLE)** Làm cho có core NOT ACCESSIBLE (như ảnh 2 của bạn), rồi bấm Flash. Có hai kết quả có thể xảy ra, kết quả nào cũng ghi lại:
-   - Log có `Cores not accessible (...); resetting again (1 of 3)`, sau đó là `Cores before programming: ...` không còn NOT ACCESSIBLE, và flash xong như Vòng 9. Nghĩa là lệnh reset của API làm được như reset bấm tay.
-   - Sau khoảng 15 giây báo "Flash not started: ... still not accessible after 3 more resets.". Output winIDEA không có `ERASING`, workspace giữ đường dẫn cũ. Nghĩa là lệnh reset của API **khác** reset bấm tay. Hãy ghi rõ bạn reset bằng nút hay menu nào trong winIDEA.
+   - Log có `Cores not accessible (...) after reset 1 of 10; resetting again`, sau đó là `Cores before programming: ...` không còn NOT ACCESSIBLE, và flash xong như Vòng 9. Nghĩa là lệnh reset của API làm được như reset bấm tay.
+   - Sau khoảng 30–35 giây báo "Flash not started: ... still not accessible after 10 resets.". Output winIDEA không có `ERASING`, workspace giữ đường dẫn cũ. Nghĩa là lệnh reset của API **khác** reset bấm tay. Hãy ghi rõ bạn reset bằng nút hay menu nào trong winIDEA.
 2. **(FLASH)** Tắt bật nguồn ECU cho tới khi Session Explorer không còn NOT ACCESSIBLE, bấm Flash. Mong đợi: log có `Cores before programming: M7_0 STOP, ...`, flash xong như Vòng 9 (1 `ERASING`), ECU chạy.
 3. **(FLASH)** Bấm Flash lần nữa ngay sau bước 2, không tắt nguồn. Ghi lại WFlash báo gì: flash được, hay bị chặn vì core NOT ACCESSIBLE.
 4. Gửi debug bundle, Output winIDEA của bước 2–3, và ảnh Session Explorer ở bước 1 và 3.

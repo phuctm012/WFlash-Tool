@@ -429,7 +429,7 @@ session.get_topology().SoCs()[0].cores()[i].name()         # 'M7_0', same order 
 
 In both states `CDebugFacade.getCPUStatus()` said `isStopped: 1`, so the old check could not tell them apart. `/IDE/System.Debug.SoCs[0].Cores` does not resolve (`E_INVALIDARG`).
 
-**Decision (user, 2026-11-09):** set paths → reset → read every core → if one is `NOT ACCESSIBLE`, reset again; otherwise program. RUN, STOP and IDLE are fine. The user found that a reset from winIDEA clears `NOT ACCESSIBLE`. `RealWinIDEAAdapter._prepare_cores` re-reads for up to `CORE_WAIT_S` (2 s, not measured) after each reset, resets at most `MAX_CORE_RESETS` (3) more times, then raises `FlashError` and the workflow restores the paths. If the states cannot be read it only warns. Not yet run on hardware.
+**Decision (user, 2026-11-09):** set paths → reset → read every core → if one is `NOT ACCESSIBLE`, reset again; otherwise program. RUN, STOP and IDLE are fine. The user found that a reset from winIDEA clears `NOT ACCESSIBLE`. `RealWinIDEAAdapter._prepare_cores` re-reads for up to `CORE_WAIT_S` (2 s, not measured) after each reset, resets at most `MAX_CORE_RESETS` (10) times in all for one press of Flash, the first reset included, then raises `FlashError` and the workflow restores the paths. If the states cannot be read it only warns. Not yet run on hardware.
 
 Open: the retry uses `CDebugFacade.reset()`, the call WFlash already made before each of the 34 failed attempts, without clearing the state. If it does not clear it on the ECU, the reset the user did by hand may be a different one; `CSessionCtrl.begin_reset()` ("resets and halts without programming", docstring only, never called) is the next candidate.
 
