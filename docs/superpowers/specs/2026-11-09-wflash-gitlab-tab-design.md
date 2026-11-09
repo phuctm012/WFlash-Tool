@@ -53,7 +53,7 @@
 ### 3.1 Khung chung
 
 - **Menu bar** (trong `main_window.ui`):
-  - **File:** Export debug bundle… (Ctrl+E), Open log folder, Open download folder, Exit (Ctrl+Q).
+  - **File:** Export debug bundle… (Ctrl+E), Open flash history, Open log folder, Open download folder, Exit (Ctrl+Q).
   - **View:** Dark mode (checkable), Flash / GitLab / Setting (Ctrl+1/2/3).
   - **Tools:** Test GitLab connection, Check winIDEA cores, Refresh winIDEA instances (F5).
   - **Help:** About WFlash.
@@ -176,6 +176,34 @@ Mở app:
 - Chỉ khi cửa sổ WFlash **không** được kích hoạt; đang nhìn WFlash thì không báo.
 - Nội dung ngắn: "Flash done — SUZ05", "Flash failed: <lỗi ngắn>", "Firmware ready: App 2885986f". Hệ thống không hỗ trợ khay thông báo thì chỉ nhấp nháy taskbar.
 
+### 4.10 Lịch sử flash (user, 2026-11-09)
+
+Không hiển thị trong WFlash. Mỗi lần bấm Flash, khi workflow kết thúc (Done, lỗi hoặc hủy), WFlash thêm **một dòng** vào `%LOCALAPPDATA%\WFlash\flash_history.csv` (UTF-8 có BOM để Excel đọc đúng):
+
+| Cột | Ví dụ |
+|---|---|
+| time | `2026-11-09 14:32:05` |
+| profile | `SUZ05` |
+| winidea | `SUZ_7G5_M7.xjrf (5315)` |
+| app | `stingray_3p5mb_no_HTSM · tranph9_R5_LED · 2885986f` (build · branch · commit) |
+| app_mode | `From commit` / `Manual` |
+| bm, fbl | `build_STINGRAY_3P5MB · development · c54f8484`, trống khi Advanced Debug tắt |
+| bm_mode, fbl_mode | như app_mode |
+| cal | tên file CAL |
+| advanced_debug | `on` / `off` |
+| resets | số lần reset trước khi lập trình |
+| tries | số lần gọi `begin_program` |
+| program_s | thời gian lập trình (giây) |
+| verify | `on` / `off` |
+| result | `Done` / `Failed` / `Cancelled` |
+| error | lời nhắn lỗi ngắn (như popup), không có chi tiết binding, không có token |
+
+- Giữ 5000 dòng gần nhất; quá thì bỏ các dòng cũ nhất.
+- **File → Open flash history** mở file bằng ứng dụng mặc định (thường là Excel). Chưa có file thì báo trong khung Information.
+- Debug bundle kèm file này (`flash_history.csv`), qua cùng bộ lọc che token.
+- Số lần reset, số lần thử và thời gian lập trình do adapter cung cấp sau `download()` (thuộc tính `program_stats`, có ở adapter giả và adapter thật). Lỗi khi ghi file chỉ cảnh báo trong log, không làm hỏng lần flash.
+- Ghi trên luồng GUI, trong slot kết thúc của worker flash, sau khi worker đã xong.
+
 ## 5. Dữ liệu
 
 ### 5.1 Profile
@@ -215,7 +243,9 @@ debug_sources:
 | `wflash/core/settings.py` | Trường mới, chuyển khóa profile cũ |
 | `wflash/core/gitlab_client.py` | Tách máy chủ/group từ URL; token theo máy chủ |
 | `wflash/core/logging_setup.py`, `wflash/main.py` | Luôn ghi lệnh winIDEA |
-| `wflash/core/winidea_adapter.py`, `fake_adapter.py`, `tests/fake_isystem.py` | `core_states()` |
+| `wflash/core/winidea_adapter.py`, `fake_adapter.py`, `tests/fake_isystem.py` | `core_states()`, `program_stats` |
+| `wflash/core/flash_history.py` (mới) | Ghi và cắt bớt `flash_history.csv`; không import Qt |
+| `wflash/core/debug_bundle.py` | Kèm `flash_history.csv` |
 
 Tuân theo các quy tắc trong `CLAUDE.md`: `.ui` trước, tên widget rõ nghĩa, core không import Qt, luồng nền theo quy tắc threading (generation guard trước khi hủy, slot là bound method, QObject tạo trên luồng GUI, đóng cửa sổ chờ có giới hạn).
 
@@ -238,5 +268,6 @@ Tuân theo các quy tắc trong `CLAUDE.md`: `.ui` trước, tên widget rõ ngh
 - GUI: từng khung (có/không repo, hai chế độ), tự nạp khi đổi commit, không nạp khi đang flash, Manual giữ lựa chọn, khôi phục khi mở lại, menu (Dark mode, chuyển tab, Exit đi qua `closeEvent`), Setting có hiệu lực ngay, tiến trình trên thanh Flash.
 - Luồng: đóng cửa sổ khi đang đọc repo/tải ở cả ba phần; kích hoạt cửa sổ liên tục; đổi chế độ khi đang tải (kết quả cũ bị bỏ).
 - Chờ pipeline: chuyển `running` → `success` thì tự nạp; dừng khi commit đổi, khi đóng app, khi quá hạn; job xong lúc đang flash thì nạp sau. Thông báo: chỉ khi cửa sổ không active.
+- Lịch sử flash: một dòng cho Done, Failed, Cancelled; giữ 5000 dòng; lỗi ghi file không làm hỏng flash; không có token; có trong debug bundle.
 - Stress test: thêm luồng ba phần, Advanced Debug bật/tắt, kích hoạt cửa sổ, menu, chờ pipeline rồi đóng app.
 - Windows (Vòng 13): chọn profile SUZ05 trên máy mới (chỉ nhập token), Test GitLab connection, Check winIDEA cores, hai chế độ Firmware cho BM và FBL, mở lại app và flash ngay. Phần flash không đổi, nên chỉ một lần flash để xác nhận.
