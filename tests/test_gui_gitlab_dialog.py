@@ -202,17 +202,16 @@ def test_gui_verify_tls_off_is_saved_and_warned_once_per_session(host, qtbot, mo
     assert host.settings.verify_tls is False
 
 
-def test_gui_default_client_factory_requires_url_and_token_and_passes_verify(monkeypatch):
+def test_gui_default_client_factory_calls_the_host_and_always_verifies(monkeypatch):
     monkeypatch.setattr(gitlab_dialog, "get_token", lambda url: None)
     with pytest.raises(GitLabError, match="not configured") as info:
         default_client_factory(AppSettings(gitlab_url="https://gl"))
-    assert "Load from GitLab" in info.value.hint
+    assert "Setting tab" in info.value.hint
     monkeypatch.setattr(gitlab_dialog, "get_token", lambda url: TOKEN)
-    # A CA bundle saved by an older WFlash is ignored: certificates come from the system store.
-    client = default_client_factory(AppSettings(gitlab_url="https://gl/", ca_bundle="/old/ca.pem"))
+    # The group in the URL is for project names; the API is on the host. Old CA bundle and
+    # "Verify TLS" off are ignored: certificates are always checked (system store).
+    client = default_client_factory(AppSettings(gitlab_url="https://gl/a/b/group", ca_bundle="/old/ca.pem", verify_tls=False))
     assert client.base == "https://gl/api/v4" and client.verify is True
-    insecure = default_client_factory(AppSettings(gitlab_url="https://gl", ca_bundle="/ca.pem", verify_tls=False))
-    assert insecure.verify is False
 
 
 @pytest.mark.parametrize("status, hint_word", [(401, "expired"), (403, "access"), (404, "expired")])

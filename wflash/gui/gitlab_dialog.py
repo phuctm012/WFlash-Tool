@@ -32,6 +32,7 @@ from PySide6.QtGui import QFontDatabase
 from PySide6.QtWidgets import QDialog, QHeaderView, QPushButton, QTableWidgetItem
 
 from wflash.core.artifact_cache import ArtifactCache, NamedArtifactCache, build_cache_path, debug_cache_path
+from wflash.core.gitlab_url import split_gitlab_url
 from wflash.core.errors import CancelledError, GitLabError
 from wflash.core.firmware_fetch import (
     JobRow,
@@ -61,14 +62,15 @@ _tls_warning_logged = False  # "Verify TLS" off is logged once per session
 
 def default_client_factory(settings: AppSettings) -> GitLabClient:
     """Called on a worker thread: builds a client from the settings and the keyring token."""
+    host = split_gitlab_url(settings.gitlab_url)[0]
     token = get_token(settings.gitlab_url)
-    if not settings.gitlab_url or not token:
+    if not host or not token:
         raise GitLabError(
             "GitLab URL or token is not configured",
-            hint="Open Load from GitLab… and enter the GitLab URL and a Personal Access Token (scope read_api).",
+            hint="Enter the GitLab URL and a Personal Access Token (scope read_api) in the Setting tab.",
         )
-    # Certificates come from the system store (wflash.core.system_certs); no CA bundle file.
-    return GitLabClient(settings.gitlab_url, token, verify=settings.verify_tls)
+    # Always verified, against the system certificate store (wflash.core.system_certs).
+    return GitLabClient(host, token)
 
 
 def warn_tls_disabled_once(url: str) -> None:

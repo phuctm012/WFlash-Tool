@@ -176,7 +176,7 @@ def test_gui_commit_without_a_pipeline_shows_the_reason(env, qtbot, repo):
     session.commit_has_pipeline = False
     use_repo(qtbot, window, repo)
     window.load_build_firmware()
-    qtbot.waitUntil(lambda: "no pipeline" in window.ui.label_loadStatus.text(), timeout=8000)
+    qtbot.waitUntil(lambda: "no pipeline" in window.ui.label_loadStatus.text().lower(), timeout=8000)
     assert not window.mapping_complete()
 
 

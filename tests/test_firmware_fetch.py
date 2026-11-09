@@ -205,3 +205,60 @@ def test_fetch_named_artifact_downloads_then_reuses_the_cache(tmp_path):
     _path, again = fetch_named_artifact(client, "g/p", 42, job, cache, rel)
     assert again.cache_note.startswith("Cached")
     assert not any(c[0] == "artifacts" for c in client.calls)
+
+
+# -- find_commit_jobs: pipelines that are not ready (spec 2026-11-09, 4.8) ------------------
+
+from types import SimpleNamespace as _NS
+
+import pytest as _pytest
+
+from wflash.core.errors import PipelineNotReady as _NotReady
+from wflash.core.firmware_fetch import find_commit_jobs as _find
+
+
+class _StubClient:
+    def __init__(self, pipelines, jobs):
+        self._pipelines, self._jobs = pipelines, jobs
+
+    def list_pipelines_for_commit(self, project_id, sha):
+        return self._pipelines
+
+    def list_jobs(self, project_id, pipeline_id, name_glob="*", archived_only=True):
+        return self._jobs[pipeline_id]
+
+
+def _pipe(pid):
+    return _NS(id=pid, ref="main", status="x", sha="abcdef1234", created_at="2026-11-09T10:00:00Z")
+
+
+def _job(name, status, jid=1):
+    return _NS(id=jid, name=name, stage="s", status=status, finished_at="2026-11-09T10:05:00Z")
+
+
+def test_commit_jobs_found_in_the_newest_pipeline_where_all_succeeded():
+    client = _StubClient([_pipe(2), _pipe(1)], {2: [_job("bm", "failed")], 1: [_job("bm", "success", 9)]})
+    [row] = _find(client, 5, "abcdef1234", ["bm"])
+    assert row.job_id == 9 and row.pipeline_id == 1
+
+
+@_pytest.mark.parametrize("status", ["created", "pending", "running"])
+def test_commit_jobs_still_on_their_way_are_worth_waiting_for(status):
+    client = _StubClient([_pipe(2)], {2: [_job("build", status)]})
+    with _pytest.raises(_NotReady) as err:
+        _find(client, 5, "abcdef1234", ["build"])
+    assert err.value.waiting and f"build is {status}" in str(err.value)
+
+
+@_pytest.mark.parametrize("status", ["manual", "skipped", "failed"])
+def test_commit_jobs_that_need_a_person_are_reported_not_waited_for(status):
+    client = _StubClient([_pipe(2)], {2: [_job("build", status)]})
+    with _pytest.raises(_NotReady) as err:
+        _find(client, 5, "abcdef1234", ["build"])
+    assert not err.value.waiting and str(err.value) == f"Job build of abcdef12 is {status}."
+
+
+def test_commit_without_a_pipeline_is_not_waited_for():
+    with _pytest.raises(_NotReady) as err:
+        _find(_StubClient([], {}), 5, "abcdef1234", ["build"])
+    assert not err.value.waiting and str(err.value) == "No pipeline for abcdef12 yet."

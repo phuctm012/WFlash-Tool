@@ -13,7 +13,7 @@ from typing import Iterable
 
 from wflash.core.artifact_cache import ArtifactCache, NamedArtifactCache
 from wflash.core.cancel import CancelToken
-from wflash.core.errors import GitLabError
+from wflash.core.errors import GitLabError, PipelineNotReady
 from wflash.core.firmware_source import FirmwareSource, files_note, short_timestamp
 from wflash.core.gitlab_client import DownloadProgress, GitLabClient
 from wflash.core.logging_setup import get_logger
@@ -105,6 +105,57 @@ def find_latest_job(
     )
 
 
+# Job states that end by themselves: worth waiting for (spec 2026-11-09, 4.8).
+WAITING_STATES = {"created", "pending", "running", "preparing", "waiting_for_resource", "scheduled"}
+
+
+def find_commit_jobs(
+    client: GitLabClient,
+    project_id: int,
+    sha: str,
+    names: list[str],
+    cancel: CancelToken | None = None,
+) -> list[JobRow]:
+    """The named jobs of the newest pipeline of `sha` where all succeeded, in the order of `names`.
+
+    Never another commit. Raises PipelineNotReady: `waiting` when a named job of the newest
+    pipeline is still on its way (created, pending, running…), else a plain report (no
+    pipeline yet, manual, skipped, failed, missing).
+    """
+    pipelines = client.list_pipelines_for_commit(project_id, sha)
+    if not pipelines:
+        raise PipelineNotReady(
+            f"No pipeline for {sha[:8]} yet.",
+            hint="Push the commit and wait for its pipeline, or choose the job manually.",
+        )
+    newest_problems: list[tuple[str, str]] = []
+    for index, pipeline in enumerate(pipelines):
+        _check(cancel)
+        jobs = {job.name: job for job in client.list_jobs(project_id, pipeline.id, archived_only=False)}
+        wanted = [jobs.get(name) for name in names]
+        if all(job is not None and job.status == "success" for job in wanted):
+            return [_job_row(pipeline, job) for job in wanted]
+        if index == 0:
+            newest_problems = [
+                (name, job.status if job else "not in the pipeline")
+                for name, job in zip(names, wanted)
+                if job is None or job.status != "success"
+            ]
+    waiting = [(name, status) for name, status in newest_problems if status in WAITING_STATES]
+    if waiting:
+        name, status = waiting[0]
+        raise PipelineNotReady(
+            f"Waiting for pipeline: {name} is {status}…",
+            hint="WFlash loads it when the job has finished.",
+            waiting=True,
+        )
+    name, status = newest_problems[0]
+    raise PipelineNotReady(
+        f"Job {name} of {sha[:8]} is {status}.",
+        hint="Run the job in GitLab, or choose the job manually.",
+    )
+
+
 def find_build_jobs(
     client: GitLabClient,
     project_id: int,
@@ -114,27 +165,8 @@ def find_build_jobs(
     cancel: CancelToken | None = None,
 ) -> tuple[JobRow, JobRow]:
     """The FFI and ELF jobs of the newest pipeline of `sha` where both succeeded. Never another commit."""
-    pipelines = client.list_pipelines_for_commit(project_id, sha)
-    if not pipelines:
-        raise GitLabError(
-            f"Commit {sha[:8]} has no pipeline.",
-            hint="Push the commit and wait for its pipeline, or use Choose job in GitLab…",
-        )
-    problems: list[str] = []
-    for pipeline in pipelines:
-        _check(cancel)
-        jobs = {job.name: job for job in client.list_jobs(project_id, pipeline.id, archived_only=False)}
-        wanted = [jobs.get(ffi_job), jobs.get(elf_job)]
-        if all(job is not None and job.status == "success" for job in wanted):
-            return tuple(_job_row(pipeline, job) for job in wanted)
-        if not problems:
-            for name, job in zip((ffi_job, elf_job), wanted):
-                if job is None or job.status != "success":
-                    problems.append(f"{name}: {job.status if job else 'not in the pipeline'}")
-    raise GitLabError(
-        f"Commit {sha[:8]} has no finished build: {'; '.join(problems)}.",
-        hint="Run the job in GitLab, then load again.",
-    )
+    ffi, elf = find_commit_jobs(client, project_id, sha, [ffi_job, elf_job], cancel)
+    return ffi, elf
 
 
 def _job_row(pipeline, job) -> JobRow:
