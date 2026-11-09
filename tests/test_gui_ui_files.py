@@ -13,18 +13,17 @@ pytestmark = pytest.mark.gui
 GUI = Path(__file__).resolve().parents[1] / "wflash" / "gui"
 UI_FILES = {
     "main_window.ui": "ui_main_window.py",
-    "preferences_dialog.ui": "ui_preferences_dialog.py",
     "gitlab_dialog.ui": "ui_gitlab_dialog.py",
     "checkout_dialog.ui": "ui_checkout_dialog.py",
 }
-TOP_LEVEL = {"MainWindow", "PreferencesDialog", "GitlabDialog", "CheckoutDialog"}
+TOP_LEVEL = {"MainWindow", "GitlabDialog", "CheckoutDialog"}
 # <kind>_<what>, e.g. verticalLayout_gitlabBrowser, tableWidget_mapping.
 MEANINGFUL = re.compile(r"^[a-z][A-Za-z]*_[a-z][A-Za-z0-9]*$")
 
 
 def ui_names(ui_file: Path) -> list[str]:
     root = ET.parse(ui_file).getroot()
-    return [el.get("name") for el in root.iter() if el.tag in ("widget", "layout", "spacer")]
+    return [el.get("name") for el in root.iter() if el.tag in ("widget", "layout", "spacer", "action")]
 
 
 def without_uic_version(text: str) -> str:
@@ -79,12 +78,27 @@ def test_gui_every_self_ui_reference_exists_in_a_ui_file():
 def test_gui_old_widgets_are_gone():
     names = set(ui_names(GUI / "main_window.ui"))
     gone = {
-        "groupBox_gitlab", "comboBox_ref", "listWidget_pipelines", "listWidget_jobs",
+        "comboBox_ref", "listWidget_pipelines", "listWidget_jobs",
         "pushButton_downloadArtifact", "progressBar_artifact", "pushButton_settings",
         "pushButton_cancelFlash", "splitter_mainVertical", "splitter_upperHorizontal",
+        # replaced by the GitLab tab and the Setting tab (2026-11-09)
+        "frame_developer", "lineEdit_sourceRepo", "comboBox_build", "pushButton_loadBuild", "pushButton_preferences",
+        "comboBox_logLevel",
     }
     assert names & gone == set()
-    assert not (GUI / "settings_dialog.ui").exists() and not (GUI / "gitlab_browser.py").exists()
+    for old in ("settings_dialog.ui", "gitlab_browser.py", "preferences_dialog.ui", "source_panel.py"):
+        assert not (GUI / old).exists(), old
+
+
+def test_gui_every_part_widget_exists_for_app_boot_manager_and_flash_bootloader():
+    # part_controller.py binds these by name with getattr, which the self.ui scan cannot see.
+    names = set(ui_names(GUI / "main_window.ui"))
+    for part in ("app", "bm", "fbl"):
+        for pattern in ("groupBox_{}", "lineEdit_{}Project", "lineEdit_{}Repo", "pushButton_{}Browse", "label_{}Branch",
+                        "pushButton_{}Checkout", "label_{}Commit", "pushButton_{}Reload", "radioButton_{}Commit",
+                        "radioButton_{}Manual", "pushButton_{}ChooseJob", "label_{}Status"):
+            assert pattern.format(part) in names, pattern.format(part)
+    assert {"comboBox_appBuild", "label_bmBuild", "label_fblBuild"} <= names
 
 
 def test_gui_generated_modules_import(qapp):
@@ -92,7 +106,6 @@ def test_gui_generated_modules_import(qapp):
 
     from wflash.gui.ui_gitlab_dialog import Ui_GitlabDialog
     from wflash.gui.ui_main_window import Ui_MainWindow
-    from wflash.gui.ui_preferences_dialog import Ui_PreferencesDialog
 
     window = QMainWindow()
     ui = Ui_MainWindow()
@@ -101,29 +114,27 @@ def test_gui_generated_modules_import(qapp):
     assert ui.tableWidget_programFiles.horizontalHeaderItem(0).text() == "#"
     assert ui.label_flashBlocked.isHidden()
     assert ui.tabWidget_output.count() == 1 and ui.tabWidget_output.tabText(0) == "Information"
-    assert not hasattr(ui, "comboBox_logLevel")
-    assert [ui.tabWidget_main.tabText(i) for i in range(ui.tabWidget_main.count())] == ["Flash", "Setting"]
+    assert [ui.tabWidget_main.tabText(i) for i in range(ui.tabWidget_main.count())] == ["Flash", "GitLab", "Setting"]
     assert ui.tabWidget_main.currentIndex() == 0
-    assert ui.frame_developer.parent() is not None and ui.tableWidget_programFiles.window() is window
+    assert [m.title() for m in (ui.menu_file, ui.menu_view, ui.menu_tools, ui.menu_help)] == ["&File", "&View", "&Tools", "&Help"]
+    assert ui.action_userGuide.shortcut().toString() == "F1" and ui.action_darkMode.isCheckable()
     assert ui.label_rollbackWarning.isHidden()
     assert ui.label_step.text() == "Step: Idle"
     assert ui.pushButton_flash.minimumSize().width() == 90 and ui.pushButton_flash.maximumSize().height() == 70
     assert not ui.progressBar_flash.isTextVisible()
     assert ui.frame_flashPanel.maximumWidth() == 360
-    flash_tab, setting_tab = ui.tab_flash, ui.tab_setting
-    for name in ("frame_developer", "frame_gitlabSource", "tableWidget_programFiles", "tableWidget_symbolFiles"):
-        assert flash_tab.isAncestorOf(getattr(ui, name)), name
-    for name in ("comboBox_profile", "lineEdit_sourceRepo", "pushButton_reloadRepo", "pushButton_checkout",
-                 "comboBox_instance", "checkBox_reset", "checkBox_verifyFlash", "pushButton_preferences"):
-        assert setting_tab.isAncestorOf(getattr(ui, name)), name
-    preferences = QDialog()
-    Ui_PreferencesDialog().setupUi(preferences)
+    for tab, names in (
+        (ui.tab_flash, ("frame_firmwareSummary", "frame_gitlabSource", "tableWidget_programFiles", "tableWidget_symbolFiles")),
+        (ui.tab_gitlab, ("groupBox_app", "checkBox_advancedDebug", "groupBox_bm", "groupBox_fbl")),
+        (ui.tab_setting, ("comboBox_profile", "lineEdit_profilesDir", "lineEdit_downloadDir", "lineEdit_gitlabUrl",
+                          "lineEdit_token", "comboBox_instance", "checkBox_reset", "checkBox_verifyFlash")),
+    ):
+        for name in names:
+            assert tab.isAncestorOf(getattr(ui, name)), name
     gitlab = QDialog()
     gitlab_ui = Ui_GitlabDialog()
     gitlab_ui.setupUi(gitlab)
     assert gitlab_ui.tableWidget_jobs.columnCount() == 6
     assert gitlab_ui.tabWidget_source.count() == 1
-    assert gitlab_ui.checkBox_verifyTls.isChecked()
     window.deleteLater()
-    preferences.deleteLater()
     gitlab.deleteLater()

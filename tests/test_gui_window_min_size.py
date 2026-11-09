@@ -10,15 +10,14 @@ from PySide6.QtWidgets import QDialog, QMainWindow
 
 from wflash.gui.ui_gitlab_dialog import Ui_GitlabDialog
 from wflash.gui.ui_main_window import Ui_MainWindow
-from wflash.gui.ui_preferences_dialog import Ui_PreferencesDialog
 
 pytestmark = pytest.mark.gui
 
 
 @pytest.mark.parametrize(
     "base, ui_class",
-    [(QDialog, Ui_GitlabDialog), (QDialog, Ui_PreferencesDialog), (QMainWindow, Ui_MainWindow)],
-    ids=["gitlab_dialog", "preferences_dialog", "main_window"],
+    [(QDialog, Ui_GitlabDialog), (QMainWindow, Ui_MainWindow)],
+    ids=["gitlab_dialog", "main_window"],
 )
 def test_gui_window_minimum_covers_its_layout(qtbot, base, ui_class):
     window = base()

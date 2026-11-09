@@ -24,6 +24,9 @@ KEEP_ROWS = 5000
 
 
 def history_path() -> Path:
+    override = os.environ.get("WFLASH_HISTORY_FILE")  # tests and the stress test keep the real file clean
+    if override:
+        return Path(override)
     if sys.platform == "win32":
         base = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local")) / "WFlash"
     else:

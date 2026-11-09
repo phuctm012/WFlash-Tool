@@ -14,6 +14,7 @@ from tests.gui_stubs import (
     OLD_APP,
     OLD_CM7_0,
     SOURCE,
+    TOKEN,
     FakeGitLabSession,
     SessionClientFactory,
     make_artifact_tree,
@@ -42,7 +43,7 @@ def make(qtbot, tmp_path, monkeypatch):
         return env.answer
 
     monkeypatch.setattr(QMessageBox, "question", question)
-    patch_keyring(monkeypatch)
+    patch_keyring(monkeypatch, {GITLAB_URL: TOKEN})
     env = SimpleNamespace(shown=shown, questions=questions, answer=QMessageBox.StandardButton.Yes)
 
     def factory(adapter, session=None):

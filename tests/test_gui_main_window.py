@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication, QDialog, QMessageBox
+from PySide6.QtWidgets import QApplication, QMessageBox
 
 from tests.gui_stubs import (
     GITLAB_URL,
@@ -39,7 +39,7 @@ pytestmark = pytest.mark.gui
 def env(qtbot, tmp_path, monkeypatch):
     shown = []
     monkeypatch.setattr(QMessageBox, "critical", lambda parent, title, text: shown.append((title, text)))
-    patch_keyring(monkeypatch)
+    patch_keyring(monkeypatch, {GITLAB_URL: TOKEN})
     profiles = write_profiles(tmp_path / "profiles")
     settings = AppSettings(gitlab_url=GITLAB_URL, profiles_dir=str(profiles), cache_dir=str(tmp_path / "cache"))
     adapter = FakeWinIDEAAdapter(download_seconds=0.2)
@@ -55,22 +55,6 @@ def env(qtbot, tmp_path, monkeypatch):
     yield SimpleNamespace(window=window, adapter=adapter, session=session, shown=shown, tmp=tmp_path)
     apply_theme(QApplication.instance(), False)
     QApplication.instance().setStyleSheet("")
-
-
-class FakePreferences:
-    """Stands in for PreferencesDialog: accepts with the settings given to `result`."""
-
-    result = None
-    cache_cleared = False
-
-    def __init__(self, settings, parent):
-        self._settings = settings
-
-    def exec(self):
-        return QDialog.DialogCode.Accepted
-
-    def result_settings(self):
-        return FakePreferences.result(self._settings)
 
 
 def test_gui_main_window_is_composed_from_three_mixins():
@@ -112,7 +96,7 @@ def test_gui_full_chain_gitlab_dialog_to_flash(env, qtbot):
     assert w.ui.label_sourceTitle.text().endswith("job #7 build_app")
     qtbot.waitUntil(w.ui.pushButton_flash.isEnabled, timeout=3000)
     qtbot.mouseClick(w.ui.pushButton_flash, Qt.MouseButton.LeftButton)
-    assert not w.ui.pushButton_preferences.isEnabled() and not w.ui.pushButton_loadFromGitlab.isEnabled()
+    assert not w.ui.groupBox_profile.isEnabled() and not w.ui.pushButton_loadFromGitlab.isEnabled()
     w.open_gitlab_dialog()  # refused while flashing
     assert not dialog.isVisible()
     qtbot.waitUntil(lambda: w.current_step() == Step.DONE.value, timeout=5000)
@@ -180,52 +164,39 @@ def test_gui_bad_profile_shows_error_and_disables_load(qtbot, tmp_path, monkeypa
     assert not w._gitlab_dialog.isVisible()
 
 
-def test_gui_preferences_saved_without_any_token(env, monkeypatch, qtbot):
-    from dataclasses import replace
-
-    FakePreferences.result = staticmethod(lambda s: replace(s, verbose=True, max_cached_jobs=3))
-    monkeypatch.setattr(main_window_module, "PreferencesDialog", FakePreferences)
+def test_gui_setting_tab_saves_at_once_and_never_writes_the_token(env, qtbot):
     w = env.window
-    w.open_preferences()
-    assert w.settings.verbose is True and w.settings.max_cached_jobs == 3
+    w.ui.checkBox_verifyFlash.setChecked(True)
+    w.ui.lineEdit_token.setText(TOKEN + "x")
+    w.ui.lineEdit_token.editingFinished.emit()
     saved = json.loads((env.tmp / "settings.json").read_text())
-    assert saved["verbose"] is True and saved["gitlab_url"] == GITLAB_URL
+    assert saved["verify_samples"] is True and saved["gitlab_url"] == GITLAB_URL
     assert TOKEN not in (env.tmp / "settings.json").read_text()
     main_window_module.log.info("echo %s", TOKEN)
     qtbot.waitUntil(lambda: "echo ***" in w.log_visible_text(), timeout=1000)
     assert TOKEN not in w.log_visible_text()
 
 
-def test_gui_dark_mode_applies_immediately_and_is_saved(env, monkeypatch, qtbot):
-    from dataclasses import replace
-
+def test_gui_dark_mode_from_the_view_menu_applies_immediately_and_is_saved(env):
     w = env.window
     w.on_firmware_ready(make_artifact_tree(env.tmp / "art", {"x_cm7_0.elf": b"3"}), SOURCE)
-    FakePreferences.result = staticmethod(lambda s: replace(s, dark_mode=True))
-    monkeypatch.setattr(main_window_module, "PreferencesDialog", FakePreferences)
-    w.open_preferences()
+    w.ui.action_darkMode.setChecked(True)
     assert current_theme_name() == "dark"
     assert THEMES["dark"]["primary"] in QApplication.instance().styleSheet()
     assert json.loads((env.tmp / "settings.json").read_text())["dark_mode"] is True
     assert "Theme: dark" in w.log_visible_text()
-    FakePreferences.result = staticmethod(lambda s: replace(s, dark_mode=False))
-    w.open_preferences()
+    w.ui.action_darkMode.setChecked(False)
     assert current_theme_name() == "light"
     assert THEMES["light"]["primary"] in QApplication.instance().styleSheet()
 
 
-def test_gui_preferences_cache_cleared_unloads_the_firmware(env, monkeypatch):
-    class ClearingPreferences(FakePreferences):
-        cache_cleared = True
-
-        def exec(self):
-            return QDialog.DialogCode.Rejected
-
+def test_gui_folder_that_does_not_exist_is_refused_next_to_the_field(env):
     w = env.window
-    w.on_firmware_ready(make_artifact_tree(env.tmp / "art"), SOURCE)
-    monkeypatch.setattr(main_window_module, "PreferencesDialog", ClearingPreferences)
-    w.open_preferences()
-    assert w.mapping_rows() == [] and w.ui.label_sourceTitle.text() == NO_FIRMWARE_TITLE
+    before = w.settings.cache_dir
+    w.ui.lineEdit_downloadDir.setText(str(env.tmp / "missing"))
+    w.ui.lineEdit_downloadDir.editingFinished.emit()
+    assert "not found" in w.ui.label_settingError.text() and not w.ui.label_settingError.isHidden()
+    assert w.settings.cache_dir == before
 
 
 def test_gui_show_error_redacts_unregistered_token(env):
@@ -269,7 +240,7 @@ def select_multi_source(env):
     w = env.window
     (Path(w.settings.profiles_dir) / "two.yaml").write_text(MULTI_SOURCE_PROFILE, encoding="utf-8")
     w.reload_profiles()
-    w.ui.comboBox_profile.setCurrentIndex(w.ui.comboBox_profile.findText("two"))
+    w.ui.comboBox_profile.setCurrentIndex(w.ui.comboBox_profile.findText("TwoSources"))  # the profile name
     assert w.profile.name == "TwoSources"
     return w
 

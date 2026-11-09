@@ -50,6 +50,7 @@ PIPELINE_TEXT = {"success": "Passed", "failed": "Failed", "canceled": "Canceled"
 
 class CheckoutDialog(QDialog):
     checkedOut = Signal()
+    activity = Signal(str)  # what the dialog is doing, "" when idle: shown on the Flash progress bar
 
     def __init__(self, host) -> None:
         super().__init__(host)
@@ -83,8 +84,11 @@ class CheckoutDialog(QDialog):
         self.ui.tableWidget_commits.cellDoubleClicked.connect(self._on_commit_double_clicked)
 
     # -- life cycle -----------------------------------------------------------------------
-    def prepare(self, repo_path: Path, project: str = "") -> None:
-        """Called before open(): reset everything and read the repo again."""
+    def prepare(self, repo_path: Path, project: str = "", title: str = "") -> None:
+        """Called before open(): reset everything and read the repo again. `title` names the part."""
+        if not hasattr(self, "_base_title"):
+            self._base_title = self.windowTitle()
+        self.setWindowTitle(f"{self._base_title} — {title}" if title else self._base_title)
         self._path = Path(repo_path)
         self._project = project
         self._commits = []
@@ -119,6 +123,7 @@ class CheckoutDialog(QDialog):
         )
         self._keys[key] = self._generation
         self.ui.label_checkoutStatus.setText(status)
+        self.activity.emit(status)
         self._update_controls()
 
     def _stop_workers(self, wait: bool) -> None:
@@ -158,6 +163,7 @@ class CheckoutDialog(QDialog):
         self._keys.pop(key, None)
         if not self.busy():
             self.ui.label_checkoutStatus.clear()
+            self.activity.emit("")
             if self._accept_when_idle:
                 self._accept_when_idle = False
                 self.accept()
@@ -218,7 +224,8 @@ class CheckoutDialog(QDialog):
         if not branch or self._path is None:
             self._update_controls()
             return
-        settings = dataclasses.replace(self._host.settings)
+        url_of = getattr(self._host, "gitlab_url", None)
+        settings = dataclasses.replace(self._host.settings, gitlab_url=url_of() if callable(url_of) else self._host.settings.gitlab_url)
         job = partial(_read_commits, self._path, branch, self._host._client_factory, settings, self._project)
         self._start("commits", job, self._on_commits_read, f"Reading {branch}…")
 

@@ -46,6 +46,7 @@ def test_a_write_failure_only_logs(tmp_path, caplog):
 
 
 def test_history_path_is_under_the_local_app_data_on_windows(monkeypatch, tmp_path):
+    monkeypatch.delenv("WFLASH_HISTORY_FILE", raising=False)
     monkeypatch.setattr(flash_history.sys, "platform", "win32")
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
     assert flash_history.history_path() == tmp_path / "WFlash" / "flash_history.csv"

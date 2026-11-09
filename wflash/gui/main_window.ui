@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1280</width>
-    <height>820</height>
+    <height>860</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -202,250 +202,86 @@
                 <number>2</number>
                </property>
                <item>
-                <widget class="QFrame" name="frame_developer">
+                <widget class="QFrame" name="frame_firmwareSummary">
                  <property name="frameShape">
-                  <enum>QFrame::Shape::NoFrame</enum>
+                  <enum>QFrame::Shape::StyledPanel</enum>
                  </property>
-                 <layout class="QVBoxLayout" name="verticalLayout_developer">
+                 <layout class="QVBoxLayout" name="verticalLayout_firmwareSummary">
                   <property name="spacing">
                    <number>8</number>
                   </property>
                   <property name="leftMargin">
-                   <number>0</number>
+                   <number>12</number>
                   </property>
                   <property name="topMargin">
-                   <number>0</number>
+                   <number>10</number>
                   </property>
                   <property name="rightMargin">
-                   <number>0</number>
+                   <number>12</number>
                   </property>
                   <property name="bottomMargin">
-                   <number>0</number>
+                   <number>10</number>
                   </property>
                   <item>
-                   <layout class="QVBoxLayout" name="verticalLayout_repoState">
-                    <property name="spacing">
-                     <number>1</number>
+                   <widget class="QLabel" name="label_summaryHeader">
+                    <property name="text">
+                     <string>Firmware to flash</string>
                     </property>
-                    <item>
-                     <widget class="QLabel" name="label_repoBranch">
-                      <property name="text">
-                       <string>Branch: -</string>
-                      </property>
-                     </widget>
-                    </item>
-                    <item>
-                     <widget class="QLabel" name="label_repoCommit">
-                      <property name="text">
-                       <string>Commit: -</string>
-                      </property>
-                     </widget>
-                    </item>
-                    <item>
-                     <widget class="QLabel" name="label_repoChanges">
-                      <property name="text">
-                       <string />
-                      </property>
-                      <property name="wordWrap">
-                       <bool>true</bool>
-                      </property>
-                     </widget>
-                    </item>
-                    <item>
-                     <widget class="QLabel" name="label_repoFlashHint">
-                      <property name="text">
-                       <string>Updated when you come back to WFlash. Change the repo or branch in Setting.</string>
-                      </property>
-                      <property name="wordWrap">
-                       <bool>true</bool>
-                      </property>
-                     </widget>
-                    </item>
-                   </layout>
-                  </item>
-                  <item>
-                   <widget class="QFrame" name="frame_application">
-                    <property name="frameShape">
-                     <enum>QFrame::Shape::StyledPanel</enum>
-                    </property>
-                    <layout class="QVBoxLayout" name="verticalLayout_application">
-                     <property name="spacing">
-                      <number>6</number>
-                     </property>
-                     <property name="leftMargin">
-                      <number>8</number>
-                     </property>
-                     <property name="topMargin">
-                      <number>8</number>
-                     </property>
-                     <property name="rightMargin">
-                      <number>8</number>
-                     </property>
-                     <property name="bottomMargin">
-                      <number>8</number>
-                     </property>
-                     <item>
-                      <widget class="QLabel" name="label_applicationHeader">
-                       <property name="text">
-                        <string>Application</string>
-                       </property>
-                      </widget>
-                     </item>
-                     <item>
-                      <layout class="QHBoxLayout" name="horizontalLayout_build">
-                       <item>
-                        <widget class="QLabel" name="label_build">
-                         <property name="text">
-                          <string>Build</string>
-                         </property>
-                         <property name="buddy">
-                          <cstring>comboBox_build</cstring>
-                         </property>
-                        </widget>
-                       </item>
-                       <item>
-                        <widget class="QComboBox" name="comboBox_build">
-                         <property name="sizePolicy">
-                          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-                           <horstretch>1</horstretch>
-                           <verstretch>0</verstretch>
-                          </sizepolicy>
-                         </property>
-                        </widget>
-                       </item>
-                      </layout>
-                     </item>
-                     <item>
-                      <widget class="QPushButton" name="pushButton_loadBuild">
-                       <property name="text">
-                        <string>Load firmware for this commit</string>
-                       </property>
-                      </widget>
-                     </item>
-                     <item>
-                      <widget class="QLabel" name="label_loadStatus">
-                       <property name="text">
-                        <string />
-                       </property>
-                       <property name="wordWrap">
-                        <bool>true</bool>
-                       </property>
-                      </widget>
-                     </item>
-                     <item>
-                      <layout class="QHBoxLayout" name="horizontalLayout_chooseJob">
-                       <item>
-                        <widget class="QPushButton" name="pushButton_chooseJob">
-                         <property name="text">
-                          <string>Choose job in GitLab…</string>
-                         </property>
-                        </widget>
-                       </item>
-                       <item>
-                        <spacer name="horizontalSpacer_chooseJob">
-                         <property name="orientation">
-                          <enum>Qt::Orientation::Horizontal</enum>
-                         </property>
-                        </spacer>
-                       </item>
-                      </layout>
-                     </item>
-                    </layout>
                    </widget>
                   </item>
                   <item>
-                   <widget class="QFrame" name="frame_advancedDebug">
-                    <property name="frameShape">
-                     <enum>QFrame::Shape::StyledPanel</enum>
+                   <widget class="QLabel" name="label_summaryApp">
+                    <property name="text">
+                     <string />
                     </property>
-                    <layout class="QVBoxLayout" name="verticalLayout_advancedDebug">
-                     <property name="spacing">
-                      <number>6</number>
-                     </property>
-                     <property name="leftMargin">
-                      <number>8</number>
-                     </property>
-                     <property name="topMargin">
-                      <number>8</number>
-                     </property>
-                     <property name="rightMargin">
-                      <number>8</number>
-                     </property>
-                     <property name="bottomMargin">
-                      <number>8</number>
-                     </property>
-                     <item>
-                      <widget class="QCheckBox" name="checkBox_advancedDebug">
-                       <property name="text">
-                        <string>Advanced Debug</string>
-                       </property>
-                      </widget>
-                     </item>
-                     <item>
-                      <layout class="QGridLayout" name="gridLayout_advancedDebug">
-                       <property name="leftMargin">
-                        <number>0</number>
-                       </property>
-                       <property name="topMargin">
-                        <number>0</number>
-                       </property>
-                       <property name="rightMargin">
-                        <number>0</number>
-                       </property>
-                       <property name="bottomMargin">
-                        <number>0</number>
-                       </property>
-                       <item row="0" column="0">
-                        <widget class="QLabel" name="label_bmName">
-                         <property name="text">
-                          <string>BM</string>
-                         </property>
-                        </widget>
-                       </item>
-                       <item row="0" column="1">
-                        <widget class="QLabel" name="label_bmSource">
-                         <property name="text">
-                          <string>Not loaded</string>
-                         </property>
-                         <property name="wordWrap">
-                          <bool>true</bool>
-                         </property>
-                        </widget>
-                       </item>
-                       <item row="0" column="2">
-                        <widget class="QPushButton" name="pushButton_loadBm">
-                         <property name="text">
-                          <string>Load…</string>
-                         </property>
-                        </widget>
-                       </item>
-                       <item row="1" column="0">
-                        <widget class="QLabel" name="label_fblName">
-                         <property name="text">
-                          <string>FBL</string>
-                         </property>
-                        </widget>
-                       </item>
-                       <item row="1" column="1">
-                        <widget class="QLabel" name="label_fblSource">
-                         <property name="text">
-                          <string>Not loaded</string>
-                         </property>
-                         <property name="wordWrap">
-                          <bool>true</bool>
-                         </property>
-                        </widget>
-                       </item>
-                       <item row="1" column="2">
-                        <widget class="QPushButton" name="pushButton_loadFbl">
-                         <property name="text">
-                          <string>Load…</string>
-                         </property>
-                        </widget>
-                       </item>
-                      </layout>
-                     </item>
-                    </layout>
+                    <property name="wordWrap">
+                     <bool>true</bool>
+                    </property>
+                    <property name="textInteractionFlags">
+                     <set>Qt::TextInteractionFlag::TextSelectableByMouse</set>
+                    </property>
+                    <property name="textFormat">
+                     <enum>Qt::TextFormat::RichText</enum>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QLabel" name="label_summaryBm">
+                    <property name="text">
+                     <string />
+                    </property>
+                    <property name="wordWrap">
+                     <bool>true</bool>
+                    </property>
+                    <property name="textInteractionFlags">
+                     <set>Qt::TextInteractionFlag::TextSelectableByMouse</set>
+                    </property>
+                    <property name="textFormat">
+                     <enum>Qt::TextFormat::RichText</enum>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QLabel" name="label_summaryFbl">
+                    <property name="text">
+                     <string />
+                    </property>
+                    <property name="wordWrap">
+                     <bool>true</bool>
+                    </property>
+                    <property name="textInteractionFlags">
+                     <set>Qt::TextInteractionFlag::TextSelectableByMouse</set>
+                    </property>
+                    <property name="textFormat">
+                     <enum>Qt::TextFormat::RichText</enum>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QLabel" name="label_summaryAdvanced">
+                    <property name="text">
+                     <string>Advanced Debug: off</string>
+                    </property>
                    </widget>
                   </item>
                  </layout>
@@ -660,6 +496,670 @@
         </item>
        </layout>
       </widget>
+      <widget class="QWidget" name="tab_gitlab">
+       <attribute name="title">
+        <string>GitLab</string>
+       </attribute>
+       <layout class="QVBoxLayout" name="verticalLayout_gitlabTab">
+        <property name="leftMargin">
+         <number>0</number>
+        </property>
+        <property name="topMargin">
+         <number>0</number>
+        </property>
+        <property name="rightMargin">
+         <number>0</number>
+        </property>
+        <property name="bottomMargin">
+         <number>0</number>
+        </property>
+        <item>
+         <widget class="QScrollArea" name="scrollArea_gitlab">
+          <property name="frameShape">
+           <enum>QFrame::Shape::NoFrame</enum>
+          </property>
+          <property name="horizontalScrollBarPolicy">
+           <enum>Qt::ScrollBarPolicy::ScrollBarAlwaysOff</enum>
+          </property>
+          <property name="widgetResizable">
+           <bool>true</bool>
+          </property>
+          <widget class="QWidget" name="scrollAreaWidgetContents_gitlab">
+           <layout class="QVBoxLayout" name="verticalLayout_gitlabScroll">
+            <property name="spacing">
+             <number>12</number>
+            </property>
+            <property name="leftMargin">
+             <number>14</number>
+            </property>
+            <property name="topMargin">
+             <number>14</number>
+            </property>
+            <property name="rightMargin">
+             <number>14</number>
+            </property>
+            <property name="bottomMargin">
+             <number>14</number>
+            </property>
+            <item>
+             <widget class="QGroupBox" name="groupBox_app">
+              <property name="title">
+               <string>App</string>
+              </property>
+              <layout class="QGridLayout" name="gridLayout_app" columnstretch="0,1,0">
+               <property name="horizontalSpacing">
+                <number>8</number>
+               </property>
+               <property name="verticalSpacing">
+                <number>6</number>
+               </property>
+               <item row="0" column="0">
+                <widget class="QLabel" name="label_appProjectCaption">
+                 <property name="text">
+                  <string>Project</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="0" column="1" colspan="2">
+                <widget class="QLineEdit" name="lineEdit_appProject" />
+               </item>
+               <item row="1" column="0">
+                <widget class="QLabel" name="label_appRepositoryCaption">
+                 <property name="text">
+                  <string>Repository</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="1" column="1">
+                <widget class="QLineEdit" name="lineEdit_appRepo" />
+               </item>
+               <item row="1" column="2">
+                <widget class="QPushButton" name="pushButton_appBrowse">
+                 <property name="text">
+                  <string>Browse</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="2" column="0">
+                <widget class="QLabel" name="label_appBranchTagCaption">
+                 <property name="text">
+                  <string>Branch/Tag</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="2" column="1">
+                <widget class="QLabel" name="label_appBranch">
+                 <property name="text">
+                  <string>-</string>
+                 </property>
+                 <property name="textInteractionFlags">
+                  <set>Qt::TextInteractionFlag::TextSelectableByMouse</set>
+                 </property>
+                </widget>
+               </item>
+               <item row="2" column="2">
+                <widget class="QPushButton" name="pushButton_appCheckout">
+                 <property name="text">
+                  <string>Checkout</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="3" column="0">
+                <widget class="QLabel" name="label_appCommitCaption">
+                 <property name="text">
+                  <string>Commit</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="3" column="1">
+                <widget class="QLabel" name="label_appCommit">
+                 <property name="text">
+                  <string>-</string>
+                 </property>
+                 <property name="wordWrap">
+                  <bool>true</bool>
+                 </property>
+                 <property name="textInteractionFlags">
+                  <set>Qt::TextInteractionFlag::TextSelectableByMouse</set>
+                 </property>
+                </widget>
+               </item>
+               <item row="3" column="2">
+                <widget class="QPushButton" name="pushButton_appReload">
+                 <property name="text">
+                  <string>Reload</string>
+                 </property>
+                 <property name="toolTip">
+                  <string>Read the repository again: branch, commit and local changes</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="4" column="0">
+                <widget class="QLabel" name="label_appBuildCaption">
+                 <property name="text">
+                  <string>Build</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="4" column="1">
+                <widget class="QComboBox" name="comboBox_appBuild">
+                 <property name="minimumSize">
+                  <size>
+                   <width>240</width>
+                   <height>0</height>
+                  </size>
+                 </property>
+                </widget>
+               </item>
+               <item row="5" column="0">
+                <widget class="QLabel" name="label_appFirmwareCaption">
+                 <property name="text">
+                  <string>Firmware</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="5" column="1" colspan="2">
+                <widget class="QWidget" name="widget_appFirmware">
+                 <layout class="QHBoxLayout" name="horizontalLayout_appFirmware">
+                  <property name="spacing">
+                   <number>14</number>
+                  </property>
+                  <property name="leftMargin">
+                   <number>0</number>
+                  </property>
+                  <property name="topMargin">
+                   <number>0</number>
+                  </property>
+                  <property name="rightMargin">
+                   <number>0</number>
+                  </property>
+                  <property name="bottomMargin">
+                   <number>0</number>
+                  </property>
+                  <item>
+                   <widget class="QRadioButton" name="radioButton_appCommit">
+                    <property name="text">
+                     <string>From checked-out commit</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QRadioButton" name="radioButton_appManual">
+                    <property name="text">
+                     <string>Manual</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QPushButton" name="pushButton_appChooseJob">
+                    <property name="text">
+                     <string>Choose Job</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <spacer name="horizontalSpacer_appFirmware">
+                    <property name="orientation">
+                     <enum>Qt::Orientation::Horizontal</enum>
+                    </property>
+                    <property name="sizeHint" stdset="0">
+                     <size>
+                      <width>40</width>
+                      <height>20</height>
+                     </size>
+                    </property>
+                   </spacer>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+               <item row="6" column="1" colspan="2">
+                <widget class="QLabel" name="label_appStatus">
+                 <property name="text">
+                  <string />
+                 </property>
+                 <property name="wordWrap">
+                  <bool>true</bool>
+                 </property>
+                 <property name="textInteractionFlags">
+                  <set>Qt::TextInteractionFlag::TextSelectableByMouse</set>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </widget>
+            </item>
+            <item>
+             <widget class="QCheckBox" name="checkBox_advancedDebug">
+              <property name="text">
+               <string>Advanced Debug</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QWidget" name="widget_debugParts">
+              <layout class="QHBoxLayout" name="horizontalLayout_debugParts">
+               <property name="spacing">
+                <number>12</number>
+               </property>
+               <property name="leftMargin">
+                <number>0</number>
+               </property>
+               <property name="topMargin">
+                <number>0</number>
+               </property>
+               <property name="rightMargin">
+                <number>0</number>
+               </property>
+               <property name="bottomMargin">
+                <number>0</number>
+               </property>
+               <item>
+                <widget class="QGroupBox" name="groupBox_bm">
+                 <property name="title">
+                  <string>Boot Manager</string>
+                 </property>
+                 <layout class="QGridLayout" name="gridLayout_bm" columnstretch="0,1,0">
+                  <property name="horizontalSpacing">
+                   <number>8</number>
+                  </property>
+                  <property name="verticalSpacing">
+                   <number>6</number>
+                  </property>
+                  <item row="0" column="0">
+                   <widget class="QLabel" name="label_bmProjectCaption">
+                    <property name="text">
+                     <string>Project</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="0" column="1" colspan="2">
+                   <widget class="QLineEdit" name="lineEdit_bmProject" />
+                  </item>
+                  <item row="1" column="0">
+                   <widget class="QLabel" name="label_bmRepositoryCaption">
+                    <property name="text">
+                     <string>Repository</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="1" column="1">
+                   <widget class="QLineEdit" name="lineEdit_bmRepo">
+                    <property name="placeholderText">
+                     <string>Optional</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="1" column="2">
+                   <widget class="QPushButton" name="pushButton_bmBrowse">
+                    <property name="text">
+                     <string>Browse</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="2" column="0">
+                   <widget class="QLabel" name="label_bmBranchTagCaption">
+                    <property name="text">
+                     <string>Branch/Tag</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="2" column="1">
+                   <widget class="QLabel" name="label_bmBranch">
+                    <property name="text">
+                     <string>-</string>
+                    </property>
+                    <property name="textInteractionFlags">
+                     <set>Qt::TextInteractionFlag::TextSelectableByMouse</set>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="2" column="2">
+                   <widget class="QPushButton" name="pushButton_bmCheckout">
+                    <property name="text">
+                     <string>Checkout</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="3" column="0">
+                   <widget class="QLabel" name="label_bmCommitCaption">
+                    <property name="text">
+                     <string>Commit</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="3" column="1">
+                   <widget class="QLabel" name="label_bmCommit">
+                    <property name="text">
+                     <string>-</string>
+                    </property>
+                    <property name="wordWrap">
+                     <bool>true</bool>
+                    </property>
+                    <property name="textInteractionFlags">
+                     <set>Qt::TextInteractionFlag::TextSelectableByMouse</set>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="3" column="2">
+                   <widget class="QPushButton" name="pushButton_bmReload">
+                    <property name="text">
+                     <string>Reload</string>
+                    </property>
+                    <property name="toolTip">
+                     <string>Read the repository again: branch, commit and local changes</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="4" column="0">
+                   <widget class="QLabel" name="label_bmBuildCaption">
+                    <property name="text">
+                     <string>Build</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="4" column="1">
+                   <widget class="QLabel" name="label_bmBuild">
+                    <property name="text">
+                     <string>-</string>
+                    </property>
+                    <property name="textInteractionFlags">
+                     <set>Qt::TextInteractionFlag::TextSelectableByMouse</set>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="5" column="0">
+                   <widget class="QLabel" name="label_bmFirmwareCaption">
+                    <property name="text">
+                     <string>Firmware</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="5" column="1" colspan="2">
+                   <widget class="QWidget" name="widget_bmFirmware">
+                    <layout class="QHBoxLayout" name="horizontalLayout_bmFirmware">
+                     <property name="spacing">
+                      <number>14</number>
+                     </property>
+                     <property name="leftMargin">
+                      <number>0</number>
+                     </property>
+                     <property name="topMargin">
+                      <number>0</number>
+                     </property>
+                     <property name="rightMargin">
+                      <number>0</number>
+                     </property>
+                     <property name="bottomMargin">
+                      <number>0</number>
+                     </property>
+                     <item>
+                      <widget class="QRadioButton" name="radioButton_bmCommit">
+                       <property name="text">
+                        <string>From checked-out commit</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item>
+                      <widget class="QRadioButton" name="radioButton_bmManual">
+                       <property name="text">
+                        <string>Manual</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item>
+                      <widget class="QPushButton" name="pushButton_bmChooseJob">
+                       <property name="text">
+                        <string>Choose Job</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item>
+                      <spacer name="horizontalSpacer_bmFirmware">
+                       <property name="orientation">
+                        <enum>Qt::Orientation::Horizontal</enum>
+                       </property>
+                       <property name="sizeHint" stdset="0">
+                        <size>
+                         <width>40</width>
+                         <height>20</height>
+                        </size>
+                       </property>
+                      </spacer>
+                     </item>
+                    </layout>
+                   </widget>
+                  </item>
+                  <item row="6" column="1" colspan="2">
+                   <widget class="QLabel" name="label_bmStatus">
+                    <property name="text">
+                     <string />
+                    </property>
+                    <property name="wordWrap">
+                     <bool>true</bool>
+                    </property>
+                    <property name="textInteractionFlags">
+                     <set>Qt::TextInteractionFlag::TextSelectableByMouse</set>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+               <item>
+                <widget class="QGroupBox" name="groupBox_fbl">
+                 <property name="title">
+                  <string>Flash Bootloader</string>
+                 </property>
+                 <layout class="QGridLayout" name="gridLayout_fbl" columnstretch="0,1,0">
+                  <property name="horizontalSpacing">
+                   <number>8</number>
+                  </property>
+                  <property name="verticalSpacing">
+                   <number>6</number>
+                  </property>
+                  <item row="0" column="0">
+                   <widget class="QLabel" name="label_fblProjectCaption">
+                    <property name="text">
+                     <string>Project</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="0" column="1" colspan="2">
+                   <widget class="QLineEdit" name="lineEdit_fblProject" />
+                  </item>
+                  <item row="1" column="0">
+                   <widget class="QLabel" name="label_fblRepositoryCaption">
+                    <property name="text">
+                     <string>Repository</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="1" column="1">
+                   <widget class="QLineEdit" name="lineEdit_fblRepo">
+                    <property name="placeholderText">
+                     <string>Optional</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="1" column="2">
+                   <widget class="QPushButton" name="pushButton_fblBrowse">
+                    <property name="text">
+                     <string>Browse</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="2" column="0">
+                   <widget class="QLabel" name="label_fblBranchTagCaption">
+                    <property name="text">
+                     <string>Branch/Tag</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="2" column="1">
+                   <widget class="QLabel" name="label_fblBranch">
+                    <property name="text">
+                     <string>-</string>
+                    </property>
+                    <property name="textInteractionFlags">
+                     <set>Qt::TextInteractionFlag::TextSelectableByMouse</set>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="2" column="2">
+                   <widget class="QPushButton" name="pushButton_fblCheckout">
+                    <property name="text">
+                     <string>Checkout</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="3" column="0">
+                   <widget class="QLabel" name="label_fblCommitCaption">
+                    <property name="text">
+                     <string>Commit</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="3" column="1">
+                   <widget class="QLabel" name="label_fblCommit">
+                    <property name="text">
+                     <string>-</string>
+                    </property>
+                    <property name="wordWrap">
+                     <bool>true</bool>
+                    </property>
+                    <property name="textInteractionFlags">
+                     <set>Qt::TextInteractionFlag::TextSelectableByMouse</set>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="3" column="2">
+                   <widget class="QPushButton" name="pushButton_fblReload">
+                    <property name="text">
+                     <string>Reload</string>
+                    </property>
+                    <property name="toolTip">
+                     <string>Read the repository again: branch, commit and local changes</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="4" column="0">
+                   <widget class="QLabel" name="label_fblBuildCaption">
+                    <property name="text">
+                     <string>Build</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="4" column="1">
+                   <widget class="QLabel" name="label_fblBuild">
+                    <property name="text">
+                     <string>-</string>
+                    </property>
+                    <property name="textInteractionFlags">
+                     <set>Qt::TextInteractionFlag::TextSelectableByMouse</set>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="5" column="0">
+                   <widget class="QLabel" name="label_fblFirmwareCaption">
+                    <property name="text">
+                     <string>Firmware</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="5" column="1" colspan="2">
+                   <widget class="QWidget" name="widget_fblFirmware">
+                    <layout class="QHBoxLayout" name="horizontalLayout_fblFirmware">
+                     <property name="spacing">
+                      <number>14</number>
+                     </property>
+                     <property name="leftMargin">
+                      <number>0</number>
+                     </property>
+                     <property name="topMargin">
+                      <number>0</number>
+                     </property>
+                     <property name="rightMargin">
+                      <number>0</number>
+                     </property>
+                     <property name="bottomMargin">
+                      <number>0</number>
+                     </property>
+                     <item>
+                      <widget class="QRadioButton" name="radioButton_fblCommit">
+                       <property name="text">
+                        <string>From checked-out commit</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item>
+                      <widget class="QRadioButton" name="radioButton_fblManual">
+                       <property name="text">
+                        <string>Manual</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item>
+                      <widget class="QPushButton" name="pushButton_fblChooseJob">
+                       <property name="text">
+                        <string>Choose Job</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item>
+                      <spacer name="horizontalSpacer_fblFirmware">
+                       <property name="orientation">
+                        <enum>Qt::Orientation::Horizontal</enum>
+                       </property>
+                       <property name="sizeHint" stdset="0">
+                        <size>
+                         <width>40</width>
+                         <height>20</height>
+                        </size>
+                       </property>
+                      </spacer>
+                     </item>
+                    </layout>
+                   </widget>
+                  </item>
+                  <item row="6" column="1" colspan="2">
+                   <widget class="QLabel" name="label_fblStatus">
+                    <property name="text">
+                     <string />
+                    </property>
+                    <property name="wordWrap">
+                     <bool>true</bool>
+                    </property>
+                    <property name="textInteractionFlags">
+                     <set>Qt::TextInteractionFlag::TextSelectableByMouse</set>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+              </layout>
+             </widget>
+            </item>
+            <item>
+             <spacer name="verticalSpacer_gitlabTab">
+              <property name="orientation">
+               <enum>Qt::Orientation::Vertical</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>20</width>
+                <height>40</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+           </layout>
+          </widget>
+         </widget>
+        </item>
+       </layout>
+      </widget>
       <widget class="QWidget" name="tab_setting">
        <attribute name="title">
         <string>Setting</string>
@@ -706,60 +1206,183 @@
              <number>14</number>
             </property>
             <item>
-             <widget class="QGroupBox" name="groupBox_firmware">
-              <property name="maximumSize">
-               <size>
-                <width>760</width>
-                <height>16777215</height>
-               </size>
-              </property>
+             <widget class="QGroupBox" name="groupBox_profile">
               <property name="title">
-               <string>Firmware</string>
+               <string>Profile</string>
               </property>
-              <layout class="QGridLayout" name="gridLayout_firmware">
+              <layout class="QGridLayout" name="gridLayout_profile" columnstretch="0,1,0">
                <property name="horizontalSpacing">
                 <number>8</number>
                </property>
                <property name="verticalSpacing">
-                <number>8</number>
+                <number>6</number>
                </property>
                <item row="0" column="0">
                 <widget class="QLabel" name="label_profile">
                  <property name="text">
                   <string>Profile</string>
                  </property>
-                 <property name="buddy">
-                  <cstring>comboBox_profile</cstring>
+                </widget>
+               </item>
+               <item row="0" column="1">
+                <widget class="QComboBox" name="comboBox_profile">
+                 <property name="sizePolicy">
+                  <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                   <horstretch>1</horstretch>
+                   <verstretch>0</verstretch>
+                  </sizepolicy>
+                 </property>
+                </widget>
+               </item>
+               <item row="0" column="2">
+                <widget class="QPushButton" name="pushButton_reloadProfiles">
+                 <property name="text">
+                  <string>Reload</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="1" column="0">
+                <widget class="QLabel" name="label_profilesDir">
+                 <property name="text">
+                  <string>Profiles folder</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="1" column="1">
+                <widget class="QLineEdit" name="lineEdit_profilesDir" />
+               </item>
+               <item row="1" column="2">
+                <widget class="QPushButton" name="pushButton_browseProfilesDir">
+                 <property name="text">
+                  <string>Browse…</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="2" column="0">
+                <widget class="QLabel" name="label_downloadDir">
+                 <property name="text">
+                  <string>Download folder</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="2" column="1">
+                <widget class="QLineEdit" name="lineEdit_downloadDir" />
+               </item>
+               <item row="2" column="2">
+                <widget class="QPushButton" name="pushButton_browseDownloadDir">
+                 <property name="text">
+                  <string>Browse…</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="3" column="1" colspan="2">
+                <widget class="QLabel" name="label_settingError">
+                 <property name="text">
+                  <string />
+                 </property>
+                 <property name="wordWrap">
+                  <bool>true</bool>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </widget>
+            </item>
+            <item>
+             <widget class="QGroupBox" name="groupBox_gitlab">
+              <property name="title">
+               <string>GitLab connection</string>
+              </property>
+              <layout class="QGridLayout" name="gridLayout_gitlab" columnstretch="0,1,0">
+               <property name="horizontalSpacing">
+                <number>8</number>
+               </property>
+               <property name="verticalSpacing">
+                <number>6</number>
+               </property>
+               <item row="0" column="0">
+                <widget class="QLabel" name="label_gitlabUrl">
+                 <property name="text">
+                  <string>GitLab URL</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="0" column="1" colspan="2">
+                <widget class="QLineEdit" name="lineEdit_gitlabUrl">
+                 <property name="placeholderText">
+                  <string>https://gitlab.example.com/group</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="1" column="0">
+                <widget class="QLabel" name="label_token">
+                 <property name="text">
+                  <string>Access token</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="1" column="1" colspan="2">
+                <widget class="QLineEdit" name="lineEdit_token">
+                 <property name="placeholderText">
+                  <string>Personal Access Token (scope read_api)</string>
+                 </property>
+                 <property name="echoMode">
+                  <enum>QLineEdit::EchoMode::Password</enum>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </widget>
+            </item>
+            <item>
+             <widget class="QGroupBox" name="groupBox_winidea">
+              <property name="title">
+               <string>winIDEA</string>
+              </property>
+              <layout class="QGridLayout" name="gridLayout_winidea" columnstretch="0,1,0">
+               <property name="horizontalSpacing">
+                <number>8</number>
+               </property>
+               <property name="verticalSpacing">
+                <number>6</number>
+               </property>
+               <item row="0" column="0">
+                <widget class="QLabel" name="label_instance">
+                 <property name="text">
+                  <string>Instance</string>
                  </property>
                 </widget>
                </item>
                <item row="0" column="1">
-                <layout class="QHBoxLayout" name="horizontalLayout_profile">
-                 <item>
-                  <widget class="QComboBox" name="comboBox_profile">
-                   <property name="sizePolicy">
-                    <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-                     <horstretch>1</horstretch>
-                     <verstretch>0</verstretch>
-                    </sizepolicy>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QPushButton" name="pushButton_reloadProfiles">
-                   <property name="text">
-                    <string>Reload</string>
-                   </property>
-                  </widget>
-                 </item>
-                </layout>
-               </item>
-               <item row="1" column="0" colspan="2">
-                <widget class="QFrame" name="frame_sourceRepoSetting">
-                 <property name="frameShape">
-                  <enum>QFrame::Shape::NoFrame</enum>
+                <widget class="QComboBox" name="comboBox_instance">
+                 <property name="sizePolicy">
+                  <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                   <horstretch>1</horstretch>
+                   <verstretch>0</verstretch>
+                  </sizepolicy>
                  </property>
-                 <layout class="QGridLayout" name="gridLayout_sourceRepo">
+                </widget>
+               </item>
+               <item row="0" column="2">
+                <widget class="QPushButton" name="pushButton_refreshInstances">
+                 <property name="text">
+                  <string>Refresh</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="1" column="0">
+                <widget class="QLabel" name="label_afterFlash">
+                 <property name="text">
+                  <string>After flash</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="1" column="1" colspan="2">
+                <widget class="QWidget" name="widget_afterFlash">
+                 <layout class="QHBoxLayout" name="horizontalLayout_afterFlash">
+                  <property name="spacing">
+                   <number>18</number>
+                  </property>
                   <property name="leftMargin">
                    <number>0</number>
                   </property>
@@ -772,240 +1395,47 @@
                   <property name="bottomMargin">
                    <number>0</number>
                   </property>
-                  <property name="horizontalSpacing">
-                   <number>6</number>
-                  </property>
-                  <property name="verticalSpacing">
-                   <number>6</number>
-                  </property>
-                  <item row="0" column="0">
-                   <widget class="QLabel" name="label_sourceRepo">
+                  <item>
+                   <widget class="QCheckBox" name="checkBox_reset">
                     <property name="text">
-                     <string>Source repo</string>
+                     <string>Reset target</string>
                     </property>
-                    <property name="buddy">
-                     <cstring>lineEdit_sourceRepo</cstring>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="0" column="1">
-                   <widget class="QLineEdit" name="lineEdit_sourceRepo">
-                    <property name="placeholderText">
-                     <string>Folder of your source repo</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="0" column="2">
-                   <widget class="QPushButton" name="pushButton_browseRepo">
-                    <property name="text">
-                     <string>Browse</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="0" column="3">
-                   <widget class="QPushButton" name="pushButton_reloadRepo">
-                    <property name="toolTip">
-                     <string>Read the source repo again: branch, commit and local changes</string>
-                    </property>
-                    <property name="text">
-                     <string>Reload</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="1" column="1" colspan="3">
-                   <layout class="QHBoxLayout" name="horizontalLayout_repoSetting" stretch="1,0">
-                    <item>
-                     <widget class="QLabel" name="label_repoSummary">
-                      <property name="text">
-                       <string>Branch: - · Commit: -</string>
-                      </property>
-                      <property name="wordWrap">
-                       <bool>true</bool>
-                      </property>
-                     </widget>
-                    </item>
-                    <item>
-                     <widget class="QPushButton" name="pushButton_checkout">
-                      <property name="text">
-                       <string>Checkout…</string>
-                      </property>
-                     </widget>
-                    </item>
-                   </layout>
-                  </item>
-                  <item row="2" column="1" colspan="3">
-                   <widget class="QLabel" name="label_repoAutoHint">
-                    <property name="text">
-                     <string>WFlash also reads the repo again each time you come back to its window.</string>
-                    </property>
-                    <property name="wordWrap">
+                    <property name="checked">
                      <bool>true</bool>
                     </property>
                    </widget>
                   </item>
+                  <item>
+                   <widget class="QCheckBox" name="checkBox_run">
+                    <property name="text">
+                     <string>Run after reset</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QCheckBox" name="checkBox_verifyFlash">
+                    <property name="text">
+                     <string>Verify samples</string>
+                    </property>
+                    <property name="toolTip">
+                     <string>Read samples of the flash back and compare them with the files. Adds about 3 minutes.</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <spacer name="horizontalSpacer_afterFlash">
+                    <property name="orientation">
+                     <enum>Qt::Orientation::Horizontal</enum>
+                    </property>
+                    <property name="sizeHint" stdset="0">
+                     <size>
+                      <width>40</width>
+                      <height>20</height>
+                     </size>
+                    </property>
+                   </spacer>
+                  </item>
                  </layout>
-                </widget>
-               </item>
-              </layout>
-             </widget>
-            </item>
-            <item>
-             <widget class="QGroupBox" name="groupBox_winidea">
-              <property name="maximumSize">
-               <size>
-                <width>760</width>
-                <height>16777215</height>
-               </size>
-              </property>
-              <property name="title">
-               <string>winIDEA</string>
-              </property>
-              <layout class="QGridLayout" name="gridLayout_winidea">
-               <property name="horizontalSpacing">
-                <number>8</number>
-               </property>
-               <item row="0" column="0">
-                <widget class="QLabel" name="label_instance">
-                 <property name="text">
-                  <string>Instance</string>
-                 </property>
-                 <property name="buddy">
-                  <cstring>comboBox_instance</cstring>
-                 </property>
-                </widget>
-               </item>
-               <item row="0" column="1">
-                <layout class="QHBoxLayout" name="horizontalLayout_instance">
-                 <item>
-                  <widget class="QComboBox" name="comboBox_instance">
-                   <property name="sizePolicy">
-                    <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-                     <horstretch>1</horstretch>
-                     <verstretch>0</verstretch>
-                    </sizepolicy>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QPushButton" name="pushButton_refreshInstances">
-                   <property name="text">
-                    <string>Refresh</string>
-                   </property>
-                  </widget>
-                 </item>
-                </layout>
-               </item>
-              </layout>
-             </widget>
-            </item>
-            <item>
-             <widget class="QGroupBox" name="groupBox_afterFlash">
-              <property name="maximumSize">
-               <size>
-                <width>760</width>
-                <height>16777215</height>
-               </size>
-              </property>
-              <property name="title">
-               <string>After flash</string>
-              </property>
-              <layout class="QVBoxLayout" name="verticalLayout_afterFlash">
-               <property name="spacing">
-                <number>6</number>
-               </property>
-               <item>
-                <layout class="QHBoxLayout" name="horizontalLayout_afterFlash">
-                 <item>
-                  <widget class="QCheckBox" name="checkBox_reset">
-                   <property name="text">
-                    <string>Reset target</string>
-                   </property>
-                   <property name="checked">
-                    <bool>true</bool>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QCheckBox" name="checkBox_run">
-                   <property name="text">
-                    <string>Run after reset</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QCheckBox" name="checkBox_verifyFlash">
-                   <property name="toolTip">
-                    <string>Read samples of the flash back and compare them with the files. Adds about 3 minutes.</string>
-                   </property>
-                   <property name="text">
-                    <string>Verify samples</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <spacer name="horizontalSpacer_afterFlash">
-                   <property name="orientation">
-                    <enum>Qt::Orientation::Horizontal</enum>
-                   </property>
-                   <property name="sizeHint" stdset="0">
-                    <size>
-                     <width>40</width>
-                     <height>20</height>
-                    </size>
-                   </property>
-                  </spacer>
-                 </item>
-                </layout>
-               </item>
-               <item>
-                <widget class="QLabel" name="label_verifyHint">
-                 <property name="text">
-                  <string>Verify samples reads parts of the flash back and compares them with the files. Adds about 3 minutes.</string>
-                 </property>
-                 <property name="wordWrap">
-                  <bool>true</bool>
-                 </property>
-                </widget>
-               </item>
-              </layout>
-             </widget>
-            </item>
-            <item>
-             <widget class="QWidget" name="widget_preferencesRow">
-              <property name="maximumSize">
-               <size>
-                <width>760</width>
-                <height>16777215</height>
-               </size>
-              </property>
-              <layout class="QHBoxLayout" name="horizontalLayout_preferences">
-               <property name="leftMargin">
-                <number>0</number>
-               </property>
-               <property name="rightMargin">
-                <number>0</number>
-               </property>
-               <property name="bottomMargin">
-                <number>0</number>
-               </property>
-               <item>
-                <spacer name="horizontalSpacer_preferences">
-                 <property name="orientation">
-                  <enum>Qt::Orientation::Horizontal</enum>
-                 </property>
-                 <property name="sizeHint" stdset="0">
-                  <size>
-                   <width>40</width>
-                   <height>20</height>
-                  </size>
-                 </property>
-                </spacer>
-               </item>
-               <item>
-                <widget class="QPushButton" name="pushButton_preferences">
-                 <property name="text">
-                  <string>Preferences…</string>
-                 </property>
                 </widget>
                </item>
               </layout>
@@ -1099,7 +1529,144 @@
     </item>
    </layout>
   </widget>
+  <widget class="QMenuBar" name="menuBar_main">
+   <widget class="QMenu" name="menu_file">
+    <property name="title">
+     <string>&amp;File</string>
+    </property>
+    <addaction name="action_exportBundle" />
+    <addaction name="action_openHistory" />
+    <addaction name="action_openLogFolder" />
+    <addaction name="action_openDownloadFolder" />
+    <addaction name="separator" />
+    <addaction name="action_exit" />
+   </widget>
+   <widget class="QMenu" name="menu_view">
+    <property name="title">
+     <string>&amp;View</string>
+    </property>
+    <addaction name="action_darkMode" />
+    <addaction name="separator" />
+    <addaction name="action_tabFlash" />
+    <addaction name="action_tabGitlab" />
+    <addaction name="action_tabSetting" />
+   </widget>
+   <widget class="QMenu" name="menu_tools">
+    <property name="title">
+     <string>&amp;Tools</string>
+    </property>
+    <addaction name="action_testGitlab" />
+    <addaction name="action_checkCores" />
+    <addaction name="separator" />
+    <addaction name="action_refreshInstances" />
+   </widget>
+   <widget class="QMenu" name="menu_help">
+    <property name="title">
+     <string>&amp;Help</string>
+    </property>
+    <addaction name="action_userGuide" />
+    <addaction name="action_about" />
+   </widget>
+   <addaction name="menu_file" />
+   <addaction name="menu_view" />
+   <addaction name="menu_tools" />
+   <addaction name="menu_help" />
+  </widget>
   <widget class="QStatusBar" name="statusBar_main" />
+  <action name="action_exportBundle">
+   <property name="text">
+    <string>Export debug bundle…</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+E</string>
+   </property>
+  </action>
+  <action name="action_openHistory">
+   <property name="text">
+    <string>Open flash history</string>
+   </property>
+  </action>
+  <action name="action_openLogFolder">
+   <property name="text">
+    <string>Open log folder</string>
+   </property>
+  </action>
+  <action name="action_openDownloadFolder">
+   <property name="text">
+    <string>Open download folder</string>
+   </property>
+  </action>
+  <action name="action_exit">
+   <property name="text">
+    <string>Exit</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Q</string>
+   </property>
+  </action>
+  <action name="action_darkMode">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Dark mode</string>
+   </property>
+  </action>
+  <action name="action_tabFlash">
+   <property name="text">
+    <string>Flash</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+1</string>
+   </property>
+  </action>
+  <action name="action_tabGitlab">
+   <property name="text">
+    <string>GitLab</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+2</string>
+   </property>
+  </action>
+  <action name="action_tabSetting">
+   <property name="text">
+    <string>Setting</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+3</string>
+   </property>
+  </action>
+  <action name="action_testGitlab">
+   <property name="text">
+    <string>Test GitLab connection</string>
+   </property>
+  </action>
+  <action name="action_checkCores">
+   <property name="text">
+    <string>Check winIDEA cores</string>
+   </property>
+  </action>
+  <action name="action_refreshInstances">
+   <property name="text">
+    <string>Refresh winIDEA instances</string>
+   </property>
+   <property name="shortcut">
+    <string>F5</string>
+   </property>
+  </action>
+  <action name="action_userGuide">
+   <property name="text">
+    <string>User Guide</string>
+   </property>
+   <property name="shortcut">
+    <string>F1</string>
+   </property>
+  </action>
+  <action name="action_about">
+   <property name="text">
+    <string>About WFlash</string>
+   </property>
+  </action>
  </widget>
  <resources />
  <connections />

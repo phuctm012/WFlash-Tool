@@ -54,10 +54,21 @@ SOURCE = FirmwareSource(
 
 
 def patch_keyring(monkeypatch, store: dict | None = None) -> dict:
-    """Keep the GitLab dialog away from the real system keyring; returns the fake store."""
+    """Keep the GUI away from the real system keyring; returns the fake store (keyed by URL).
+
+    The token is read by the Load from GitLab popup and the client factory, and written by
+    the Setting tab of the main window.
+    """
+    from wflash.gui import main_window, menu_actions  # noqa: F401  (imported for patching)
+
     store = {} if store is None else store
-    monkeypatch.setattr(gitlab_dialog, "get_token", lambda url: store.get(url))
-    monkeypatch.setattr(gitlab_dialog, "set_token", lambda url, token: store.__setitem__(url, token))
+
+    def get(url):
+        return store.get(url) or store.get(url.rstrip("/"))
+
+    monkeypatch.setattr(gitlab_dialog, "get_token", get)
+    monkeypatch.setattr(main_window, "get_token", get)
+    monkeypatch.setattr(main_window, "set_token", lambda url, token: store.__setitem__(url, token))
     return store
 
 
@@ -106,6 +117,10 @@ class _SlowRaw(io.BytesIO):
 
 DEV_PIPELINE_ID = 300
 DEV_FFI_JOB, DEV_ELF_JOB = 31, 32
+# Boot Manager and Flash Bootloader projects of the SUZ05 profile (short names joined to a group).
+BM_PROJECT_ID, FBL_PROJECT_ID = 43, 44
+BM_JOB, FBL_JOB = 41, 42
+BM_BIN, FBL_BIN = "FBL_M7_LIP_RfeClock_Image.bin", "Radar_SUZ05_Gen7_FBL.bin"
 
 
 def zip_of(files: dict[str, bytes]) -> bytes:
@@ -133,6 +148,7 @@ class FakeGitLabSession:
         self.chunk_delay_s = chunk_delay_s
         self.zip_bytes = artifact_zip_bytes()
         self.commit_has_pipeline = True  # developer flow: pipelines?sha= finds one
+        self.job_status: dict[str, str] = {}  # developer flow: override a job's status, e.g. "running"
         self.calls: list[str] = []
         self._lock = threading.Lock()
 
@@ -152,6 +168,24 @@ class FakeGitLabSession:
             return self._response(self.fail_status, {"message": f"{self.fail_status} error"})
         if path == f"/projects/{PROJECT}":
             return self._response(200, {"id": PROJECT_ID})
+        if path.startswith("/projects/") and path.endswith("/SUZ05_BM_Boot_Manager-Impl"):
+            return self._response(200, {"id": BM_PROJECT_ID})
+        if path.startswith("/projects/") and path.endswith("/SUZ05_FBL_Flash_Boot_Loader-Impl"):
+            return self._response(200, {"id": FBL_PROJECT_ID})
+        for pid, job_id, name, files in (
+            (BM_PROJECT_ID, BM_JOB, "build_STINGRAY_3P5MB",
+             {f"out/bin/{BM_BIN}": b"B", "out/bin/Radar_SUZ05_Gen7_BM.elf": b"E"}),
+            (FBL_PROJECT_ID, FBL_JOB, "build", {f"out/bin/{FBL_BIN}": b"F", "out/bin/Radar_SUZ05_Gen7_FBL.elf": b"E"}),
+        ):
+            if path == f"/projects/{pid}/pipelines" and "sha" in (params or {}):
+                return self._response(200, [{"id": pid * 10, "ref": "development", "status": "success",
+                                             "sha": params["sha"], "created_at": "2026-11-09T10:00:00Z"}])
+            if path == f"/projects/{pid}/pipelines/{pid * 10}/jobs":
+                return self._response(200, [{"id": job_id, "name": name, "stage": "build",
+                                             "status": self.job_status.get(name, "success"),
+                                             "finished_at": "2026-11-09T10:05:00Z", "artifacts": [{"file_type": "archive"}]}])
+            if path == f"/projects/{pid}/jobs/{job_id}/artifacts":
+                return self._stream(url, zip_of(files))
         if path == f"/projects/{PROJECT_ID}/repository/branches":
             return self._response(200, [{"name": "main"}])
         if path == f"/projects/{PROJECT_ID}/repository/tags":
@@ -164,8 +198,9 @@ class FakeGitLabSession:
             archive = [{"file_type": "archive"}]
             return self._response(200, [
                 {"id": DEV_FFI_JOB, "name": "create_ffi_stingray_3p5mb_no_HTSM", "stage": "release",
-                 "status": "success", "finished_at": "2026-11-08T10:05:00Z", "artifacts": archive},
-                {"id": DEV_ELF_JOB, "name": "build", "stage": "build", "status": "success",
+                 "status": self.job_status.get("create_ffi_stingray_3p5mb_no_HTSM", "success"),
+                 "finished_at": "2026-11-08T10:05:00Z", "artifacts": archive},
+                {"id": DEV_ELF_JOB, "name": "build", "stage": "build", "status": self.job_status.get("build", "success"),
                  "finished_at": "2026-11-08T10:04:00Z", "artifacts": archive},
                 {"id": 33, "name": "create_ffi_strx_3p5mb_no_HTSM", "stage": "release", "status": "skipped",
                  "artifacts": []},
