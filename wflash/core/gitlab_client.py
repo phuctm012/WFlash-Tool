@@ -20,15 +20,15 @@ CHUNK = 1024 * 1024
 DownloadProgress = Callable[[int, int], None]  # (bytes_done, bytes_total or 0 if unknown)
 
 _HINTS = {
-    401: "Token is invalid or expired. Create a Personal Access Token with scope read_api and enter it in Load from GitLab…",
+    401: "Token is invalid or expired. Create a Personal Access Token with scope read_api and enter it in the Setting tab.",
     403: "Your token has no access to this project. Ask for project access or check the token scope.",
-    404: "Not found. Check the project path (profile or Load from GitLab…); the artifact may also have expired.",
+    404: "Not found. Check the GitLab URL (with its group) and the project name; the artifact may also have expired.",
 }
 
 
 _BAD_RESPONSE_HINT = (
     "GitLab returned something that is not its API (a proxy or login page?). "
-    "Check the GitLab URL in Load from GitLab… and that you can open it in a browser."
+    "Check the GitLab URL in the Setting tab and that you can open it in a browser."
 )
 
 
@@ -100,7 +100,7 @@ class GitLabClient:
             raise GitLabError(
                 f"SSL error connecting to GitLab: {exc}",
                 hint="If GitLab uses an internal certificate, ask IT to install it in the Windows certificate store, "
-                "or untick Verify TLS certificate in Load from GitLab… on a trusted network.",
+                "then try again.",
             ) from exc
         except requests.exceptions.RequestException as exc:
             raise GitLabError(f"Cannot reach GitLab: {exc}") from exc

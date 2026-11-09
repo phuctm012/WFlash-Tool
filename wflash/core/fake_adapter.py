@@ -11,6 +11,7 @@ WFLASH_FAKE_FAIL="download,reset"):
   download         - FlashError half way through (progress stops below 100)
   verify           - verify_flash() raises FlashError
   no_cancel        - download ignores cancel, like the real adapter
+  core_states      - core_states() raises WinIDEAError
   core_inaccessible - download refuses to start, as the real adapter does when a
                      core is NOT ACCESSIBLE after the reset (nothing programmed)
 """
@@ -32,7 +33,7 @@ from wflash.core.winidea_adapter import FileEntry, InstanceInfo, ProgressCallbac
 calls_log = logging.getLogger(CALLS_LOGGER)
 INSTANCE_ID = "fake-1"
 # Ops whose injection is handled by the method itself rather than in _call.
-_NON_RAISING = {"download", "list_instances", "connection_lost", "verify", "no_cancel", "core_inaccessible"}
+_NON_RAISING = {"download", "list_instances", "connection_lost", "verify", "no_cancel", "core_inaccessible", "core_states"}
 WORKSPACE = r"C:\fake\SAF85xx\SAF85xx.xjrf"
 
 
@@ -54,6 +55,7 @@ class FakeWinIDEAAdapter:
             else {"CM7_0": r"C:\fake\old\cm7_0.elf", "CM7_1": r"C:\fake\old\cm7_1.elf"}
         )
         self.download_seconds = download_seconds
+        self.program_stats: dict[str, float] = {"resets": 0, "tries": 0, "program_s": 0.0}
         self.fail_on = set(fail_on)
         self.download_cancellable = cancellable
         # Row view of the workspace, for the planned flash (profiles with builds).
@@ -135,6 +137,7 @@ class FakeWinIDEAAdapter:
     def download(self, progress: ProgressCallback, cancel: CancelToken, timeout_s: int) -> None:
         self._require_connected()
         self._call("download")
+        self.program_stats = {"resets": 0, "tries": 1, "program_s": round(self.download_seconds, 1)}
         if "core_inaccessible" in self.fail_on:
             raise inaccessible_cores_error(["A53", "BBE32EP"])
         steps = 20
@@ -185,6 +188,13 @@ class FakeWinIDEAAdapter:
         at = next(i for i, r in enumerate(self.symbol_rows) if (r.app_index, r.file_index) == (app_index, file_index))
         row = self.symbol_rows[at]
         self.symbol_rows[at] = replace(row, path=row.path if path is None else path, enabled=row.enabled if tick is None else tick)
+
+    def core_states(self) -> list[tuple[str, str]]:
+        self._require_connected()
+        self._call("core_states")
+        if "core_states" in self.fail_on:
+            raise WinIDEAError("Fake failure injected in 'core_states'")
+        return [("M7_0", "STOP"), ("M7_RFE", "RUN"), ("A53", "RUN"), ("SPT", "IDLE"), ("BBE32EP", "RUN")]
 
     def reset(self, run: bool) -> None:
         self._require_connected()

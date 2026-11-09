@@ -351,7 +351,7 @@ from wflash.core.fake_adapter import INSTANCE_ID as _INSTANCE
 from wflash.core.file_matcher import MappingRow as _MRow
 from wflash.core.flash_plan import ProgramRow, SymbolRow
 
-SUZ05 = Path(__file__).resolve().parents[1] / "profiles" / "suz05_m7_ffi.yaml"
+SUZ05 = Path(__file__).resolve().parents[1] / "profiles" / "suz05.yaml"
 CAL = "20260623_142557_2018688_CAL_T008_v0_0.sre"
 BM_BIN, FBL_BIN = "FBL_M7_LIP_RfeClock_Image.bin", "Radar_SUZ05_Gen7_FBL.bin"
 

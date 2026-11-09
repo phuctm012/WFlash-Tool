@@ -15,12 +15,11 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QFont, QFontDatabase, QGradient, QIcon,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
-from PySide6.QtWidgets import (QAbstractItemView, QApplication, QCheckBox, QComboBox,
-    QDialog, QGridLayout, QGroupBox, QHBoxLayout,
-    QHeaderView, QLabel, QLineEdit, QPlainTextEdit,
-    QProgressBar, QPushButton, QSizePolicy, QSpacerItem,
-    QTabWidget, QTableWidget, QTableWidgetItem, QVBoxLayout,
-    QWidget)
+from PySide6.QtWidgets import (QAbstractItemView, QApplication, QComboBox, QDialog,
+    QGridLayout, QHBoxLayout, QHeaderView, QLabel,
+    QLineEdit, QPlainTextEdit, QProgressBar, QPushButton,
+    QSizePolicy, QSpacerItem, QTabWidget, QTableWidget,
+    QTableWidgetItem, QVBoxLayout, QWidget)
 
 class Ui_GitlabDialog(object):
     def setupUi(self, GitlabDialog):
@@ -29,46 +28,6 @@ class Ui_GitlabDialog(object):
         GitlabDialog.resize(880, 720)
         self.verticalLayout_gitlabDialog = QVBoxLayout(GitlabDialog)
         self.verticalLayout_gitlabDialog.setObjectName(u"verticalLayout_gitlabDialog")
-        self.groupBox_connection = QGroupBox(GitlabDialog)
-        self.groupBox_connection.setObjectName(u"groupBox_connection")
-        self.gridLayout_connection = QGridLayout(self.groupBox_connection)
-        self.gridLayout_connection.setObjectName(u"gridLayout_connection")
-        self.label_gitlabUrl = QLabel(self.groupBox_connection)
-        self.label_gitlabUrl.setObjectName(u"label_gitlabUrl")
-
-        self.gridLayout_connection.addWidget(self.label_gitlabUrl, 0, 0, 1, 1)
-
-        self.lineEdit_gitlabUrl = QLineEdit(self.groupBox_connection)
-        self.lineEdit_gitlabUrl.setObjectName(u"lineEdit_gitlabUrl")
-
-        self.gridLayout_connection.addWidget(self.lineEdit_gitlabUrl, 0, 1, 1, 1)
-
-        self.label_token = QLabel(self.groupBox_connection)
-        self.label_token.setObjectName(u"label_token")
-
-        self.gridLayout_connection.addWidget(self.label_token, 1, 0, 1, 1)
-
-        self.lineEdit_token = QLineEdit(self.groupBox_connection)
-        self.lineEdit_token.setObjectName(u"lineEdit_token")
-        self.lineEdit_token.setEchoMode(QLineEdit.EchoMode.Password)
-
-        self.gridLayout_connection.addWidget(self.lineEdit_token, 1, 1, 1, 1)
-
-        self.checkBox_verifyTls = QCheckBox(self.groupBox_connection)
-        self.checkBox_verifyTls.setObjectName(u"checkBox_verifyTls")
-        self.checkBox_verifyTls.setChecked(True)
-
-        self.gridLayout_connection.addWidget(self.checkBox_verifyTls, 2, 1, 1, 1)
-
-        self.label_connectionHint = QLabel(self.groupBox_connection)
-        self.label_connectionHint.setObjectName(u"label_connectionHint")
-        self.label_connectionHint.setWordWrap(True)
-
-        self.gridLayout_connection.addWidget(self.label_connectionHint, 3, 0, 1, 2)
-
-
-        self.verticalLayout_gitlabDialog.addWidget(self.groupBox_connection)
-
         self.tabWidget_source = QTabWidget(GitlabDialog)
         self.tabWidget_source.setObjectName(u"tabWidget_source")
         self.tab_ciArtifact = QWidget()
@@ -243,16 +202,11 @@ class Ui_GitlabDialog(object):
         self.verticalLayout_gitlabDialog.addLayout(self.horizontalLayout_dialogButtons)
 
 #if QT_CONFIG(shortcut)
-        self.label_gitlabUrl.setBuddy(self.lineEdit_gitlabUrl)
-        self.label_token.setBuddy(self.lineEdit_token)
         self.label_ciProject.setBuddy(self.lineEdit_ciProject)
         self.label_ref.setBuddy(self.comboBox_ref)
         self.label_jobName.setBuddy(self.comboBox_jobName)
         self.label_gitlabLog.setBuddy(self.plainTextEdit_gitlabLog)
 #endif // QT_CONFIG(shortcut)
-        QWidget.setTabOrder(self.lineEdit_gitlabUrl, self.lineEdit_token)
-        QWidget.setTabOrder(self.lineEdit_token, self.checkBox_verifyTls)
-        QWidget.setTabOrder(self.checkBox_verifyTls, self.tabWidget_source)
         QWidget.setTabOrder(self.tabWidget_source, self.lineEdit_ciProject)
         QWidget.setTabOrder(self.lineEdit_ciProject, self.comboBox_ref)
         QWidget.setTabOrder(self.comboBox_ref, self.pushButton_loadRefs)
@@ -273,16 +227,6 @@ class Ui_GitlabDialog(object):
 
     def retranslateUi(self, GitlabDialog):
         GitlabDialog.setWindowTitle(QCoreApplication.translate("GitlabDialog", u"Load from GitLab", None))
-        self.groupBox_connection.setTitle(QCoreApplication.translate("GitlabDialog", u"GitLab Connection", None))
-        self.label_gitlabUrl.setText(QCoreApplication.translate("GitlabDialog", u"Instance URL:", None))
-        self.lineEdit_gitlabUrl.setPlaceholderText(QCoreApplication.translate("GitlabDialog", u"https://gitlab.company.com", None))
-        self.label_token.setText(QCoreApplication.translate("GitlabDialog", u"Access token:", None))
-        self.lineEdit_token.setPlaceholderText(QCoreApplication.translate("GitlabDialog", u"Personal Access Token (scope read_api)", None))
-        self.checkBox_verifyTls.setText(QCoreApplication.translate("GitlabDialog", u"Verify TLS certificate (recommended)", None))
-#if QT_CONFIG(tooltip)
-        self.checkBox_verifyTls.setToolTip(QCoreApplication.translate("GitlabDialog", u"Certificates are checked against the Windows certificate store, so an internal company certificate installed by IT works without any file.", None))
-#endif // QT_CONFIG(tooltip)
-        self.label_connectionHint.setText(QCoreApplication.translate("GitlabDialog", u"Certificates are checked against the Windows certificate store. Required token scope: read_api (branches/tags, pipelines, jobs, artifacts). The token is stored in the system keyring (Windows Credential Manager), never in a file.", None))
         self.label_ciProject.setText(QCoreApplication.translate("GitlabDialog", u"Project:", None))
         self.lineEdit_ciProject.setPlaceholderText(QCoreApplication.translate("GitlabDialog", u"group/project (empty = the profile's project)", None))
         self.label_ciProjectSource.setText(QCoreApplication.translate("GitlabDialog", u"from profile", None))

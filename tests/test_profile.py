@@ -143,7 +143,7 @@ def test_profile_rejects_a_target_source_without_sources(tmp_path):
 
 
 def test_suz05_profile_declares_builds_in_flash_order():
-    profile = load_profile(ROOT / "profiles" / "suz05_m7_ffi.yaml")
+    profile = load_profile(ROOT / "profiles" / "suz05.yaml")
     assert [p.role for p in profile.programs] == ["ffi", "cal", "bm", "fbl"]
     assert profile.programs[3].offset == 0xF1000
     assert profile.build("strx_3p5mb_no_HTSM").bm_job == "build_STRX_3P5MB"
@@ -178,3 +178,12 @@ def test_builds_require_ffi_cal_and_elf_roles(tmp_path):
 def test_unknown_build_is_a_profile_error(tmp_path):
     with pytest.raises(ProfileError):
         _load(tmp_path, BUILDS).build("nope")
+
+
+def test_suz05_profile_has_the_gitlab_url_with_its_group_and_short_project_names():
+    profile = load_profile(ROOT / "profiles" / "suz05.yaml")
+    assert profile.name == "SUZ05"
+    assert profile.gitlab.url == "https://gitlab.hella.com/alm/projects_group/e-ad_group/e-ad_radar_cust_suz05_group"
+    assert profile.gitlab.project == "SUZ05_APP_Application_Software-Impl"
+    assert profile.debug_sources["bm"].project == "SUZ05_BM_Boot_Manager-Impl"
+    assert profile.debug_sources["fbl"].job == "build"

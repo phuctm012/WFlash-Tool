@@ -12,6 +12,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 from wflash import __version__
+from wflash.core.flash_history import history_path
 from wflash.core.logging_setup import redact
 from wflash.core.winidea_adapter import FileEntry
 
@@ -89,4 +90,7 @@ def create_debug_bundle(ctx: DebugContext, dest_dir: Path, log_file: Path | None
         zf.writestr("source.json", redact(json.dumps(ctx.source, indent=2)))
         zf.writestr("workspace_snapshots.json", redact(json.dumps(ctx.snapshots, indent=2)))
         zf.writestr("errors.txt", redact("\n\n".join(ctx.errors) or "(no errors recorded)"))
+        history = history_path()
+        if history.is_file():
+            zf.writestr("flash_history.csv", redact(history.read_text(encoding="utf-8-sig", errors="replace")))
     return path

@@ -16,7 +16,15 @@ class ProfileError(WFlashError):
 
 
 class GitLabError(WFlashError):
-    default_hint = "Check the GitLab URL, token and network connection in Load from GitLab…"
+    default_hint = "Check the GitLab URL and the access token in the Setting tab, and the network connection."
+
+
+class PipelineNotReady(GitLabError):
+    """The commit has no finished job yet. `waiting` is True while a job is still on its way."""
+
+    def __init__(self, message: str, hint: str = "", waiting: bool = False) -> None:
+        super().__init__(message, hint)
+        self.waiting = waiting
 
 
 class ArtifactError(WFlashError):

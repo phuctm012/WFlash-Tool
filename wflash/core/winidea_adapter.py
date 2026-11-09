@@ -72,6 +72,13 @@ class WinIDEAAdapter(Protocol):
 
     def reset(self, run: bool) -> None: ...
 
+    def core_states(self) -> list[tuple[str, str]]:
+        """(core name, Session Explorer status text) of every core; read only. Needs connect()."""
+        ...
+
+    # Resets, begin_program tries and programming seconds of the last download() (flash history).
+    program_stats: dict[str, float]
+
     # Row view of the workspace, for the planned flash (profiles with builds).
     def workspace_dir(self) -> Path: ...
 
@@ -163,6 +170,7 @@ class RealWinIDEAAdapter:
         self._ic = None
         self._cmgr = None
         self._ide = None
+        self.program_stats: dict[str, float] = {"resets": 0, "tries": 0, "program_s": 0.0}
         self._workspaces: dict[str, str] = {}
         self._program_rows: dict[str, int] = {}
         self._symbol_files: dict[str, tuple[int, int]] = {}
@@ -381,6 +389,7 @@ class RealWinIDEAAdapter:
         begin_program. The resets of every try share one budget of MAX_CORE_RESETS (user decision).
         """
         ic, cmgr, _ide = self._session()
+        self.program_stats = {"resets": 0, "tries": 0, "program_s": 0.0}
         resets_left = MAX_CORE_RESETS
         for attempt in range(1, MAX_PROGRAM_ATTEMPTS + 1):
             # The first try checks the cores before any reset; a retry follows a failure whose cores
@@ -390,6 +399,8 @@ class RealWinIDEAAdapter:
             if attempt > 1:
                 label = f"Programming external flash, try {attempt} of {MAX_PROGRAM_ATTEMPTS} (estimated)"
             elapsed = self._begin_program(ic, cmgr, progress, timeout_s, label)
+            self.program_stats["tries"] = attempt
+            self.program_stats["program_s"] = round(self.program_stats["program_s"] + elapsed, 1)
             failure = self._read_back(ic, cmgr)
             if failure is None:
                 log.info("Programming finished in %.1f s (try %d of %d)", elapsed, attempt, MAX_PROGRAM_ATTEMPTS)
@@ -487,6 +498,14 @@ class RealWinIDEAAdapter:
         except Exception as exc:
             log.warning("The reset before programming failed; programming anyway: %s", exc)
 
+    def core_states(self) -> list[tuple[str, str]]:
+        """Tools > Check winIDEA cores: the calls of spike 16, read only (no reset, no program)."""
+        ic, cmgr, _ide = self._session()
+        try:
+            return [(name, text) for name, _status, text in self._core_states(ic, cmgr)]
+        except Exception as exc:
+            raise self._fail("reading the core states", exc) from exc
+
     def _core_states(self, ic, cmgr) -> list[tuple[str, int, str]]:
         """(name, status, text) per core, as winIDEA's Session Explorer shows them (spike 16)."""
         session = ic.CSessionCtrl(cmgr)
@@ -518,6 +537,7 @@ class RealWinIDEAAdapter:
         while resets_left > 0:
             self._reset_before_programming(ic, cmgr)
             resets_left -= 1
+            self.program_stats["resets"] = self.program_stats.get("resets", 0) + 1
             bad, summary, _readable = self._inaccessible_cores(ic, cmgr)
             if not bad:
                 return resets_left

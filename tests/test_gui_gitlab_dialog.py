@@ -1,4 +1,4 @@
-"""Load from GitLab popup: CI artifact tab, Package Registry tab, Stop/close, settings, TLS."""
+"""Load from GitLab popup: CI artifact tab, Stop/close, settings. The connection is in the Setting tab."""
 import dataclasses
 import json
 import logging
@@ -41,7 +41,8 @@ class DialogHost(HostWindow):
 
 @pytest.fixture
 def keyring_store(monkeypatch):
-    return patch_keyring(monkeypatch)
+    # The Setting tab of the main window stores the token; here it is already there.
+    return patch_keyring(monkeypatch, {GITLAB_URL: TOKEN})
 
 
 @pytest.fixture
@@ -156,30 +157,26 @@ def test_gui_ci_project_edit_is_remembered_per_profile(host, qtbot):
 
 
 def test_gui_url_required_before_any_request(host, session):
+    host.settings.gitlab_url = "gitlab.example.com"  # no scheme
     d = host.dialog
-    d.ui.lineEdit_gitlabUrl.setText("gitlab.example.com")
     d.load_refs()
     assert not d.busy() and session.calls == []
-    assert "GitLab URL" in d.ui.label_downloadStatus.text()
+    assert "Setting tab" in d.ui.label_downloadStatus.text()
 
 
-def test_gui_dialog_has_no_ca_bundle_field(host):
+def test_gui_token_required_before_any_request(host, session, keyring_store):
+    keyring_store.clear()
     d = host.dialog
-    assert not hasattr(d.ui, "lineEdit_caBundle") and not hasattr(d.ui, "pushButton_browseCa")
-    assert "Windows certificate store" in d.ui.label_connectionHint.text()
-
-
-def test_gui_token_goes_to_the_keyring_never_to_settings(host, keyring_store, qtbot):
-    d = host.dialog
-    d.ui.lineEdit_token.setText(f" {TOKEN} ")
     d.load_refs()
-    idle(d, qtbot)
-    assert keyring_store == {GITLAB_URL: TOKEN}
+    assert not d.busy() and session.calls == []
+    assert "access token" in d.ui.label_downloadStatus.text()
+
+
+def test_gui_dialog_has_no_connection_fields(host):
+    d = host.dialog
+    for name in ("lineEdit_gitlabUrl", "lineEdit_token", "checkBox_verifyTls", "lineEdit_caBundle", "groupBox_connection"):
+        assert not hasattr(d.ui, name), name
     assert TOKEN not in json.dumps(dataclasses.asdict(host.settings))
-    assert "Token stored" in d.ui.plainTextEdit_gitlabLog.toPlainText()
-    d.load_refs()  # unchanged token: not written again
-    idle(d, qtbot)
-    assert d.ui.plainTextEdit_gitlabLog.toPlainText().count("Token stored") == 1
 
 
 def test_gui_dialog_log_is_redacted(host):
@@ -189,30 +186,16 @@ def test_gui_dialog_log_is_redacted(host):
     assert TOKEN not in text and "***" in text
 
 
-def test_gui_verify_tls_off_is_saved_and_warned_once_per_session(host, qtbot, monkeypatch, caplog):
-    monkeypatch.setattr(gitlab_dialog, "_tls_warning_logged", False)
-    d = host.dialog
-    d.ui.checkBox_verifyTls.setChecked(False)
-    with caplog.at_level(logging.WARNING, logger="wflash.gitlab"):
-        for _ in range(2):
-            d.load_refs()
-            idle(d, qtbot)
-    warnings = [r for r in caplog.records if "TLS certificate verification is OFF" in r.getMessage()]
-    assert len(warnings) == 1 and warnings[0].levelno == logging.WARNING
-    assert host.settings.verify_tls is False
-
-
-def test_gui_default_client_factory_requires_url_and_token_and_passes_verify(monkeypatch):
+def test_gui_default_client_factory_calls_the_host_and_always_verifies(monkeypatch):
     monkeypatch.setattr(gitlab_dialog, "get_token", lambda url: None)
     with pytest.raises(GitLabError, match="not configured") as info:
         default_client_factory(AppSettings(gitlab_url="https://gl"))
-    assert "Load from GitLab" in info.value.hint
+    assert "Setting tab" in info.value.hint
     monkeypatch.setattr(gitlab_dialog, "get_token", lambda url: TOKEN)
-    # A CA bundle saved by an older WFlash is ignored: certificates come from the system store.
-    client = default_client_factory(AppSettings(gitlab_url="https://gl/", ca_bundle="/old/ca.pem"))
+    # The group in the URL is for project names; the API is on the host. Old CA bundle and
+    # "Verify TLS" off are ignored: certificates are always checked (system store).
+    client = default_client_factory(AppSettings(gitlab_url="https://gl/a/b/group", ca_bundle="/old/ca.pem", verify_tls=False))
     assert client.base == "https://gl/api/v4" and client.verify is True
-    insecure = default_client_factory(AppSettings(gitlab_url="https://gl", ca_bundle="/ca.pem", verify_tls=False))
-    assert insecure.verify is False
 
 
 @pytest.mark.parametrize("status, hint_word", [(401, "expired"), (403, "access"), (404, "expired")])
@@ -232,7 +215,7 @@ def test_gui_thread_buttons_locked_while_a_request_runs(host, session, qtbot):
     d = host.dialog
     d.load_refs()
     assert d.busy()
-    assert not d.ui.pushButton_loadRefs.isEnabled() and not d.ui.groupBox_connection.isEnabled()
+    assert not d.ui.pushButton_loadRefs.isEnabled() and not d.ui.lineEdit_ciProject.isEnabled()
     assert d.ui.pushButton_stopDownload.isEnabled()
     d.load_refs()  # refused while busy
     assert len([k for k in host._workers.running_keys() if k.startswith("gitlab-")]) == 1
@@ -311,16 +294,13 @@ def test_gui_thread_close_wait_is_bounded_when_a_request_hangs(host, session, qt
     assert d.ui.comboBox_ref.count() == 0  # the late result was dropped
 
 
-def test_gui_prepare_fills_fields_from_settings_profile_and_keyring(qtbot, tmp_path, session, monkeypatch):
+def test_gui_prepare_fills_fields_from_settings_and_profile(qtbot, tmp_path, session, monkeypatch):
     patch_keyring(monkeypatch, {GITLAB_URL: TOKEN})
     w = DialogHost(tmp_path, session)
     qtbot.addWidget(w)
-    w.settings = dataclasses.replace(w.settings, verify_tls=False, ca_bundle="/ca.pem", ci_job_name="build_app")
+    w.settings = dataclasses.replace(w.settings, ci_job_name="build_app")
     d = w.dialog
     d.prepare()
-    assert d.ui.lineEdit_gitlabUrl.text() == GITLAB_URL
-    assert d.ui.lineEdit_token.text() == TOKEN
-    assert not d.ui.checkBox_verifyTls.isChecked()
     assert d.ui.lineEdit_ciProject.text() == PROJECT
     assert d.ui.label_ciProjectSource.isVisibleTo(d)
     assert d.ui.comboBox_jobName.currentText() == "build_app"

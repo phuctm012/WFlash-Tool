@@ -15,75 +15,6 @@
   </property>
   <layout class="QVBoxLayout" name="verticalLayout_gitlabDialog">
    <item>
-    <widget class="QGroupBox" name="groupBox_connection">
-     <property name="title">
-      <string>GitLab Connection</string>
-     </property>
-     <layout class="QGridLayout" name="gridLayout_connection">
-      <item row="0" column="0">
-       <widget class="QLabel" name="label_gitlabUrl">
-        <property name="text">
-         <string>Instance URL:</string>
-        </property>
-        <property name="buddy">
-         <cstring>lineEdit_gitlabUrl</cstring>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="1">
-       <widget class="QLineEdit" name="lineEdit_gitlabUrl">
-        <property name="placeholderText">
-         <string>https://gitlab.company.com</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="0">
-       <widget class="QLabel" name="label_token">
-        <property name="text">
-         <string>Access token:</string>
-        </property>
-        <property name="buddy">
-         <cstring>lineEdit_token</cstring>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="1">
-       <widget class="QLineEdit" name="lineEdit_token">
-        <property name="echoMode">
-         <enum>QLineEdit::EchoMode::Password</enum>
-        </property>
-        <property name="placeholderText">
-         <string>Personal Access Token (scope read_api)</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="1">
-       <widget class="QCheckBox" name="checkBox_verifyTls">
-        <property name="text">
-         <string>Verify TLS certificate (recommended)</string>
-        </property>
-        <property name="checked">
-         <bool>true</bool>
-        </property>
-        <property name="toolTip">
-         <string>Certificates are checked against the Windows certificate store, so an internal company certificate installed by IT works without any file.</string>
-        </property>
-       </widget>
-      </item>
-      <item row="3" column="0" colspan="2">
-       <widget class="QLabel" name="label_connectionHint">
-        <property name="text">
-         <string>Certificates are checked against the Windows certificate store. Required token scope: read_api (branches/tags, pipelines, jobs, artifacts). The token is stored in the system keyring (Windows Credential Manager), never in a file.</string>
-        </property>
-        <property name="wordWrap">
-         <bool>true</bool>
-        </property>
-       </widget>
-      </item>
-     </layout>
-    </widget>
-   </item>
-   <item>
     <widget class="QTabWidget" name="tabWidget_source">
      <property name="currentIndex">
       <number>0</number>
@@ -377,9 +308,6 @@
   </layout>
  </widget>
  <tabstops>
-  <tabstop>lineEdit_gitlabUrl</tabstop>
-  <tabstop>lineEdit_token</tabstop>
-  <tabstop>checkBox_verifyTls</tabstop>
   <tabstop>tabWidget_source</tabstop>
   <tabstop>lineEdit_ciProject</tabstop>
   <tabstop>comboBox_ref</tabstop>

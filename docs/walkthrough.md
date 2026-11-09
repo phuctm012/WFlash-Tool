@@ -1598,3 +1598,53 @@ Hai trường hợp vẫn reset trước, do tôi tự quyết và đã báo ng�
 ### Đã kiểm tra
 
 - Toàn bộ test, `-k thread`, stress test (kết quả ở commit). Người dùng đã thử trên ECU và báo là ổn (2026-11-09); chưa có debug bundle hay số liệu cho lần thử đó.
+
+## Phase 3.24: Tab GitLab, tab Setting mới, thanh menu, chờ pipeline, thông báo, lịch sử flash
+
+Người dùng muốn bỏ việc phải mở popup cho mỗi lần đổi firmware và gom cấu hình về một chỗ. Spec `docs/superpowers/specs/2026-11-09-wflash-gitlab-tab-design.md` (đã duyệt qua nhiều vòng mockup HTML) và plan `docs/superpowers/plans/2026-11-09-wflash-gitlab-tab.md` (10 task). Ba tab **Flash | GitLab | Setting**, thanh menu File/View/Tools/Help.
+
+- **Tab GitLab**: ba phần App (bắt buộc), Boot Manager, Flash Bootloader (repo không bắt buộc, chỉ hiện khi bật Advanced Debug). Mỗi phần có Project (tên ngắn), Repository, Branch + Checkout, Commit + Reload, Build, và Firmware: **From checked-out commit** (tự tải theo commit) hoặc **Manual** (Choose Job, được nhớ). Mỗi phần là một `PartController(QObject)` riêng: các worker có khóa `part-repo-<part>`, `part-load-<part>`, và bộ đếm generation để kết quả của lần tải cũ bị bỏ qua (quy tắc 4).
+- **Chờ pipeline**: job còn `created/pending/running…` thì `find_commit_jobs` ném `PipelineNotReady(waiting=True)`, phần đó hỏi lại mỗi 30 s, tối đa 60 phút; không tải trong lúc flash mà để tới khi flash xong. Job `manual/skipped/failed` báo một lần, không tự thử lại cho tới khi commit, kết nối đổi hoặc bấm Reload (trước đó mỗi lần quay lại cửa sổ lại gọi GitLab một lần).
+- **Tab Setting**: Profile (Profile, Profiles folder, Download folder), GitLab connection (URL gồm group, Access token), winIDEA (instance, After flash). Lưu ngay khi rời ô. Bỏ Preferences, Verify TLS (luôn kiểm tra), Verbose (luôn ghi lời gọi winIDEA), Clear downloads và Downloads to keep (vẫn giữ 10). Token lưu trong keyring theo host, đọc được cả token cũ lưu theo URL đầy đủ.
+- **Profile** đổi tên thành `profiles/suz05.yaml` (`name: SUZ05`, có `gitlab.url` của group); settings cũ trỏ tới `suz05_m7_ffi.yaml` được chuyển tự động.
+- **Khôi phục phiên trước**: repo, project, chế độ, job chọn tay của từng phần, Advanced Debug, After flash, kích thước cửa sổ, tab. Firmware theo commit được tải lại hoặc lấy từ cache; không bao giờ tự flash.
+- **Thanh Flash** hiện tiến trình tải artifact và checkout; xong thì trạng thái flash trước đó (ví dụ Done) hiện lại.
+- **Thông báo** (khay hệ thống + nháy taskbar) chỉ khi cửa sổ không được chọn: flash Done/Failed/Cancelled, firmware sẵn sàng sau khi chờ pipeline.
+- **Lịch sử flash** `%LOCALAPPDATA%\WFlash\flash_history.csv`: một dòng mỗi lần flash, gồm số lần reset/thử và thời gian lập trình lấy từ `program_stats` của adapter; giữ 5000 dòng; có trong debug bundle.
+- **Help → User Guide** (F1): `wflash/resources/help/user_guide.html`, tiếng Anh, hình minh họa vẽ bằng HTML.
+- **Tools → Check winIDEA cores**: chỉ đọc (connect, `core_states()`, disconnect); không chạy khi đang flash hay đang làm mới danh sách instance.
+
+### Thay đổi
+
+- **`wflash/core/gitlab_url.py`** (mới), **`settings.py`**, **`profile.py`**, **`errors.py`** (`PipelineNotReady`), **`firmware_fetch.py`** (`find_commit_jobs`), **`gitlab_client.py`** (hint chỉ về tab Setting), **`flash_history.py`** (mới), **`logging_setup.py`**, **`debug_bundle.py`**.
+- **`wflash/core/winidea_adapter.py`**, **`fake_adapter.py`**: `core_states()` và `program_stats` trong Protocol, fake và thật. `core_states()` của adapter thật dùng lại `_core_states` đã chạy trên ECU; `program_stats` chỉ là bộ đếm, không gọi thêm API nào.
+- **`wflash/gui/main_window.ui`** dựng lại (menu, ba tab, tên widget theo `<kind>_<part><Field>`), **`gitlab_tab.py`**, **`part_controller.py`**, **`menu_actions.py`** (mới); xóa `source_panel.py`, `preferences_dialog.*`; sửa `main_window.py`, `flash_mixin.py`, `gitlab_dialog.ui/.py` (bỏ phần kết nối), `checkout_dialog.py`, hai file QSS.
+- **`tests/`**: `test_gui_gitlab_tab.py` (mới), `test_gitlab_url.py`, `test_flash_history.py`, cập nhật các test GUI cũ; `conftest.py` đặt `WFLASH_HISTORY_FILE`.
+- **`tools/stress_test.py`**: luồng developer dùng ba phần (App theo commit, BM theo commit của repo riêng, FBL Manual), Reload/quay lại cửa sổ dồn dập, chờ pipeline rồi đóng cửa sổ giữa lúc chờ, chuyển Manual giữa lúc tải, section `menu` mới (mọi action, Tools một worker một lúc và bị từ chối khi đang flash, đóng cửa sổ giữa lúc Test GitLab). Keyring và `QDesktopServices.openUrl` được thay bằng bản giả. Cửa sổ đã đóng giờ được giải phóng thật (`sendPostedEvents(DeferredDelete)`): trước đó chúng tồn lại, mỗi cửa sổ thêm khoảng 20 widget top-level, làm lần đổi theme sau đó chậm tới 1,5 s và làm hỏng một checkpoint về thời gian.
+- **`README.md`**, **`CLAUDE.md`**, **`pyproject.toml`** (đóng gói `resources/help/*`), **`docs/windows_test_guide.md`** (Vòng 13).
+
+### Đã kiểm tra
+
+- Toàn bộ test, `pytest -k thread`, `tools/stress_test.py` (kết quả ở commit), app mở được với `--adapter fake`. Trên macOS chỉ chạy được fake adapter: `core_states()` và `program_stats` của adapter thật chưa chạy trên ECU; Vòng 13 kiểm tra phần đó.
+
+## Phase 3.25: Rà lỗi sau đợt đổi giao diện lớn, fuzz test cho threading
+
+Người dùng yêu cầu stress test lại toàn bộ, tìm bug do thay đổi lớn, và test kỹ threading để app không bao giờ crash. Stress test cũ chạy theo kịch bản cố định nên tôi thêm section **fuzz**: mỗi seed là một chuỗi ngẫu nhiên 25–60 thao tác trên cửa sổ developer (Reload, quay lại cửa sổ, đổi From commit/Manual từng phần, Advanced Debug, Build, đổi profile, Flash, Cancel, Tools, Checkout, commit mới, pipeline chạy/manual/failed, chọn job tay, theme, tab), rồi đóng cửa sổ ở thời điểm bất kỳ (có lúc giữa lúc flash, có lúc giữa lúc tải). Chạy lại được bằng `--section fuzz --seed N`. Ba lỗi tìm được, đều đã sửa:
+
+1. **Đổi chế độ Firmware giữ firmware của chế độ kia.** Chọn job tay ở Manual rồi quay lại From checked-out commit (cùng commit): app không tải lại vì `_loaded_key` chưa đổi, nên vẫn giữ job tay nhưng ghi "From commit" (cả trong flash history). Chiều ngược lại, firmware của commit bị ghi là "Manual". Giờ đổi chế độ thì bỏ firmware đang giữ: From commit tải lại (từ cache nếu đã có), Manual lấy lại job đã nhớ hoặc báo "Press Choose Job". Xóa repository của BM/FBL (tự chuyển Manual) cũng đi qua đường này.
+2. **Firmware của commit cũ vẫn flash được.** Repo sang commit mới mà job của commit mới chưa tải được (manual, failed, không có trong pipeline, đang chờ) thì firmware commit cũ vẫn nằm đó, Flash vẫn bật, tab Flash ghi "From commit · <commit cũ> · Cached". Trái với quy tắc "không bao giờ lấy firmware của commit khác". Giờ Flash bị khóa, dải đỏ ghi rõ commit của firmware và commit của repo; tương tự khi build/project đã đổi mà firmware chưa theo kịp, hoặc repo không đọc được. Manual không bị kiểm tra này.
+3. **Phím tắt menu chạy được trong lúc đóng cửa sổ.** `closeEvent` chỉ khóa central widget, còn thanh menu nằm ngoài nó; trong lúc chờ (có pump event), Ctrl+E có thể mở hộp chọn thư mục lồng trong vòng chờ, F5/Tools có thể bắt đầu worker mới. Thêm nữa, khi worker flash kết thúc trong lúc chờ, `_update_flash_controls` bật lại các action. Giờ `lock_menus()` tắt mọi action và thanh menu ngay khi bắt đầu đóng, `_update_flash_controls` không bật lại khi đang đóng, và Export kiểm tra `_closing`.
+
+Một lỗi của chính stress test, gây hậu quả thật: ô Repository của App có lúc bị để trống, `Path("")` thành `.`, nên thao tác "commit" chạy `git add .` và `git commit` ngay trong repo WFlash: 11 commit rác trên `feat/gitlab-tab` local (chưa push), cuốn theo cả các thay đổi đang làm. Đã khắc phục bằng `git reset --soft c1b7e62` (giữ nguyên mọi thay đổi thật) và xóa các file `f*.c` rác. Giờ mọi lệnh git của stress test đi qua `Stress.git()`, từ chối mọi đường dẫn nằm ngoài thư mục tạm của nó.
+
+### Thay đổi
+
+- **`wflash/gui/part_controller.py`**: `_take_mode_firmware()`, `_loaded_for`, `stale_reason()`.
+- **`wflash/gui/gitlab_tab.py`**: `drop_part_firmware()`; `flash_block_reason()` gọi `stale_reason()` của từng phần đang bật; dải đỏ cập nhật khi phần nào đó xong việc.
+- **`wflash/gui/menu_actions.py`** (`lock_menus`), **`main_window.py`** (`closeEvent`), **`flash_mixin.py`**, **`log_panel.py`**.
+- **`tests/test_gui_gitlab_tab.py`**: đổi chế độ không giữ firmware của chế độ kia; firmware commit cũ khóa Flash cho tới khi commit mới tải xong; Manual không bị khóa. **`tests/test_gui_close_window.py`**: mọi action tắt trong và sau lúc chờ đóng, kể cả khi worker flash xong trong lúc chờ.
+- **`tools/stress_test.py`**: section `fuzz` (`--seed`), `Stress.git()` / `commit_file()` có rào chắn đường dẫn.
+
+### Đã kiểm tra
+
+- Kết quả chạy toàn bộ test, `-k thread`, stress test và fuzz ghi ở commit. Chỉ trên macOS với fake adapter; các thay đổi chỉ nằm ở GUI, không đụng adapter thật.

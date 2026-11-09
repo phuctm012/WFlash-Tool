@@ -185,6 +185,15 @@ QGroupBox::title {
     color: #0f6b63;
     font-weight: 600;
 }
+QFrame#frame_firmwareSummary {
+    background-color: #e7f3f1;
+    border: none;
+    border-radius: 8px;
+}
+QLabel#label_summaryHeader {
+    color: #0f6b63;
+    font-weight: 600;
+}
 QGroupBox#groupBox_connection {
     background-color: #e3eceb;
 }

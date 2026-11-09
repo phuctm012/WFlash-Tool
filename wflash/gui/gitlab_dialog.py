@@ -32,6 +32,7 @@ from PySide6.QtGui import QFontDatabase
 from PySide6.QtWidgets import QDialog, QHeaderView, QPushButton, QTableWidgetItem
 
 from wflash.core.artifact_cache import ArtifactCache, NamedArtifactCache, build_cache_path, debug_cache_path
+from wflash.core.gitlab_url import project_path, split_gitlab_url
 from wflash.core.errors import CancelledError, GitLabError
 from wflash.core.firmware_fetch import (
     JobRow,
@@ -41,8 +42,8 @@ from wflash.core.firmware_fetch import (
     find_latest_job,
 )
 from wflash.core.gitlab_client import GitLabClient
-from wflash.core.logging_setup import get_logger, redact, register_secret
-from wflash.core.settings import AppSettings, get_token, set_token
+from wflash.core.logging_setup import get_logger, redact
+from wflash.core.settings import AppSettings, get_token
 from wflash.gui.style import repolish
 from wflash.gui.ui_gitlab_dialog import Ui_GitlabDialog
 from wflash.gui.workers import WorkerContext
@@ -56,31 +57,18 @@ WORKER_PREFIX = "gitlab-"
 DIALOG_CLOSE_TIMEOUT_S = 10.0
 JOB_DOWNLOAD_COLUMN = 5
 
-_tls_warning_logged = False  # "Verify TLS" off is logged once per session
-
-
 def default_client_factory(settings: AppSettings) -> GitLabClient:
     """Called on a worker thread: builds a client from the settings and the keyring token."""
+    host = split_gitlab_url(settings.gitlab_url)[0]
     token = get_token(settings.gitlab_url)
-    if not settings.gitlab_url or not token:
+    if not host or not token:
         raise GitLabError(
             "GitLab URL or token is not configured",
-            hint="Open Load from GitLab… and enter the GitLab URL and a Personal Access Token (scope read_api).",
+            hint="Enter the GitLab URL and a Personal Access Token (scope read_api) in the Setting tab.",
         )
-    # Certificates come from the system store (wflash.core.system_certs); no CA bundle file.
-    return GitLabClient(settings.gitlab_url, token, verify=settings.verify_tls)
+    # Always verified, against the system certificate store (wflash.core.system_certs).
+    return GitLabClient(host, token)
 
-
-def warn_tls_disabled_once(url: str) -> None:
-    global _tls_warning_logged
-    if _tls_warning_logged:
-        return
-    _tls_warning_logged = True
-    log.warning(
-        "TLS certificate verification is OFF for %s. Use this only on a trusted network; "
-        "if GitLab uses an internal certificate, ask IT to install it in the Windows certificate store instead.",
-        url,
-    )
 
 
 def byte_progress(ctx: WorkerContext) -> Callable[[int, int], None]:
@@ -112,7 +100,6 @@ class GitlabDialog(QDialog):
         self._cache_target: tuple | None = None
         self._job_filter: str | None = None
         self._base_title = self.windowTitle()
-        self._token_saved_for: tuple[str, str] = ("", "")  # (url, token) known to be in the keyring
         self._job_rows: list[JobRow] = []
         self._jobs_project: tuple[str, int] | None = None  # project the job table was listed from
         self._downloading_button: QPushButton | None = None
@@ -151,11 +138,6 @@ class GitlabDialog(QDialog):
         ("debug", role); None keeps the folder per job id.
         """
         settings = self._host.settings
-        self.ui.lineEdit_gitlabUrl.setText(settings.gitlab_url)
-        token = (get_token(settings.gitlab_url) or "") if settings.gitlab_url else ""
-        self._token_saved_for = (settings.gitlab_url, token)
-        self.ui.lineEdit_token.setText(token)
-        self.ui.checkBox_verifyTls.setChecked(settings.verify_tls)
         key = self._profile_key_now()
         if key != self._profile_key:
             # Another profile: its project and jobs are different, start the CI tab afresh.
@@ -209,9 +191,16 @@ class GitlabDialog(QDialog):
     def current_job_filter(self) -> str:
         return self._job_filter or self._host.profile.gitlab.job_filter
 
+    def gitlab_url(self) -> str:
+        """The GitLab URL of the Setting tab (may include the group of the projects)."""
+        url_of = getattr(self._host, "gitlab_url", None)
+        return url_of() if callable(url_of) else self._host.settings.gitlab_url
+
     def ci_project(self) -> str:
+        """Full project path: a short name is joined to the group in the GitLab URL."""
         profile = self._host.profile
-        return self.ui.lineEdit_ciProject.text().strip() or (profile.gitlab.project if profile else "")
+        text = self.ui.lineEdit_ciProject.text().strip() or (profile.gitlab.project if profile else "")
+        return project_path(split_gitlab_url(self.gitlab_url())[1], text)
 
     def _current_ref(self) -> str:
         return self.ui.comboBox_ref.currentText().strip()
@@ -222,7 +211,6 @@ class GitlabDialog(QDialog):
     def _update_controls(self, *_args) -> None:
         busy = self.busy()
         for widget in (
-            self.ui.groupBox_connection,
             self.ui.lineEdit_ciProject,
             self.ui.comboBox_ref,
             self.ui.pushButton_loadRefs,
@@ -288,43 +276,27 @@ class GitlabDialog(QDialog):
             overrides[key] = text
 
     def _store_fields(self) -> None:
-        """Copy the fields to the settings and save them (never the token)."""
+        """Remember the job name and project typed here (the connection lives in the Setting tab)."""
         settings = self._host.settings
-        url = self.ui.lineEdit_gitlabUrl.text().strip().rstrip("/")
-        if not url or url.startswith(("http://", "https://")):
-            settings.gitlab_url = url
-        settings.verify_tls = self.ui.checkBox_verifyTls.isChecked()
         if self._source_label is None:  # a source's job name must not leak into the other source
             settings.ci_job_name = self._job_name()
         self._store_ci_project()
         self._host._save_settings()
 
     def _commit_connection(self) -> bool:
-        """Validate and save the connection before an operation; store a new token in the keyring."""
-        url = self.ui.lineEdit_gitlabUrl.text().strip().rstrip("/")
-        if not url.startswith(("http://", "https://")):
-            self._fail_input("Enter the GitLab URL (https://…) first.")
+        """The Setting tab must hold a GitLab URL and a token before anything is asked of GitLab."""
+        url = self.gitlab_url()
+        if not url.startswith(("http://", "https://")) or not get_token(url):
+            self._fail_input("Enter the GitLab URL and the access token in the Setting tab first.")
             return False
         self._store_fields()
-        token = self.ui.lineEdit_token.text().strip()
-        if token:
-            register_secret(token)
-            if (url, token) != self._token_saved_for:
-                try:
-                    set_token(url, token)
-                except GitLabError as exc:
-                    self._report_error(exc)
-                    return False
-                self._token_saved_for = (url, token)
-                self._note(logging.INFO, "Token stored in the system keyring")
-        if not self._host.settings.verify_tls:
-            warn_tls_disabled_once(url)
         return True
 
     # -- workers --------------------------------------------------------------------------
     def _snapshot(self) -> AppSettings:
-        # Workers get their own copy; the GUI thread may keep editing the settings.
-        return dataclasses.replace(self._host.settings)
+        # Workers get their own copy; the GUI thread may keep editing the settings. It carries
+        # the effective GitLab URL, so the client factory needs nothing else.
+        return dataclasses.replace(self._host.settings, gitlab_url=self.gitlab_url())
 
     def _start(self, name: str, fn: Callable[[WorkerContext], object], on_succeeded, progress: bool = False) -> None:
         key = self._host._workers.start(

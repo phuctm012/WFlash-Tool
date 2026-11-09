@@ -31,7 +31,7 @@ Cũng có thể chạy bằng file `main.py` ở thư mục gốc repo (cùng ap
     ~/.venvs/wflash/bin/python main.py --adapter fake                          (macOS)
     %USERPROFILE%\.venvs\wflash\Scripts\python main.py --adapter fake          (Windows)
 
-Tham số: `--adapter real|fake`, `--verbose` (log mọi lời gọi winIDEA), `--smoke` (mở rồi tự đóng sau 1,5 s, để kiểm tra khởi động).
+Tham số: `--adapter real|fake`, `--verbose` (không cần nữa: lời gọi winIDEA luôn được ghi vào log file), `--smoke` (mở rồi tự đóng sau 1,5 s, để kiểm tra khởi động).
 
 Fake adapter giả lập lỗi qua biến môi trường `WFLASH_FAKE_FAIL` (nối bằng dấu phẩy):
 `list_instances` (không có instance), `connect`, `connection_lost`, `read_programs`, `read_applications`,
@@ -40,53 +40,61 @@ Fake adapter giả lập lỗi qua biến môi trường `WFLASH_FAKE_FAIL` (n�
 
 ## Cấu hình
 
-1. **Load from GitLab…** (popup, mở từ tab *Flash*): GitLab URL, Personal Access Token (scope `read_api`, lưu trong Windows Credential Manager / keychain, không bao giờ ghi ra file), ô **Verify TLS certificate** (mặc định bật; chỉ tắt khi ở mạng tin cậy — app ghi một dòng WARNING mỗi phiên). Chứng chỉ được kiểm tra theo kho chứng chỉ của Windows (thư viện `truststore`), nên chứng chỉ nội bộ mà IT đã cài vào Windows dùng được ngay, không cần file CA bundle.
-2. **Preferences…**: thư mục cache + số bản tải giữ lại + nút **Clear cache** thư mục profile, verbose, **Dark mode** (áp dụng ngay và được lưu lại).
-3. **Profile** (`profiles/*.yaml`): project GitLab, filter tên job, pattern file, và tên đích trong winIDEA. `winidea_entry` là tên file của dòng đang tick trong Download Files của thiết bị flash; `winidea_app` là `<Application>/<tên file symbol>`. File trong artifact phải trùng tên với file đang cấu hình. Nếu các file nằm ở nhiều artifact, khai báo `sources` và ghi `source` cho từng đích: tab Flash có một nút Load cho mỗi nguồn, mỗi dòng mapping chỉ thấy file của nguồn đó, và Flash chỉ bật khi đủ mọi nguồn. Hai artifact CI khác commit thì app hiện cảnh báo nhưng vẫn cho flash. Xem `profiles/suz05_m7_ffi.yaml`.
+Mọi cài đặt nằm ở tab **Setting** (không còn popup Preferences) và được lưu ngay khi rời ô:
+
+1. **Profile**: chọn profile (**Reload** đọc lại thư mục), **Profiles folder** (Browse), **Download folder** (để trống = mặc định `%LOCALAPPDATA%\WFlash\cache`; app giữ 10 bản tải gần nhất).
+2. **GitLab connection**: **GitLab URL** gồm cả group (ví dụ `https://gitlab.hella.com/alm/projects_group/e-ad_group/e-ad_radar_cust_suz05_group`; profile có thể cho sẵn URL này) và **Access token** (scope `read_api`, lưu trong Windows Credential Manager / keychain theo host, không bao giờ ghi ra file). Chứng chỉ HTTPS luôn được kiểm tra theo kho chứng chỉ của Windows (thư viện `truststore`), nên chứng chỉ nội bộ mà IT đã cài vào Windows dùng được ngay.
+3. **winIDEA**: instance (**Refresh**, hoặc F5) và **After flash**: Reset target, Run after reset, Verify samples.
+4. **Profile** (`profiles/*.yaml`): project GitLab (tên ngắn thì được ghép với group trong GitLab URL), filter tên job, pattern file, và tên đích trong winIDEA. `winidea_entry` là tên file của dòng đang tick trong Download Files của thiết bị flash; `winidea_app` là `<Application>/<tên file symbol>`. File trong artifact phải trùng tên với file đang cấu hình. Nếu các file nằm ở nhiều artifact, khai báo `sources` và ghi `source` cho từng đích: tab Flash có một nút Load cho mỗi nguồn, mỗi dòng mapping chỉ thấy file của nguồn đó, và Flash chỉ bật khi đủ mọi nguồn. Hai artifact CI khác commit thì app hiện cảnh báo nhưng vẫn cho flash. Xem `profiles/suz05.yaml`.
+
+Mở lại app thì mọi thứ của phiên trước được khôi phục: profile, repo, chế độ Firmware và job chọn tay của từng phần, Advanced Debug, After flash, kích thước cửa sổ, tab đang mở. Firmware theo commit được tải lại (hoặc lấy từ cache); app **không bao giờ tự flash**.
 
 ## Giao diện
 
-- Một cửa sổ duy nhất. Phần đầu: nút **Flash** lớn (khi đang flash, chính nút đó thành **Cancel** màu đỏ), thanh tiến trình, nhãn `phần trăm | ETA | Speed` và `Step: …`.
-- Hai tab **Flash** và **Setting**, phần đầu và tab Information dùng chung cho cả hai.
-  - **Flash** (việc hằng ngày): nguồn firmware (**Load from GitLab…** và thẻ cho biết đang dùng artifact nào; hoặc panel developer) bên trái, hai bảng file bên phải.
-  - **Setting**: profile, source repo (Browse, **Reload**, **Checkout…**), instance winIDEA, Reset/Run/Verify sau khi flash, **Preferences…**. Trang cuộn được, thêm cài đặt sau này không làm tab Flash dài ra.
-- Hai bảng bên phải tab Flash: **Program Files** (cột Offset) và **Symbol Files**, mỗi bảng có cột `#` và cột Source (FFI, CAL, BM, FBL, ELF…); dòng đỏ là dòng chưa có file. Dưới cùng là tab **Information** (log). Thanh trạng thái hiện version và tác giả.
-- Theme **Teal** sáng (mặc định) hoặc tối. Speed/ETA chỉ là **ước lượng**: winIDEA chỉ báo phần trăm, còn số byte lấy từ kích thước file `.s3` trên đĩa.
+- Một cửa sổ duy nhất. Phần đầu: nút **Flash** lớn (khi đang flash, chính nút đó thành **Cancel** màu đỏ), thanh tiến trình, nhãn `phần trăm | ETA | Speed` và `Step: …`. Thanh này cũng hiện tiến trình tải artifact và checkout; xong thì kết quả flash trước đó hiện lại.
+- Thanh menu: **File** (Export debug bundle Ctrl+E, Open flash history, Open log folder, Open download folder, Exit Ctrl+Q), **View** (Dark mode, Flash/GitLab/Setting Ctrl+1/2/3), **Tools** (Test GitLab connection, Check winIDEA cores — chỉ đọc, Refresh winIDEA instances F5), **Help** (User Guide F1 — hướng dẫn HTML tiếng Anh, About WFlash).
+- Ba tab, phần đầu và tab Information dùng chung:
+  - **Flash** (việc hằng ngày): khung **Firmware to flash** (mỗi phần một khối: From commit/Manual, Build/Job, Branch, Commit, Status; dòng Advanced Debug on/off), hoặc **Load from GitLab…** với profile không có `builds`; hai bảng file bên phải.
+  - **GitLab** (chỉ với profile có `builds`): App, Boot Manager, Flash Bootloader — xem mục dưới.
+  - **Setting**: xem mục Cấu hình.
+- Hai bảng của tab Flash: **Program Files** (cột Offset) và **Symbol Files**, mỗi bảng có cột `#` và cột Source (FFI, CAL, BM, FBL, ELF…); dòng đỏ là dòng chưa có file. Thanh trạng thái hiện version và tác giả.
+- Theme **Teal** sáng (mặc định) hoặc tối (View → Dark mode). Speed/ETA chỉ là **ước lượng**: winIDEA chỉ báo phần trăm, còn số byte lấy từ kích thước file `.s3` trên đĩa.
+- Khi cửa sổ không được chọn: flash xong (Done/Failed/Cancelled) hoặc firmware đã sẵn sàng sau khi chờ pipeline thì app hiện thông báo khay hệ thống và nháy nút trên taskbar.
 
 ## Quy trình
 
 1. Chọn profile → **Load from GitLab…**:
-   - Tab **CI Artifact**: project (mặc định lấy từ profile; sửa thì app nhớ theo từng profile) → **Load branches/tags** → chọn branch/tag → **Browse jobs…** rồi bấm **Download** ở dòng muốn tải (hoặc nhấp đúp), hoặc bấm **Download Selected Artifact**: tải job đang chọn, nếu chưa chọn dòng nào thì tải job thành công mới nhất khớp branch/tag + job name.
+   - Project (mặc định lấy từ profile; sửa thì app nhớ theo từng profile) → **Load branches/tags** → chọn branch/tag → **Browse jobs…** rồi bấm **Download** ở dòng muốn tải (hoặc nhấp đúp), hoặc bấm **Download Selected Artifact**: tải job đang chọn, nếu chưa chọn dòng nào thì tải job thành công mới nhất khớp branch/tag + job name.
    - **Stop** hủy lần tải đang chạy (popup vẫn mở); **Cancel** hủy rồi đóng popup. Tải xong popup tự đóng, cửa sổ chính dựng bảng mapping. Có cache theo job/version (nút ghi **Cached**).
 2. Kiểm tra bảng mapping; dòng đỏ (0 hoặc nhiều file khớp) phải chọn file thủ công — nút Flash chỉ bật khi mọi dòng đã có file.
-3. Chọn instance winIDEA đang mở → **Flash**. Lỗi hoặc **Cancel** trong lúc đổi path/download sẽ khôi phục đường dẫn cũ trong workspace. Nếu chính việc khôi phục thất bại, cửa sổ hiện dải đỏ **ROLLBACK FAILED**: kiểm tra lại danh sách download/symbol file trong winIDEA trước khi flash tiếp.
+3. Chọn instance winIDEA đang mở (tab Setting) → **Flash**. Lỗi hoặc **Cancel** trong lúc đổi path/download sẽ khôi phục đường dẫn cũ trong workspace. Nếu chính việc khôi phục thất bại, cửa sổ hiện dải đỏ **ROLLBACK FAILED**: kiểm tra lại danh sách download/symbol file trong winIDEA trước khi flash tiếp.
 4. Đóng cửa sổ khi đang flash: tool hỏi xác nhận, hủy flash, chờ rollback xong rồi mới đóng.
+5. Mỗi lần flash ghi một dòng vào `%LOCALAPPDATA%\WFlash\flash_history.csv` (thời gian, profile, firmware từng phần, số lần reset/thử, thời gian lập trình, kết quả; giữ 5000 dòng). Mở bằng File → Open flash history; file cũng nằm trong debug bundle.
 
-## Chế độ developer (profile có `builds`)
+## Tab GitLab (profile có `builds`)
 
-Profile khai báo `builds` (ví dụ `profiles/suz05_m7_ffi.yaml`) thì tab Flash thay nút Load from GitLab bằng panel developer, còn Source repo và Checkout nằm ở tab Setting:
+Profile khai báo `builds` (ví dụ `profiles/suz05.yaml`) thì có tab **GitLab** với ba phần: **App** (bắt buộc), **Boot Manager** và **Flash Bootloader** (repo không bắt buộc, chỉ hiện khi bật **Advanced Debug**). Mỗi phần có:
 
-1. **Source repo** (tab Setting): chọn thư mục gốc của source (git). App hiện branch, commit và cảnh báo nếu có thay đổi chưa commit (chỉ cảnh báo, vẫn cho tải và flash). App đọc lại repo khi bấm **Reload** và mỗi khi bạn quay lại cửa sổ WFlash (ví dụ vừa commit hay đổi branch trong terminal).
-2. **Checkout…**: chọn branch hoặc commit, kèm trạng thái pipeline trên GitLab. Ô Branch cho gõ một phần tên để lọc danh sách (không phân biệt hoa thường); Enter để chọn. App **từ chối** checkout khi repo có thay đổi chưa commit, và không bao giờ stash, reset hay force. **Fetch** chỉ chạy `git fetch --prune`.
-3. **Application**: chọn Build (cấu hình), bấm **Load firmware for <commit>**: app tìm pipeline của đúng commit đó, tải job FFI và job ELF của build vào cache `cache/<branch>/<commit>_<build>/FFI|ELF`. Commit chưa có pipeline, hoặc job chưa chạy (`manual`, `skipped`) thì app báo rõ. **Choose job in GitLab…** cho phép chọn job bằng tay.
-4. **CAL**: bắt buộc, lấy từ thư mục chứa file `.xjrf` của workspace. Không có thì Flash bị khóa.
-5. **Advanced Debug**: thêm dòng BM và FBL (repo riêng trong `debug_sources`, tải bằng nút Load của từng dòng). Bật thì app tick dòng `.bin` và ELF của BM, FBL trong workspace; tắt thì bỏ tick và **giữ nguyên trạng thái đó sau khi flash**. BM lấy từ job khác với job của Build thì Flash bị khóa.
+1. **Project** (tên ngắn, ghép với group trong GitLab URL) và **Repository** (thư mục gốc của source, git; Browse). App hiện **Branch** (nút **Checkout**) và **Commit** (nút **Reload**), cảnh báo nếu có thay đổi chưa commit (chỉ cảnh báo). App đọc lại repo khi bấm Reload và mỗi khi bạn quay lại cửa sổ WFlash.
+2. **Checkout**: chọn branch hoặc commit, kèm trạng thái pipeline. Ô Branch cho gõ một phần tên để lọc. App **từ chối** checkout khi repo có thay đổi chưa commit, và không bao giờ stash, reset hay force. **Fetch** chỉ chạy `git fetch --prune`.
+3. **Build**: App chọn cấu hình build; job của Boot Manager đi theo build của App, job của Flash Bootloader lấy từ profile.
+4. **Firmware**: ◉ **From checked-out commit** — app tự tìm pipeline của đúng commit, tải job vào cache `cache/<branch>/<commit>_<build>/…`. Pipeline còn đang chạy (created, pending, running…) thì app chờ, hỏi lại mỗi 30 giây, tối đa 60 phút, và không tải trong lúc đang flash. Job `manual`, `skipped`, `failed` thì báo một lần, không tự thử lại cho tới khi bấm Reload. ○ **Manual** — **Choose Job** mở Load from GitLab cho phần đó; lựa chọn được nhớ qua lần mở app sau.
+5. Dòng trạng thái: `<ROLE>: <job> · <branch> · <commit> · Cached|Downloaded`.
 
-Thứ tự trong workspace là FFI → CAL → BM → FBL; BM và FBL ghi đè lên vùng của FFI. Khi flash lỗi, app trả lại đường dẫn cũ nhưng giữ dấu tick đã đặt.
+**CAL** bắt buộc, lấy từ thư mục chứa file `.xjrf` của workspace; không có thì Flash bị khóa. Advanced Debug bật thì app tick dòng `.bin` và ELF của BM, FBL trong workspace; tắt thì bỏ tick và **giữ nguyên trạng thái đó sau khi flash**. Thứ tự trong workspace là FFI → CAL → BM → FBL; BM và FBL ghi đè lên vùng của FFI. Khi flash lỗi, app trả lại đường dẫn cũ nhưng giữ dấu tick đã đặt.
 
 ## Log và gửi lỗi
 
-- Tab **Information** ở dưới cửa sổ: hiện INFO, WARNING, ERROR (màu theo level và theo theme), không có bộ lọc level; DEBUG chỉ ghi vào log file và debug bundle. Copy chép đúng các dòng đang hiện, Clear xóa khung. Popup GitLab có ô **GitLab log** riêng; các dòng đó cũng nằm trong log file.
+- Tab **Information** ở dưới cửa sổ: hiện INFO, WARNING, ERROR (màu theo level và theo theme), không có bộ lọc level; DEBUG chỉ ghi vào log file và debug bundle. Copy chép đúng các dòng đang hiện, Clear xóa khung. Popup GitLab có ô **GitLab log** riêng; các dòng đó cũng nằm trong log file. Mọi lời gọi winIDEA luôn được ghi vào log file (không còn tùy chọn Verbose).
 - Log file: `%LOCALAPPDATA%\WFlash\logs\` (Windows), `~/Library/Logs/WFlash/` (macOS), giữ 20 file gần nhất.
-- **Export debug bundle…**: tạo `wflash_debug_<thời gian>.zip` gồm log, môi trường, profile, mapping, nguồn firmware (`source.json`), trạng thái workspace trước/sau và traceback. Token đã được che (`***`). Không xuất được trong lúc đang flash.
+- **File → Export debug bundle** (Ctrl+E): tạo `wflash_debug_<thời gian>.zip` gồm log, môi trường, profile, mapping, nguồn firmware (`source.json`), trạng thái workspace trước/sau, flash history và traceback. Token đã được che (`***`). Không xuất được trong lúc đang flash.
 
 ## Phát triển
 
-- Layout GUI nằm trong các file Qt Designer `wflash/gui/main_window.ui`, `wflash/gui/gitlab_dialog.ui`, `wflash/gui/preferences_dialog.ui`, `wflash/gui/checkout_dialog.ui`. Sau khi sửa `.ui`:
+- Layout GUI nằm trong các file Qt Designer `wflash/gui/main_window.ui`, `wflash/gui/gitlab_dialog.ui`, `wflash/gui/checkout_dialog.ui`. Sau khi sửa `.ui`:
 
       ~/.venvs/wflash/bin/pyside6-uic wflash/gui/main_window.ui -o wflash/gui/ui_main_window.py
       ~/.venvs/wflash/bin/pyside6-uic wflash/gui/gitlab_dialog.ui -o wflash/gui/ui_gitlab_dialog.py
-      ~/.venvs/wflash/bin/pyside6-uic wflash/gui/preferences_dialog.ui -o wflash/gui/ui_preferences_dialog.py
       ~/.venvs/wflash/bin/pyside6-uic wflash/gui/checkout_dialog.ui -o wflash/gui/ui_checkout_dialog.py
 
   Không sửa tay `ui_*.py`.
@@ -97,6 +105,7 @@ Thứ tự trong workspace là FFI → CAL → BM → FBL; BM và FBL ghi đè l
       ~/.venvs/wflash/bin/pytest -k thread -v        # vòng đời worker — không bao giờ bỏ qua
       ~/.venvs/wflash/bin/pytest -k "not gui" -q     # chỉ core
       ~/.venvs/wflash/bin/python tools/stress_test.py   # stress test headless, in STRESS_RESULT=PASS/FAIL
+      ~/.venvs/wflash/bin/python tools/stress_test.py --section fuzz --seed 7   # chạy lại một chuỗi thao tác ngẫu nhiên
 
 ## Build .exe (Windows)
 

@@ -11,22 +11,53 @@
 from PySide6.QtCore import (QCoreApplication, QDate, QDateTime, QLocale,
     QMetaObject, QObject, QPoint, QRect,
     QSize, QTime, QUrl, Qt)
-from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
-    QFont, QFontDatabase, QGradient, QIcon,
-    QImage, QKeySequence, QLinearGradient, QPainter,
-    QPalette, QPixmap, QRadialGradient, QTransform)
+from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient,
+    QCursor, QFont, QFontDatabase, QGradient,
+    QIcon, QImage, QKeySequence, QLinearGradient,
+    QPainter, QPalette, QPixmap, QRadialGradient,
+    QTransform)
 from PySide6.QtWidgets import (QAbstractItemView, QApplication, QCheckBox, QComboBox,
     QFrame, QGridLayout, QGroupBox, QHBoxLayout,
     QHeaderView, QLabel, QLineEdit, QMainWindow,
-    QPlainTextEdit, QProgressBar, QPushButton, QScrollArea,
-    QSizePolicy, QSpacerItem, QStatusBar, QTabWidget,
-    QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget)
+    QMenu, QMenuBar, QPlainTextEdit, QProgressBar,
+    QPushButton, QRadioButton, QScrollArea, QSizePolicy,
+    QSpacerItem, QStatusBar, QTabWidget, QTableWidget,
+    QTableWidgetItem, QVBoxLayout, QWidget)
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         if not MainWindow.objectName():
             MainWindow.setObjectName(u"MainWindow")
-        MainWindow.resize(1280, 820)
+        MainWindow.resize(1280, 860)
+        self.action_exportBundle = QAction(MainWindow)
+        self.action_exportBundle.setObjectName(u"action_exportBundle")
+        self.action_openHistory = QAction(MainWindow)
+        self.action_openHistory.setObjectName(u"action_openHistory")
+        self.action_openLogFolder = QAction(MainWindow)
+        self.action_openLogFolder.setObjectName(u"action_openLogFolder")
+        self.action_openDownloadFolder = QAction(MainWindow)
+        self.action_openDownloadFolder.setObjectName(u"action_openDownloadFolder")
+        self.action_exit = QAction(MainWindow)
+        self.action_exit.setObjectName(u"action_exit")
+        self.action_darkMode = QAction(MainWindow)
+        self.action_darkMode.setObjectName(u"action_darkMode")
+        self.action_darkMode.setCheckable(True)
+        self.action_tabFlash = QAction(MainWindow)
+        self.action_tabFlash.setObjectName(u"action_tabFlash")
+        self.action_tabGitlab = QAction(MainWindow)
+        self.action_tabGitlab.setObjectName(u"action_tabGitlab")
+        self.action_tabSetting = QAction(MainWindow)
+        self.action_tabSetting.setObjectName(u"action_tabSetting")
+        self.action_testGitlab = QAction(MainWindow)
+        self.action_testGitlab.setObjectName(u"action_testGitlab")
+        self.action_checkCores = QAction(MainWindow)
+        self.action_checkCores.setObjectName(u"action_checkCores")
+        self.action_refreshInstances = QAction(MainWindow)
+        self.action_refreshInstances.setObjectName(u"action_refreshInstances")
+        self.action_userGuide = QAction(MainWindow)
+        self.action_userGuide.setObjectName(u"action_userGuide")
+        self.action_about = QAction(MainWindow)
+        self.action_about.setObjectName(u"action_about")
         self.centralWidget_main = QWidget(MainWindow)
         self.centralWidget_main.setObjectName(u"centralWidget_main")
         self.verticalLayout_main = QVBoxLayout(self.centralWidget_main)
@@ -125,153 +156,49 @@ class Ui_MainWindow(object):
         self.verticalLayout_flashScroll.setSpacing(9)
         self.verticalLayout_flashScroll.setObjectName(u"verticalLayout_flashScroll")
         self.verticalLayout_flashScroll.setContentsMargins(2, 2, 6, 2)
-        self.frame_developer = QFrame(self.scrollAreaWidgetContents_flashPanel)
-        self.frame_developer.setObjectName(u"frame_developer")
-        self.frame_developer.setFrameShape(QFrame.Shape.NoFrame)
-        self.verticalLayout_developer = QVBoxLayout(self.frame_developer)
-        self.verticalLayout_developer.setSpacing(8)
-        self.verticalLayout_developer.setObjectName(u"verticalLayout_developer")
-        self.verticalLayout_developer.setContentsMargins(0, 0, 0, 0)
-        self.verticalLayout_repoState = QVBoxLayout()
-        self.verticalLayout_repoState.setSpacing(1)
-        self.verticalLayout_repoState.setObjectName(u"verticalLayout_repoState")
-        self.label_repoBranch = QLabel(self.frame_developer)
-        self.label_repoBranch.setObjectName(u"label_repoBranch")
+        self.frame_firmwareSummary = QFrame(self.scrollAreaWidgetContents_flashPanel)
+        self.frame_firmwareSummary.setObjectName(u"frame_firmwareSummary")
+        self.frame_firmwareSummary.setFrameShape(QFrame.Shape.StyledPanel)
+        self.verticalLayout_firmwareSummary = QVBoxLayout(self.frame_firmwareSummary)
+        self.verticalLayout_firmwareSummary.setSpacing(8)
+        self.verticalLayout_firmwareSummary.setObjectName(u"verticalLayout_firmwareSummary")
+        self.verticalLayout_firmwareSummary.setContentsMargins(12, 10, 12, 10)
+        self.label_summaryHeader = QLabel(self.frame_firmwareSummary)
+        self.label_summaryHeader.setObjectName(u"label_summaryHeader")
 
-        self.verticalLayout_repoState.addWidget(self.label_repoBranch)
+        self.verticalLayout_firmwareSummary.addWidget(self.label_summaryHeader)
 
-        self.label_repoCommit = QLabel(self.frame_developer)
-        self.label_repoCommit.setObjectName(u"label_repoCommit")
+        self.label_summaryApp = QLabel(self.frame_firmwareSummary)
+        self.label_summaryApp.setObjectName(u"label_summaryApp")
+        self.label_summaryApp.setWordWrap(True)
+        self.label_summaryApp.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.label_summaryApp.setTextFormat(Qt.TextFormat.RichText)
 
-        self.verticalLayout_repoState.addWidget(self.label_repoCommit)
+        self.verticalLayout_firmwareSummary.addWidget(self.label_summaryApp)
 
-        self.label_repoChanges = QLabel(self.frame_developer)
-        self.label_repoChanges.setObjectName(u"label_repoChanges")
-        self.label_repoChanges.setWordWrap(True)
+        self.label_summaryBm = QLabel(self.frame_firmwareSummary)
+        self.label_summaryBm.setObjectName(u"label_summaryBm")
+        self.label_summaryBm.setWordWrap(True)
+        self.label_summaryBm.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.label_summaryBm.setTextFormat(Qt.TextFormat.RichText)
 
-        self.verticalLayout_repoState.addWidget(self.label_repoChanges)
+        self.verticalLayout_firmwareSummary.addWidget(self.label_summaryBm)
 
-        self.label_repoFlashHint = QLabel(self.frame_developer)
-        self.label_repoFlashHint.setObjectName(u"label_repoFlashHint")
-        self.label_repoFlashHint.setWordWrap(True)
+        self.label_summaryFbl = QLabel(self.frame_firmwareSummary)
+        self.label_summaryFbl.setObjectName(u"label_summaryFbl")
+        self.label_summaryFbl.setWordWrap(True)
+        self.label_summaryFbl.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.label_summaryFbl.setTextFormat(Qt.TextFormat.RichText)
 
-        self.verticalLayout_repoState.addWidget(self.label_repoFlashHint)
+        self.verticalLayout_firmwareSummary.addWidget(self.label_summaryFbl)
 
+        self.label_summaryAdvanced = QLabel(self.frame_firmwareSummary)
+        self.label_summaryAdvanced.setObjectName(u"label_summaryAdvanced")
 
-        self.verticalLayout_developer.addLayout(self.verticalLayout_repoState)
-
-        self.frame_application = QFrame(self.frame_developer)
-        self.frame_application.setObjectName(u"frame_application")
-        self.frame_application.setFrameShape(QFrame.Shape.StyledPanel)
-        self.verticalLayout_application = QVBoxLayout(self.frame_application)
-        self.verticalLayout_application.setSpacing(6)
-        self.verticalLayout_application.setObjectName(u"verticalLayout_application")
-        self.verticalLayout_application.setContentsMargins(8, 8, 8, 8)
-        self.label_applicationHeader = QLabel(self.frame_application)
-        self.label_applicationHeader.setObjectName(u"label_applicationHeader")
-
-        self.verticalLayout_application.addWidget(self.label_applicationHeader)
-
-        self.horizontalLayout_build = QHBoxLayout()
-        self.horizontalLayout_build.setObjectName(u"horizontalLayout_build")
-        self.label_build = QLabel(self.frame_application)
-        self.label_build.setObjectName(u"label_build")
-
-        self.horizontalLayout_build.addWidget(self.label_build)
-
-        self.comboBox_build = QComboBox(self.frame_application)
-        self.comboBox_build.setObjectName(u"comboBox_build")
-        sizePolicy.setHeightForWidth(self.comboBox_build.sizePolicy().hasHeightForWidth())
-        self.comboBox_build.setSizePolicy(sizePolicy)
-
-        self.horizontalLayout_build.addWidget(self.comboBox_build)
+        self.verticalLayout_firmwareSummary.addWidget(self.label_summaryAdvanced)
 
 
-        self.verticalLayout_application.addLayout(self.horizontalLayout_build)
-
-        self.pushButton_loadBuild = QPushButton(self.frame_application)
-        self.pushButton_loadBuild.setObjectName(u"pushButton_loadBuild")
-
-        self.verticalLayout_application.addWidget(self.pushButton_loadBuild)
-
-        self.label_loadStatus = QLabel(self.frame_application)
-        self.label_loadStatus.setObjectName(u"label_loadStatus")
-        self.label_loadStatus.setWordWrap(True)
-
-        self.verticalLayout_application.addWidget(self.label_loadStatus)
-
-        self.horizontalLayout_chooseJob = QHBoxLayout()
-        self.horizontalLayout_chooseJob.setObjectName(u"horizontalLayout_chooseJob")
-        self.pushButton_chooseJob = QPushButton(self.frame_application)
-        self.pushButton_chooseJob.setObjectName(u"pushButton_chooseJob")
-
-        self.horizontalLayout_chooseJob.addWidget(self.pushButton_chooseJob)
-
-        self.horizontalSpacer_chooseJob = QSpacerItem(0, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
-
-        self.horizontalLayout_chooseJob.addItem(self.horizontalSpacer_chooseJob)
-
-
-        self.verticalLayout_application.addLayout(self.horizontalLayout_chooseJob)
-
-
-        self.verticalLayout_developer.addWidget(self.frame_application)
-
-        self.frame_advancedDebug = QFrame(self.frame_developer)
-        self.frame_advancedDebug.setObjectName(u"frame_advancedDebug")
-        self.frame_advancedDebug.setFrameShape(QFrame.Shape.StyledPanel)
-        self.verticalLayout_advancedDebug = QVBoxLayout(self.frame_advancedDebug)
-        self.verticalLayout_advancedDebug.setSpacing(6)
-        self.verticalLayout_advancedDebug.setObjectName(u"verticalLayout_advancedDebug")
-        self.verticalLayout_advancedDebug.setContentsMargins(8, 8, 8, 8)
-        self.checkBox_advancedDebug = QCheckBox(self.frame_advancedDebug)
-        self.checkBox_advancedDebug.setObjectName(u"checkBox_advancedDebug")
-
-        self.verticalLayout_advancedDebug.addWidget(self.checkBox_advancedDebug)
-
-        self.gridLayout_advancedDebug = QGridLayout()
-        self.gridLayout_advancedDebug.setObjectName(u"gridLayout_advancedDebug")
-        self.gridLayout_advancedDebug.setContentsMargins(0, 0, 0, 0)
-        self.label_bmName = QLabel(self.frame_advancedDebug)
-        self.label_bmName.setObjectName(u"label_bmName")
-
-        self.gridLayout_advancedDebug.addWidget(self.label_bmName, 0, 0, 1, 1)
-
-        self.label_bmSource = QLabel(self.frame_advancedDebug)
-        self.label_bmSource.setObjectName(u"label_bmSource")
-        self.label_bmSource.setWordWrap(True)
-
-        self.gridLayout_advancedDebug.addWidget(self.label_bmSource, 0, 1, 1, 1)
-
-        self.pushButton_loadBm = QPushButton(self.frame_advancedDebug)
-        self.pushButton_loadBm.setObjectName(u"pushButton_loadBm")
-
-        self.gridLayout_advancedDebug.addWidget(self.pushButton_loadBm, 0, 2, 1, 1)
-
-        self.label_fblName = QLabel(self.frame_advancedDebug)
-        self.label_fblName.setObjectName(u"label_fblName")
-
-        self.gridLayout_advancedDebug.addWidget(self.label_fblName, 1, 0, 1, 1)
-
-        self.label_fblSource = QLabel(self.frame_advancedDebug)
-        self.label_fblSource.setObjectName(u"label_fblSource")
-        self.label_fblSource.setWordWrap(True)
-
-        self.gridLayout_advancedDebug.addWidget(self.label_fblSource, 1, 1, 1, 1)
-
-        self.pushButton_loadFbl = QPushButton(self.frame_advancedDebug)
-        self.pushButton_loadFbl.setObjectName(u"pushButton_loadFbl")
-
-        self.gridLayout_advancedDebug.addWidget(self.pushButton_loadFbl, 1, 2, 1, 1)
-
-
-        self.verticalLayout_advancedDebug.addLayout(self.gridLayout_advancedDebug)
-
-
-        self.verticalLayout_developer.addWidget(self.frame_advancedDebug)
-
-
-        self.verticalLayout_flashScroll.addWidget(self.frame_developer)
+        self.verticalLayout_flashScroll.addWidget(self.frame_firmwareSummary)
 
         self.frame_gitlabSource = QFrame(self.scrollAreaWidgetContents_flashPanel)
         self.frame_gitlabSource.setObjectName(u"frame_gitlabSource")
@@ -396,6 +323,402 @@ class Ui_MainWindow(object):
         self.horizontalLayout_flashTab.addLayout(self.verticalLayout_mapping)
 
         self.tabWidget_main.addTab(self.tab_flash, "")
+        self.tab_gitlab = QWidget()
+        self.tab_gitlab.setObjectName(u"tab_gitlab")
+        self.verticalLayout_gitlabTab = QVBoxLayout(self.tab_gitlab)
+        self.verticalLayout_gitlabTab.setObjectName(u"verticalLayout_gitlabTab")
+        self.verticalLayout_gitlabTab.setContentsMargins(0, 0, 0, 0)
+        self.scrollArea_gitlab = QScrollArea(self.tab_gitlab)
+        self.scrollArea_gitlab.setObjectName(u"scrollArea_gitlab")
+        self.scrollArea_gitlab.setFrameShape(QFrame.Shape.NoFrame)
+        self.scrollArea_gitlab.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.scrollArea_gitlab.setWidgetResizable(True)
+        self.scrollAreaWidgetContents_gitlab = QWidget()
+        self.scrollAreaWidgetContents_gitlab.setObjectName(u"scrollAreaWidgetContents_gitlab")
+        self.verticalLayout_gitlabScroll = QVBoxLayout(self.scrollAreaWidgetContents_gitlab)
+        self.verticalLayout_gitlabScroll.setSpacing(12)
+        self.verticalLayout_gitlabScroll.setObjectName(u"verticalLayout_gitlabScroll")
+        self.verticalLayout_gitlabScroll.setContentsMargins(14, 14, 14, 14)
+        self.groupBox_app = QGroupBox(self.scrollAreaWidgetContents_gitlab)
+        self.groupBox_app.setObjectName(u"groupBox_app")
+        self.gridLayout_app = QGridLayout(self.groupBox_app)
+        self.gridLayout_app.setObjectName(u"gridLayout_app")
+        self.gridLayout_app.setHorizontalSpacing(8)
+        self.gridLayout_app.setVerticalSpacing(6)
+        self.label_appProjectCaption = QLabel(self.groupBox_app)
+        self.label_appProjectCaption.setObjectName(u"label_appProjectCaption")
+
+        self.gridLayout_app.addWidget(self.label_appProjectCaption, 0, 0, 1, 1)
+
+        self.lineEdit_appProject = QLineEdit(self.groupBox_app)
+        self.lineEdit_appProject.setObjectName(u"lineEdit_appProject")
+
+        self.gridLayout_app.addWidget(self.lineEdit_appProject, 0, 1, 1, 2)
+
+        self.label_appRepositoryCaption = QLabel(self.groupBox_app)
+        self.label_appRepositoryCaption.setObjectName(u"label_appRepositoryCaption")
+
+        self.gridLayout_app.addWidget(self.label_appRepositoryCaption, 1, 0, 1, 1)
+
+        self.lineEdit_appRepo = QLineEdit(self.groupBox_app)
+        self.lineEdit_appRepo.setObjectName(u"lineEdit_appRepo")
+
+        self.gridLayout_app.addWidget(self.lineEdit_appRepo, 1, 1, 1, 1)
+
+        self.pushButton_appBrowse = QPushButton(self.groupBox_app)
+        self.pushButton_appBrowse.setObjectName(u"pushButton_appBrowse")
+
+        self.gridLayout_app.addWidget(self.pushButton_appBrowse, 1, 2, 1, 1)
+
+        self.label_appBranchTagCaption = QLabel(self.groupBox_app)
+        self.label_appBranchTagCaption.setObjectName(u"label_appBranchTagCaption")
+
+        self.gridLayout_app.addWidget(self.label_appBranchTagCaption, 2, 0, 1, 1)
+
+        self.label_appBranch = QLabel(self.groupBox_app)
+        self.label_appBranch.setObjectName(u"label_appBranch")
+        self.label_appBranch.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+
+        self.gridLayout_app.addWidget(self.label_appBranch, 2, 1, 1, 1)
+
+        self.pushButton_appCheckout = QPushButton(self.groupBox_app)
+        self.pushButton_appCheckout.setObjectName(u"pushButton_appCheckout")
+
+        self.gridLayout_app.addWidget(self.pushButton_appCheckout, 2, 2, 1, 1)
+
+        self.label_appCommitCaption = QLabel(self.groupBox_app)
+        self.label_appCommitCaption.setObjectName(u"label_appCommitCaption")
+
+        self.gridLayout_app.addWidget(self.label_appCommitCaption, 3, 0, 1, 1)
+
+        self.label_appCommit = QLabel(self.groupBox_app)
+        self.label_appCommit.setObjectName(u"label_appCommit")
+        self.label_appCommit.setWordWrap(True)
+        self.label_appCommit.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+
+        self.gridLayout_app.addWidget(self.label_appCommit, 3, 1, 1, 1)
+
+        self.pushButton_appReload = QPushButton(self.groupBox_app)
+        self.pushButton_appReload.setObjectName(u"pushButton_appReload")
+
+        self.gridLayout_app.addWidget(self.pushButton_appReload, 3, 2, 1, 1)
+
+        self.label_appBuildCaption = QLabel(self.groupBox_app)
+        self.label_appBuildCaption.setObjectName(u"label_appBuildCaption")
+
+        self.gridLayout_app.addWidget(self.label_appBuildCaption, 4, 0, 1, 1)
+
+        self.comboBox_appBuild = QComboBox(self.groupBox_app)
+        self.comboBox_appBuild.setObjectName(u"comboBox_appBuild")
+        self.comboBox_appBuild.setMinimumSize(QSize(240, 0))
+
+        self.gridLayout_app.addWidget(self.comboBox_appBuild, 4, 1, 1, 1)
+
+        self.label_appFirmwareCaption = QLabel(self.groupBox_app)
+        self.label_appFirmwareCaption.setObjectName(u"label_appFirmwareCaption")
+
+        self.gridLayout_app.addWidget(self.label_appFirmwareCaption, 5, 0, 1, 1)
+
+        self.widget_appFirmware = QWidget(self.groupBox_app)
+        self.widget_appFirmware.setObjectName(u"widget_appFirmware")
+        self.horizontalLayout_appFirmware = QHBoxLayout(self.widget_appFirmware)
+        self.horizontalLayout_appFirmware.setSpacing(14)
+        self.horizontalLayout_appFirmware.setObjectName(u"horizontalLayout_appFirmware")
+        self.horizontalLayout_appFirmware.setContentsMargins(0, 0, 0, 0)
+        self.radioButton_appCommit = QRadioButton(self.widget_appFirmware)
+        self.radioButton_appCommit.setObjectName(u"radioButton_appCommit")
+
+        self.horizontalLayout_appFirmware.addWidget(self.radioButton_appCommit)
+
+        self.radioButton_appManual = QRadioButton(self.widget_appFirmware)
+        self.radioButton_appManual.setObjectName(u"radioButton_appManual")
+
+        self.horizontalLayout_appFirmware.addWidget(self.radioButton_appManual)
+
+        self.pushButton_appChooseJob = QPushButton(self.widget_appFirmware)
+        self.pushButton_appChooseJob.setObjectName(u"pushButton_appChooseJob")
+
+        self.horizontalLayout_appFirmware.addWidget(self.pushButton_appChooseJob)
+
+        self.horizontalSpacer_appFirmware = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.horizontalLayout_appFirmware.addItem(self.horizontalSpacer_appFirmware)
+
+
+        self.gridLayout_app.addWidget(self.widget_appFirmware, 5, 1, 1, 2)
+
+        self.label_appStatus = QLabel(self.groupBox_app)
+        self.label_appStatus.setObjectName(u"label_appStatus")
+        self.label_appStatus.setWordWrap(True)
+        self.label_appStatus.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+
+        self.gridLayout_app.addWidget(self.label_appStatus, 6, 1, 1, 2)
+
+        self.gridLayout_app.setColumnStretch(1, 1)
+
+        self.verticalLayout_gitlabScroll.addWidget(self.groupBox_app)
+
+        self.checkBox_advancedDebug = QCheckBox(self.scrollAreaWidgetContents_gitlab)
+        self.checkBox_advancedDebug.setObjectName(u"checkBox_advancedDebug")
+
+        self.verticalLayout_gitlabScroll.addWidget(self.checkBox_advancedDebug)
+
+        self.widget_debugParts = QWidget(self.scrollAreaWidgetContents_gitlab)
+        self.widget_debugParts.setObjectName(u"widget_debugParts")
+        self.horizontalLayout_debugParts = QHBoxLayout(self.widget_debugParts)
+        self.horizontalLayout_debugParts.setSpacing(12)
+        self.horizontalLayout_debugParts.setObjectName(u"horizontalLayout_debugParts")
+        self.horizontalLayout_debugParts.setContentsMargins(0, 0, 0, 0)
+        self.groupBox_bm = QGroupBox(self.widget_debugParts)
+        self.groupBox_bm.setObjectName(u"groupBox_bm")
+        self.gridLayout_bm = QGridLayout(self.groupBox_bm)
+        self.gridLayout_bm.setObjectName(u"gridLayout_bm")
+        self.gridLayout_bm.setHorizontalSpacing(8)
+        self.gridLayout_bm.setVerticalSpacing(6)
+        self.label_bmProjectCaption = QLabel(self.groupBox_bm)
+        self.label_bmProjectCaption.setObjectName(u"label_bmProjectCaption")
+
+        self.gridLayout_bm.addWidget(self.label_bmProjectCaption, 0, 0, 1, 1)
+
+        self.lineEdit_bmProject = QLineEdit(self.groupBox_bm)
+        self.lineEdit_bmProject.setObjectName(u"lineEdit_bmProject")
+
+        self.gridLayout_bm.addWidget(self.lineEdit_bmProject, 0, 1, 1, 2)
+
+        self.label_bmRepositoryCaption = QLabel(self.groupBox_bm)
+        self.label_bmRepositoryCaption.setObjectName(u"label_bmRepositoryCaption")
+
+        self.gridLayout_bm.addWidget(self.label_bmRepositoryCaption, 1, 0, 1, 1)
+
+        self.lineEdit_bmRepo = QLineEdit(self.groupBox_bm)
+        self.lineEdit_bmRepo.setObjectName(u"lineEdit_bmRepo")
+
+        self.gridLayout_bm.addWidget(self.lineEdit_bmRepo, 1, 1, 1, 1)
+
+        self.pushButton_bmBrowse = QPushButton(self.groupBox_bm)
+        self.pushButton_bmBrowse.setObjectName(u"pushButton_bmBrowse")
+
+        self.gridLayout_bm.addWidget(self.pushButton_bmBrowse, 1, 2, 1, 1)
+
+        self.label_bmBranchTagCaption = QLabel(self.groupBox_bm)
+        self.label_bmBranchTagCaption.setObjectName(u"label_bmBranchTagCaption")
+
+        self.gridLayout_bm.addWidget(self.label_bmBranchTagCaption, 2, 0, 1, 1)
+
+        self.label_bmBranch = QLabel(self.groupBox_bm)
+        self.label_bmBranch.setObjectName(u"label_bmBranch")
+        self.label_bmBranch.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+
+        self.gridLayout_bm.addWidget(self.label_bmBranch, 2, 1, 1, 1)
+
+        self.pushButton_bmCheckout = QPushButton(self.groupBox_bm)
+        self.pushButton_bmCheckout.setObjectName(u"pushButton_bmCheckout")
+
+        self.gridLayout_bm.addWidget(self.pushButton_bmCheckout, 2, 2, 1, 1)
+
+        self.label_bmCommitCaption = QLabel(self.groupBox_bm)
+        self.label_bmCommitCaption.setObjectName(u"label_bmCommitCaption")
+
+        self.gridLayout_bm.addWidget(self.label_bmCommitCaption, 3, 0, 1, 1)
+
+        self.label_bmCommit = QLabel(self.groupBox_bm)
+        self.label_bmCommit.setObjectName(u"label_bmCommit")
+        self.label_bmCommit.setWordWrap(True)
+        self.label_bmCommit.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+
+        self.gridLayout_bm.addWidget(self.label_bmCommit, 3, 1, 1, 1)
+
+        self.pushButton_bmReload = QPushButton(self.groupBox_bm)
+        self.pushButton_bmReload.setObjectName(u"pushButton_bmReload")
+
+        self.gridLayout_bm.addWidget(self.pushButton_bmReload, 3, 2, 1, 1)
+
+        self.label_bmBuildCaption = QLabel(self.groupBox_bm)
+        self.label_bmBuildCaption.setObjectName(u"label_bmBuildCaption")
+
+        self.gridLayout_bm.addWidget(self.label_bmBuildCaption, 4, 0, 1, 1)
+
+        self.label_bmBuild = QLabel(self.groupBox_bm)
+        self.label_bmBuild.setObjectName(u"label_bmBuild")
+        self.label_bmBuild.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+
+        self.gridLayout_bm.addWidget(self.label_bmBuild, 4, 1, 1, 1)
+
+        self.label_bmFirmwareCaption = QLabel(self.groupBox_bm)
+        self.label_bmFirmwareCaption.setObjectName(u"label_bmFirmwareCaption")
+
+        self.gridLayout_bm.addWidget(self.label_bmFirmwareCaption, 5, 0, 1, 1)
+
+        self.widget_bmFirmware = QWidget(self.groupBox_bm)
+        self.widget_bmFirmware.setObjectName(u"widget_bmFirmware")
+        self.horizontalLayout_bmFirmware = QHBoxLayout(self.widget_bmFirmware)
+        self.horizontalLayout_bmFirmware.setSpacing(14)
+        self.horizontalLayout_bmFirmware.setObjectName(u"horizontalLayout_bmFirmware")
+        self.horizontalLayout_bmFirmware.setContentsMargins(0, 0, 0, 0)
+        self.radioButton_bmCommit = QRadioButton(self.widget_bmFirmware)
+        self.radioButton_bmCommit.setObjectName(u"radioButton_bmCommit")
+
+        self.horizontalLayout_bmFirmware.addWidget(self.radioButton_bmCommit)
+
+        self.radioButton_bmManual = QRadioButton(self.widget_bmFirmware)
+        self.radioButton_bmManual.setObjectName(u"radioButton_bmManual")
+
+        self.horizontalLayout_bmFirmware.addWidget(self.radioButton_bmManual)
+
+        self.pushButton_bmChooseJob = QPushButton(self.widget_bmFirmware)
+        self.pushButton_bmChooseJob.setObjectName(u"pushButton_bmChooseJob")
+
+        self.horizontalLayout_bmFirmware.addWidget(self.pushButton_bmChooseJob)
+
+        self.horizontalSpacer_bmFirmware = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.horizontalLayout_bmFirmware.addItem(self.horizontalSpacer_bmFirmware)
+
+
+        self.gridLayout_bm.addWidget(self.widget_bmFirmware, 5, 1, 1, 2)
+
+        self.label_bmStatus = QLabel(self.groupBox_bm)
+        self.label_bmStatus.setObjectName(u"label_bmStatus")
+        self.label_bmStatus.setWordWrap(True)
+        self.label_bmStatus.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+
+        self.gridLayout_bm.addWidget(self.label_bmStatus, 6, 1, 1, 2)
+
+        self.gridLayout_bm.setColumnStretch(1, 1)
+
+        self.horizontalLayout_debugParts.addWidget(self.groupBox_bm)
+
+        self.groupBox_fbl = QGroupBox(self.widget_debugParts)
+        self.groupBox_fbl.setObjectName(u"groupBox_fbl")
+        self.gridLayout_fbl = QGridLayout(self.groupBox_fbl)
+        self.gridLayout_fbl.setObjectName(u"gridLayout_fbl")
+        self.gridLayout_fbl.setHorizontalSpacing(8)
+        self.gridLayout_fbl.setVerticalSpacing(6)
+        self.label_fblProjectCaption = QLabel(self.groupBox_fbl)
+        self.label_fblProjectCaption.setObjectName(u"label_fblProjectCaption")
+
+        self.gridLayout_fbl.addWidget(self.label_fblProjectCaption, 0, 0, 1, 1)
+
+        self.lineEdit_fblProject = QLineEdit(self.groupBox_fbl)
+        self.lineEdit_fblProject.setObjectName(u"lineEdit_fblProject")
+
+        self.gridLayout_fbl.addWidget(self.lineEdit_fblProject, 0, 1, 1, 2)
+
+        self.label_fblRepositoryCaption = QLabel(self.groupBox_fbl)
+        self.label_fblRepositoryCaption.setObjectName(u"label_fblRepositoryCaption")
+
+        self.gridLayout_fbl.addWidget(self.label_fblRepositoryCaption, 1, 0, 1, 1)
+
+        self.lineEdit_fblRepo = QLineEdit(self.groupBox_fbl)
+        self.lineEdit_fblRepo.setObjectName(u"lineEdit_fblRepo")
+
+        self.gridLayout_fbl.addWidget(self.lineEdit_fblRepo, 1, 1, 1, 1)
+
+        self.pushButton_fblBrowse = QPushButton(self.groupBox_fbl)
+        self.pushButton_fblBrowse.setObjectName(u"pushButton_fblBrowse")
+
+        self.gridLayout_fbl.addWidget(self.pushButton_fblBrowse, 1, 2, 1, 1)
+
+        self.label_fblBranchTagCaption = QLabel(self.groupBox_fbl)
+        self.label_fblBranchTagCaption.setObjectName(u"label_fblBranchTagCaption")
+
+        self.gridLayout_fbl.addWidget(self.label_fblBranchTagCaption, 2, 0, 1, 1)
+
+        self.label_fblBranch = QLabel(self.groupBox_fbl)
+        self.label_fblBranch.setObjectName(u"label_fblBranch")
+        self.label_fblBranch.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+
+        self.gridLayout_fbl.addWidget(self.label_fblBranch, 2, 1, 1, 1)
+
+        self.pushButton_fblCheckout = QPushButton(self.groupBox_fbl)
+        self.pushButton_fblCheckout.setObjectName(u"pushButton_fblCheckout")
+
+        self.gridLayout_fbl.addWidget(self.pushButton_fblCheckout, 2, 2, 1, 1)
+
+        self.label_fblCommitCaption = QLabel(self.groupBox_fbl)
+        self.label_fblCommitCaption.setObjectName(u"label_fblCommitCaption")
+
+        self.gridLayout_fbl.addWidget(self.label_fblCommitCaption, 3, 0, 1, 1)
+
+        self.label_fblCommit = QLabel(self.groupBox_fbl)
+        self.label_fblCommit.setObjectName(u"label_fblCommit")
+        self.label_fblCommit.setWordWrap(True)
+        self.label_fblCommit.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+
+        self.gridLayout_fbl.addWidget(self.label_fblCommit, 3, 1, 1, 1)
+
+        self.pushButton_fblReload = QPushButton(self.groupBox_fbl)
+        self.pushButton_fblReload.setObjectName(u"pushButton_fblReload")
+
+        self.gridLayout_fbl.addWidget(self.pushButton_fblReload, 3, 2, 1, 1)
+
+        self.label_fblBuildCaption = QLabel(self.groupBox_fbl)
+        self.label_fblBuildCaption.setObjectName(u"label_fblBuildCaption")
+
+        self.gridLayout_fbl.addWidget(self.label_fblBuildCaption, 4, 0, 1, 1)
+
+        self.label_fblBuild = QLabel(self.groupBox_fbl)
+        self.label_fblBuild.setObjectName(u"label_fblBuild")
+        self.label_fblBuild.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+
+        self.gridLayout_fbl.addWidget(self.label_fblBuild, 4, 1, 1, 1)
+
+        self.label_fblFirmwareCaption = QLabel(self.groupBox_fbl)
+        self.label_fblFirmwareCaption.setObjectName(u"label_fblFirmwareCaption")
+
+        self.gridLayout_fbl.addWidget(self.label_fblFirmwareCaption, 5, 0, 1, 1)
+
+        self.widget_fblFirmware = QWidget(self.groupBox_fbl)
+        self.widget_fblFirmware.setObjectName(u"widget_fblFirmware")
+        self.horizontalLayout_fblFirmware = QHBoxLayout(self.widget_fblFirmware)
+        self.horizontalLayout_fblFirmware.setSpacing(14)
+        self.horizontalLayout_fblFirmware.setObjectName(u"horizontalLayout_fblFirmware")
+        self.horizontalLayout_fblFirmware.setContentsMargins(0, 0, 0, 0)
+        self.radioButton_fblCommit = QRadioButton(self.widget_fblFirmware)
+        self.radioButton_fblCommit.setObjectName(u"radioButton_fblCommit")
+
+        self.horizontalLayout_fblFirmware.addWidget(self.radioButton_fblCommit)
+
+        self.radioButton_fblManual = QRadioButton(self.widget_fblFirmware)
+        self.radioButton_fblManual.setObjectName(u"radioButton_fblManual")
+
+        self.horizontalLayout_fblFirmware.addWidget(self.radioButton_fblManual)
+
+        self.pushButton_fblChooseJob = QPushButton(self.widget_fblFirmware)
+        self.pushButton_fblChooseJob.setObjectName(u"pushButton_fblChooseJob")
+
+        self.horizontalLayout_fblFirmware.addWidget(self.pushButton_fblChooseJob)
+
+        self.horizontalSpacer_fblFirmware = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.horizontalLayout_fblFirmware.addItem(self.horizontalSpacer_fblFirmware)
+
+
+        self.gridLayout_fbl.addWidget(self.widget_fblFirmware, 5, 1, 1, 2)
+
+        self.label_fblStatus = QLabel(self.groupBox_fbl)
+        self.label_fblStatus.setObjectName(u"label_fblStatus")
+        self.label_fblStatus.setWordWrap(True)
+        self.label_fblStatus.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+
+        self.gridLayout_fbl.addWidget(self.label_fblStatus, 6, 1, 1, 2)
+
+        self.gridLayout_fbl.setColumnStretch(1, 1)
+
+        self.horizontalLayout_debugParts.addWidget(self.groupBox_fbl)
+
+
+        self.verticalLayout_gitlabScroll.addWidget(self.widget_debugParts)
+
+        self.verticalSpacer_gitlabTab = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+
+        self.verticalLayout_gitlabScroll.addItem(self.verticalSpacer_gitlabTab)
+
+        self.scrollArea_gitlab.setWidget(self.scrollAreaWidgetContents_gitlab)
+
+        self.verticalLayout_gitlabTab.addWidget(self.scrollArea_gitlab)
+
+        self.tabWidget_main.addTab(self.tab_gitlab, "")
         self.tab_setting = QWidget()
         self.tab_setting.setObjectName(u"tab_setting")
         self.verticalLayout_settingTab = QVBoxLayout(self.tab_setting)
@@ -412,143 +735,146 @@ class Ui_MainWindow(object):
         self.verticalLayout_settingScroll.setSpacing(12)
         self.verticalLayout_settingScroll.setObjectName(u"verticalLayout_settingScroll")
         self.verticalLayout_settingScroll.setContentsMargins(14, 14, 14, 14)
-        self.groupBox_firmware = QGroupBox(self.scrollAreaWidgetContents_setting)
-        self.groupBox_firmware.setObjectName(u"groupBox_firmware")
-        self.groupBox_firmware.setMaximumSize(QSize(760, 16777215))
-        self.gridLayout_firmware = QGridLayout(self.groupBox_firmware)
-        self.gridLayout_firmware.setObjectName(u"gridLayout_firmware")
-        self.gridLayout_firmware.setHorizontalSpacing(8)
-        self.gridLayout_firmware.setVerticalSpacing(8)
-        self.label_profile = QLabel(self.groupBox_firmware)
+        self.groupBox_profile = QGroupBox(self.scrollAreaWidgetContents_setting)
+        self.groupBox_profile.setObjectName(u"groupBox_profile")
+        self.gridLayout_profile = QGridLayout(self.groupBox_profile)
+        self.gridLayout_profile.setObjectName(u"gridLayout_profile")
+        self.gridLayout_profile.setHorizontalSpacing(8)
+        self.gridLayout_profile.setVerticalSpacing(6)
+        self.label_profile = QLabel(self.groupBox_profile)
         self.label_profile.setObjectName(u"label_profile")
 
-        self.gridLayout_firmware.addWidget(self.label_profile, 0, 0, 1, 1)
+        self.gridLayout_profile.addWidget(self.label_profile, 0, 0, 1, 1)
 
-        self.horizontalLayout_profile = QHBoxLayout()
-        self.horizontalLayout_profile.setObjectName(u"horizontalLayout_profile")
-        self.comboBox_profile = QComboBox(self.groupBox_firmware)
+        self.comboBox_profile = QComboBox(self.groupBox_profile)
         self.comboBox_profile.setObjectName(u"comboBox_profile")
         sizePolicy.setHeightForWidth(self.comboBox_profile.sizePolicy().hasHeightForWidth())
         self.comboBox_profile.setSizePolicy(sizePolicy)
 
-        self.horizontalLayout_profile.addWidget(self.comboBox_profile)
+        self.gridLayout_profile.addWidget(self.comboBox_profile, 0, 1, 1, 1)
 
-        self.pushButton_reloadProfiles = QPushButton(self.groupBox_firmware)
+        self.pushButton_reloadProfiles = QPushButton(self.groupBox_profile)
         self.pushButton_reloadProfiles.setObjectName(u"pushButton_reloadProfiles")
 
-        self.horizontalLayout_profile.addWidget(self.pushButton_reloadProfiles)
+        self.gridLayout_profile.addWidget(self.pushButton_reloadProfiles, 0, 2, 1, 1)
 
+        self.label_profilesDir = QLabel(self.groupBox_profile)
+        self.label_profilesDir.setObjectName(u"label_profilesDir")
 
-        self.gridLayout_firmware.addLayout(self.horizontalLayout_profile, 0, 1, 1, 1)
+        self.gridLayout_profile.addWidget(self.label_profilesDir, 1, 0, 1, 1)
 
-        self.frame_sourceRepoSetting = QFrame(self.groupBox_firmware)
-        self.frame_sourceRepoSetting.setObjectName(u"frame_sourceRepoSetting")
-        self.frame_sourceRepoSetting.setFrameShape(QFrame.Shape.NoFrame)
-        self.gridLayout_sourceRepo = QGridLayout(self.frame_sourceRepoSetting)
-        self.gridLayout_sourceRepo.setObjectName(u"gridLayout_sourceRepo")
-        self.gridLayout_sourceRepo.setHorizontalSpacing(6)
-        self.gridLayout_sourceRepo.setVerticalSpacing(6)
-        self.gridLayout_sourceRepo.setContentsMargins(0, 0, 0, 0)
-        self.label_sourceRepo = QLabel(self.frame_sourceRepoSetting)
-        self.label_sourceRepo.setObjectName(u"label_sourceRepo")
+        self.lineEdit_profilesDir = QLineEdit(self.groupBox_profile)
+        self.lineEdit_profilesDir.setObjectName(u"lineEdit_profilesDir")
 
-        self.gridLayout_sourceRepo.addWidget(self.label_sourceRepo, 0, 0, 1, 1)
+        self.gridLayout_profile.addWidget(self.lineEdit_profilesDir, 1, 1, 1, 1)
 
-        self.lineEdit_sourceRepo = QLineEdit(self.frame_sourceRepoSetting)
-        self.lineEdit_sourceRepo.setObjectName(u"lineEdit_sourceRepo")
+        self.pushButton_browseProfilesDir = QPushButton(self.groupBox_profile)
+        self.pushButton_browseProfilesDir.setObjectName(u"pushButton_browseProfilesDir")
 
-        self.gridLayout_sourceRepo.addWidget(self.lineEdit_sourceRepo, 0, 1, 1, 1)
+        self.gridLayout_profile.addWidget(self.pushButton_browseProfilesDir, 1, 2, 1, 1)
 
-        self.pushButton_browseRepo = QPushButton(self.frame_sourceRepoSetting)
-        self.pushButton_browseRepo.setObjectName(u"pushButton_browseRepo")
+        self.label_downloadDir = QLabel(self.groupBox_profile)
+        self.label_downloadDir.setObjectName(u"label_downloadDir")
 
-        self.gridLayout_sourceRepo.addWidget(self.pushButton_browseRepo, 0, 2, 1, 1)
+        self.gridLayout_profile.addWidget(self.label_downloadDir, 2, 0, 1, 1)
 
-        self.pushButton_reloadRepo = QPushButton(self.frame_sourceRepoSetting)
-        self.pushButton_reloadRepo.setObjectName(u"pushButton_reloadRepo")
+        self.lineEdit_downloadDir = QLineEdit(self.groupBox_profile)
+        self.lineEdit_downloadDir.setObjectName(u"lineEdit_downloadDir")
 
-        self.gridLayout_sourceRepo.addWidget(self.pushButton_reloadRepo, 0, 3, 1, 1)
+        self.gridLayout_profile.addWidget(self.lineEdit_downloadDir, 2, 1, 1, 1)
 
-        self.horizontalLayout_repoSetting = QHBoxLayout()
-        self.horizontalLayout_repoSetting.setObjectName(u"horizontalLayout_repoSetting")
-        self.label_repoSummary = QLabel(self.frame_sourceRepoSetting)
-        self.label_repoSummary.setObjectName(u"label_repoSummary")
-        self.label_repoSummary.setWordWrap(True)
+        self.pushButton_browseDownloadDir = QPushButton(self.groupBox_profile)
+        self.pushButton_browseDownloadDir.setObjectName(u"pushButton_browseDownloadDir")
 
-        self.horizontalLayout_repoSetting.addWidget(self.label_repoSummary)
+        self.gridLayout_profile.addWidget(self.pushButton_browseDownloadDir, 2, 2, 1, 1)
 
-        self.pushButton_checkout = QPushButton(self.frame_sourceRepoSetting)
-        self.pushButton_checkout.setObjectName(u"pushButton_checkout")
+        self.label_settingError = QLabel(self.groupBox_profile)
+        self.label_settingError.setObjectName(u"label_settingError")
+        self.label_settingError.setWordWrap(True)
 
-        self.horizontalLayout_repoSetting.addWidget(self.pushButton_checkout)
+        self.gridLayout_profile.addWidget(self.label_settingError, 3, 1, 1, 2)
 
-        self.horizontalLayout_repoSetting.setStretch(0, 1)
+        self.gridLayout_profile.setColumnStretch(1, 1)
 
-        self.gridLayout_sourceRepo.addLayout(self.horizontalLayout_repoSetting, 1, 1, 1, 3)
+        self.verticalLayout_settingScroll.addWidget(self.groupBox_profile)
 
-        self.label_repoAutoHint = QLabel(self.frame_sourceRepoSetting)
-        self.label_repoAutoHint.setObjectName(u"label_repoAutoHint")
-        self.label_repoAutoHint.setWordWrap(True)
+        self.groupBox_gitlab = QGroupBox(self.scrollAreaWidgetContents_setting)
+        self.groupBox_gitlab.setObjectName(u"groupBox_gitlab")
+        self.gridLayout_gitlab = QGridLayout(self.groupBox_gitlab)
+        self.gridLayout_gitlab.setObjectName(u"gridLayout_gitlab")
+        self.gridLayout_gitlab.setHorizontalSpacing(8)
+        self.gridLayout_gitlab.setVerticalSpacing(6)
+        self.label_gitlabUrl = QLabel(self.groupBox_gitlab)
+        self.label_gitlabUrl.setObjectName(u"label_gitlabUrl")
 
-        self.gridLayout_sourceRepo.addWidget(self.label_repoAutoHint, 2, 1, 1, 3)
+        self.gridLayout_gitlab.addWidget(self.label_gitlabUrl, 0, 0, 1, 1)
 
+        self.lineEdit_gitlabUrl = QLineEdit(self.groupBox_gitlab)
+        self.lineEdit_gitlabUrl.setObjectName(u"lineEdit_gitlabUrl")
 
-        self.gridLayout_firmware.addWidget(self.frame_sourceRepoSetting, 1, 0, 1, 2)
+        self.gridLayout_gitlab.addWidget(self.lineEdit_gitlabUrl, 0, 1, 1, 2)
 
+        self.label_token = QLabel(self.groupBox_gitlab)
+        self.label_token.setObjectName(u"label_token")
 
-        self.verticalLayout_settingScroll.addWidget(self.groupBox_firmware)
+        self.gridLayout_gitlab.addWidget(self.label_token, 1, 0, 1, 1)
+
+        self.lineEdit_token = QLineEdit(self.groupBox_gitlab)
+        self.lineEdit_token.setObjectName(u"lineEdit_token")
+        self.lineEdit_token.setEchoMode(QLineEdit.EchoMode.Password)
+
+        self.gridLayout_gitlab.addWidget(self.lineEdit_token, 1, 1, 1, 2)
+
+        self.gridLayout_gitlab.setColumnStretch(1, 1)
+
+        self.verticalLayout_settingScroll.addWidget(self.groupBox_gitlab)
 
         self.groupBox_winidea = QGroupBox(self.scrollAreaWidgetContents_setting)
         self.groupBox_winidea.setObjectName(u"groupBox_winidea")
-        self.groupBox_winidea.setMaximumSize(QSize(760, 16777215))
         self.gridLayout_winidea = QGridLayout(self.groupBox_winidea)
         self.gridLayout_winidea.setObjectName(u"gridLayout_winidea")
         self.gridLayout_winidea.setHorizontalSpacing(8)
+        self.gridLayout_winidea.setVerticalSpacing(6)
         self.label_instance = QLabel(self.groupBox_winidea)
         self.label_instance.setObjectName(u"label_instance")
 
         self.gridLayout_winidea.addWidget(self.label_instance, 0, 0, 1, 1)
 
-        self.horizontalLayout_instance = QHBoxLayout()
-        self.horizontalLayout_instance.setObjectName(u"horizontalLayout_instance")
         self.comboBox_instance = QComboBox(self.groupBox_winidea)
         self.comboBox_instance.setObjectName(u"comboBox_instance")
         sizePolicy.setHeightForWidth(self.comboBox_instance.sizePolicy().hasHeightForWidth())
         self.comboBox_instance.setSizePolicy(sizePolicy)
 
-        self.horizontalLayout_instance.addWidget(self.comboBox_instance)
+        self.gridLayout_winidea.addWidget(self.comboBox_instance, 0, 1, 1, 1)
 
         self.pushButton_refreshInstances = QPushButton(self.groupBox_winidea)
         self.pushButton_refreshInstances.setObjectName(u"pushButton_refreshInstances")
 
-        self.horizontalLayout_instance.addWidget(self.pushButton_refreshInstances)
+        self.gridLayout_winidea.addWidget(self.pushButton_refreshInstances, 0, 2, 1, 1)
 
+        self.label_afterFlash = QLabel(self.groupBox_winidea)
+        self.label_afterFlash.setObjectName(u"label_afterFlash")
 
-        self.gridLayout_winidea.addLayout(self.horizontalLayout_instance, 0, 1, 1, 1)
+        self.gridLayout_winidea.addWidget(self.label_afterFlash, 1, 0, 1, 1)
 
-
-        self.verticalLayout_settingScroll.addWidget(self.groupBox_winidea)
-
-        self.groupBox_afterFlash = QGroupBox(self.scrollAreaWidgetContents_setting)
-        self.groupBox_afterFlash.setObjectName(u"groupBox_afterFlash")
-        self.groupBox_afterFlash.setMaximumSize(QSize(760, 16777215))
-        self.verticalLayout_afterFlash = QVBoxLayout(self.groupBox_afterFlash)
-        self.verticalLayout_afterFlash.setSpacing(6)
-        self.verticalLayout_afterFlash.setObjectName(u"verticalLayout_afterFlash")
-        self.horizontalLayout_afterFlash = QHBoxLayout()
+        self.widget_afterFlash = QWidget(self.groupBox_winidea)
+        self.widget_afterFlash.setObjectName(u"widget_afterFlash")
+        self.horizontalLayout_afterFlash = QHBoxLayout(self.widget_afterFlash)
+        self.horizontalLayout_afterFlash.setSpacing(18)
         self.horizontalLayout_afterFlash.setObjectName(u"horizontalLayout_afterFlash")
-        self.checkBox_reset = QCheckBox(self.groupBox_afterFlash)
+        self.horizontalLayout_afterFlash.setContentsMargins(0, 0, 0, 0)
+        self.checkBox_reset = QCheckBox(self.widget_afterFlash)
         self.checkBox_reset.setObjectName(u"checkBox_reset")
         self.checkBox_reset.setChecked(True)
 
         self.horizontalLayout_afterFlash.addWidget(self.checkBox_reset)
 
-        self.checkBox_run = QCheckBox(self.groupBox_afterFlash)
+        self.checkBox_run = QCheckBox(self.widget_afterFlash)
         self.checkBox_run.setObjectName(u"checkBox_run")
 
         self.horizontalLayout_afterFlash.addWidget(self.checkBox_run)
 
-        self.checkBox_verifyFlash = QCheckBox(self.groupBox_afterFlash)
+        self.checkBox_verifyFlash = QCheckBox(self.widget_afterFlash)
         self.checkBox_verifyFlash.setObjectName(u"checkBox_verifyFlash")
 
         self.horizontalLayout_afterFlash.addWidget(self.checkBox_verifyFlash)
@@ -558,34 +884,11 @@ class Ui_MainWindow(object):
         self.horizontalLayout_afterFlash.addItem(self.horizontalSpacer_afterFlash)
 
 
-        self.verticalLayout_afterFlash.addLayout(self.horizontalLayout_afterFlash)
+        self.gridLayout_winidea.addWidget(self.widget_afterFlash, 1, 1, 1, 2)
 
-        self.label_verifyHint = QLabel(self.groupBox_afterFlash)
-        self.label_verifyHint.setObjectName(u"label_verifyHint")
-        self.label_verifyHint.setWordWrap(True)
+        self.gridLayout_winidea.setColumnStretch(1, 1)
 
-        self.verticalLayout_afterFlash.addWidget(self.label_verifyHint)
-
-
-        self.verticalLayout_settingScroll.addWidget(self.groupBox_afterFlash)
-
-        self.widget_preferencesRow = QWidget(self.scrollAreaWidgetContents_setting)
-        self.widget_preferencesRow.setObjectName(u"widget_preferencesRow")
-        self.widget_preferencesRow.setMaximumSize(QSize(760, 16777215))
-        self.horizontalLayout_preferences = QHBoxLayout(self.widget_preferencesRow)
-        self.horizontalLayout_preferences.setObjectName(u"horizontalLayout_preferences")
-        self.horizontalLayout_preferences.setContentsMargins(0, 0, 0, 0)
-        self.horizontalSpacer_preferences = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
-
-        self.horizontalLayout_preferences.addItem(self.horizontalSpacer_preferences)
-
-        self.pushButton_preferences = QPushButton(self.widget_preferencesRow)
-        self.pushButton_preferences.setObjectName(u"pushButton_preferences")
-
-        self.horizontalLayout_preferences.addWidget(self.pushButton_preferences)
-
-
-        self.verticalLayout_settingScroll.addWidget(self.widget_preferencesRow)
+        self.verticalLayout_settingScroll.addWidget(self.groupBox_winidea)
 
         self.verticalSpacer_settingTab = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
 
@@ -644,16 +947,45 @@ class Ui_MainWindow(object):
         self.verticalLayout_main.setStretch(4, 5)
         self.verticalLayout_main.setStretch(5, 2)
         MainWindow.setCentralWidget(self.centralWidget_main)
+        self.menuBar_main = QMenuBar(MainWindow)
+        self.menuBar_main.setObjectName(u"menuBar_main")
+        self.menu_file = QMenu(self.menuBar_main)
+        self.menu_file.setObjectName(u"menu_file")
+        self.menu_view = QMenu(self.menuBar_main)
+        self.menu_view.setObjectName(u"menu_view")
+        self.menu_tools = QMenu(self.menuBar_main)
+        self.menu_tools.setObjectName(u"menu_tools")
+        self.menu_help = QMenu(self.menuBar_main)
+        self.menu_help.setObjectName(u"menu_help")
+        MainWindow.setMenuBar(self.menuBar_main)
         self.statusBar_main = QStatusBar(MainWindow)
         self.statusBar_main.setObjectName(u"statusBar_main")
         MainWindow.setStatusBar(self.statusBar_main)
 #if QT_CONFIG(shortcut)
-        self.label_build.setBuddy(self.comboBox_build)
         self.label_firmwareSource.setBuddy(self.pushButton_loadFromGitlab)
-        self.label_profile.setBuddy(self.comboBox_profile)
-        self.label_sourceRepo.setBuddy(self.lineEdit_sourceRepo)
-        self.label_instance.setBuddy(self.comboBox_instance)
 #endif // QT_CONFIG(shortcut)
+
+        self.menuBar_main.addAction(self.menu_file.menuAction())
+        self.menuBar_main.addAction(self.menu_view.menuAction())
+        self.menuBar_main.addAction(self.menu_tools.menuAction())
+        self.menuBar_main.addAction(self.menu_help.menuAction())
+        self.menu_file.addAction(self.action_exportBundle)
+        self.menu_file.addAction(self.action_openHistory)
+        self.menu_file.addAction(self.action_openLogFolder)
+        self.menu_file.addAction(self.action_openDownloadFolder)
+        self.menu_file.addSeparator()
+        self.menu_file.addAction(self.action_exit)
+        self.menu_view.addAction(self.action_darkMode)
+        self.menu_view.addSeparator()
+        self.menu_view.addAction(self.action_tabFlash)
+        self.menu_view.addAction(self.action_tabGitlab)
+        self.menu_view.addAction(self.action_tabSetting)
+        self.menu_tools.addAction(self.action_testGitlab)
+        self.menu_tools.addAction(self.action_checkCores)
+        self.menu_tools.addSeparator()
+        self.menu_tools.addAction(self.action_refreshInstances)
+        self.menu_help.addAction(self.action_userGuide)
+        self.menu_help.addAction(self.action_about)
 
         self.retranslateUi(MainWindow)
 
@@ -666,27 +998,51 @@ class Ui_MainWindow(object):
 
     def retranslateUi(self, MainWindow):
         MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"WFlash", None))
+        self.action_exportBundle.setText(QCoreApplication.translate("MainWindow", u"Export debug bundle\u2026", None))
+#if QT_CONFIG(shortcut)
+        self.action_exportBundle.setShortcut(QCoreApplication.translate("MainWindow", u"Ctrl+E", None))
+#endif // QT_CONFIG(shortcut)
+        self.action_openHistory.setText(QCoreApplication.translate("MainWindow", u"Open flash history", None))
+        self.action_openLogFolder.setText(QCoreApplication.translate("MainWindow", u"Open log folder", None))
+        self.action_openDownloadFolder.setText(QCoreApplication.translate("MainWindow", u"Open download folder", None))
+        self.action_exit.setText(QCoreApplication.translate("MainWindow", u"Exit", None))
+#if QT_CONFIG(shortcut)
+        self.action_exit.setShortcut(QCoreApplication.translate("MainWindow", u"Ctrl+Q", None))
+#endif // QT_CONFIG(shortcut)
+        self.action_darkMode.setText(QCoreApplication.translate("MainWindow", u"Dark mode", None))
+        self.action_tabFlash.setText(QCoreApplication.translate("MainWindow", u"Flash", None))
+#if QT_CONFIG(shortcut)
+        self.action_tabFlash.setShortcut(QCoreApplication.translate("MainWindow", u"Ctrl+1", None))
+#endif // QT_CONFIG(shortcut)
+        self.action_tabGitlab.setText(QCoreApplication.translate("MainWindow", u"GitLab", None))
+#if QT_CONFIG(shortcut)
+        self.action_tabGitlab.setShortcut(QCoreApplication.translate("MainWindow", u"Ctrl+2", None))
+#endif // QT_CONFIG(shortcut)
+        self.action_tabSetting.setText(QCoreApplication.translate("MainWindow", u"Setting", None))
+#if QT_CONFIG(shortcut)
+        self.action_tabSetting.setShortcut(QCoreApplication.translate("MainWindow", u"Ctrl+3", None))
+#endif // QT_CONFIG(shortcut)
+        self.action_testGitlab.setText(QCoreApplication.translate("MainWindow", u"Test GitLab connection", None))
+        self.action_checkCores.setText(QCoreApplication.translate("MainWindow", u"Check winIDEA cores", None))
+        self.action_refreshInstances.setText(QCoreApplication.translate("MainWindow", u"Refresh winIDEA instances", None))
+#if QT_CONFIG(shortcut)
+        self.action_refreshInstances.setShortcut(QCoreApplication.translate("MainWindow", u"F5", None))
+#endif // QT_CONFIG(shortcut)
+        self.action_userGuide.setText(QCoreApplication.translate("MainWindow", u"User Guide", None))
+#if QT_CONFIG(shortcut)
+        self.action_userGuide.setShortcut(QCoreApplication.translate("MainWindow", u"F1", None))
+#endif // QT_CONFIG(shortcut)
+        self.action_about.setText(QCoreApplication.translate("MainWindow", u"About WFlash", None))
         self.pushButton_flash.setText(QCoreApplication.translate("MainWindow", u"Flash", None))
         self.pushButton_flash.setProperty(u"state", QCoreApplication.translate("MainWindow", u"idle", None))
         self.label_flashStats.setText(QCoreApplication.translate("MainWindow", u"ETA: -- | Speed: --", None))
         self.label_step.setText(QCoreApplication.translate("MainWindow", u"Step: Idle", None))
         self.label_rollbackWarning.setText(QCoreApplication.translate("MainWindow", u"ROLLBACK FAILED \u2014 the winIDEA workspace may still point to the new files. Check the download and symbol file list in winIDEA before flashing again.", None))
-        self.label_repoBranch.setText(QCoreApplication.translate("MainWindow", u"Branch: -", None))
-        self.label_repoCommit.setText(QCoreApplication.translate("MainWindow", u"Commit: -", None))
-        self.label_repoChanges.setText("")
-        self.label_repoFlashHint.setText(QCoreApplication.translate("MainWindow", u"Updated when you come back to WFlash. Change the repo or branch in Setting.", None))
-        self.label_applicationHeader.setText(QCoreApplication.translate("MainWindow", u"Application", None))
-        self.label_build.setText(QCoreApplication.translate("MainWindow", u"Build", None))
-        self.pushButton_loadBuild.setText(QCoreApplication.translate("MainWindow", u"Load firmware for this commit", None))
-        self.label_loadStatus.setText("")
-        self.pushButton_chooseJob.setText(QCoreApplication.translate("MainWindow", u"Choose job in GitLab\u2026", None))
-        self.checkBox_advancedDebug.setText(QCoreApplication.translate("MainWindow", u"Advanced Debug", None))
-        self.label_bmName.setText(QCoreApplication.translate("MainWindow", u"BM", None))
-        self.label_bmSource.setText(QCoreApplication.translate("MainWindow", u"Not loaded", None))
-        self.pushButton_loadBm.setText(QCoreApplication.translate("MainWindow", u"Load\u2026", None))
-        self.label_fblName.setText(QCoreApplication.translate("MainWindow", u"FBL", None))
-        self.label_fblSource.setText(QCoreApplication.translate("MainWindow", u"Not loaded", None))
-        self.pushButton_loadFbl.setText(QCoreApplication.translate("MainWindow", u"Load\u2026", None))
+        self.label_summaryHeader.setText(QCoreApplication.translate("MainWindow", u"Firmware to flash", None))
+        self.label_summaryApp.setText("")
+        self.label_summaryBm.setText("")
+        self.label_summaryFbl.setText("")
+        self.label_summaryAdvanced.setText(QCoreApplication.translate("MainWindow", u"Advanced Debug: off", None))
         self.label_firmwareSource.setText(QCoreApplication.translate("MainWindow", u"Firmware source", None))
         self.pushButton_loadFromGitlab.setText(QCoreApplication.translate("MainWindow", u"Load from GitLab\u2026", None))
         self.label_sourceTitle.setText(QCoreApplication.translate("MainWindow", u"No firmware loaded \u2014 use Load from GitLab\u2026", None))
@@ -710,35 +1066,100 @@ class Ui_MainWindow(object):
         ___qtablewidgetitem6.setText(QCoreApplication.translate("MainWindow", u"File", None))
         self.label_mappingHint.setText(QCoreApplication.translate("MainWindow", u"Load firmware to fill the mapping.", None))
         self.tabWidget_main.setTabText(self.tabWidget_main.indexOf(self.tab_flash), QCoreApplication.translate("MainWindow", u"Flash", None))
-        self.groupBox_firmware.setTitle(QCoreApplication.translate("MainWindow", u"Firmware", None))
+        self.groupBox_app.setTitle(QCoreApplication.translate("MainWindow", u"App", None))
+        self.label_appProjectCaption.setText(QCoreApplication.translate("MainWindow", u"Project", None))
+        self.label_appRepositoryCaption.setText(QCoreApplication.translate("MainWindow", u"Repository", None))
+        self.pushButton_appBrowse.setText(QCoreApplication.translate("MainWindow", u"Browse", None))
+        self.label_appBranchTagCaption.setText(QCoreApplication.translate("MainWindow", u"Branch/Tag", None))
+        self.label_appBranch.setText(QCoreApplication.translate("MainWindow", u"-", None))
+        self.pushButton_appCheckout.setText(QCoreApplication.translate("MainWindow", u"Checkout", None))
+        self.label_appCommitCaption.setText(QCoreApplication.translate("MainWindow", u"Commit", None))
+        self.label_appCommit.setText(QCoreApplication.translate("MainWindow", u"-", None))
+        self.pushButton_appReload.setText(QCoreApplication.translate("MainWindow", u"Reload", None))
+#if QT_CONFIG(tooltip)
+        self.pushButton_appReload.setToolTip(QCoreApplication.translate("MainWindow", u"Read the repository again: branch, commit and local changes", None))
+#endif // QT_CONFIG(tooltip)
+        self.label_appBuildCaption.setText(QCoreApplication.translate("MainWindow", u"Build", None))
+        self.label_appFirmwareCaption.setText(QCoreApplication.translate("MainWindow", u"Firmware", None))
+        self.radioButton_appCommit.setText(QCoreApplication.translate("MainWindow", u"From checked-out commit", None))
+        self.radioButton_appManual.setText(QCoreApplication.translate("MainWindow", u"Manual", None))
+        self.pushButton_appChooseJob.setText(QCoreApplication.translate("MainWindow", u"Choose Job", None))
+        self.label_appStatus.setText("")
+        self.checkBox_advancedDebug.setText(QCoreApplication.translate("MainWindow", u"Advanced Debug", None))
+        self.groupBox_bm.setTitle(QCoreApplication.translate("MainWindow", u"Boot Manager", None))
+        self.label_bmProjectCaption.setText(QCoreApplication.translate("MainWindow", u"Project", None))
+        self.label_bmRepositoryCaption.setText(QCoreApplication.translate("MainWindow", u"Repository", None))
+        self.lineEdit_bmRepo.setPlaceholderText(QCoreApplication.translate("MainWindow", u"Optional", None))
+        self.pushButton_bmBrowse.setText(QCoreApplication.translate("MainWindow", u"Browse", None))
+        self.label_bmBranchTagCaption.setText(QCoreApplication.translate("MainWindow", u"Branch/Tag", None))
+        self.label_bmBranch.setText(QCoreApplication.translate("MainWindow", u"-", None))
+        self.pushButton_bmCheckout.setText(QCoreApplication.translate("MainWindow", u"Checkout", None))
+        self.label_bmCommitCaption.setText(QCoreApplication.translate("MainWindow", u"Commit", None))
+        self.label_bmCommit.setText(QCoreApplication.translate("MainWindow", u"-", None))
+        self.pushButton_bmReload.setText(QCoreApplication.translate("MainWindow", u"Reload", None))
+#if QT_CONFIG(tooltip)
+        self.pushButton_bmReload.setToolTip(QCoreApplication.translate("MainWindow", u"Read the repository again: branch, commit and local changes", None))
+#endif // QT_CONFIG(tooltip)
+        self.label_bmBuildCaption.setText(QCoreApplication.translate("MainWindow", u"Build", None))
+        self.label_bmBuild.setText(QCoreApplication.translate("MainWindow", u"-", None))
+        self.label_bmFirmwareCaption.setText(QCoreApplication.translate("MainWindow", u"Firmware", None))
+        self.radioButton_bmCommit.setText(QCoreApplication.translate("MainWindow", u"From checked-out commit", None))
+        self.radioButton_bmManual.setText(QCoreApplication.translate("MainWindow", u"Manual", None))
+        self.pushButton_bmChooseJob.setText(QCoreApplication.translate("MainWindow", u"Choose Job", None))
+        self.label_bmStatus.setText("")
+        self.groupBox_fbl.setTitle(QCoreApplication.translate("MainWindow", u"Flash Bootloader", None))
+        self.label_fblProjectCaption.setText(QCoreApplication.translate("MainWindow", u"Project", None))
+        self.label_fblRepositoryCaption.setText(QCoreApplication.translate("MainWindow", u"Repository", None))
+        self.lineEdit_fblRepo.setPlaceholderText(QCoreApplication.translate("MainWindow", u"Optional", None))
+        self.pushButton_fblBrowse.setText(QCoreApplication.translate("MainWindow", u"Browse", None))
+        self.label_fblBranchTagCaption.setText(QCoreApplication.translate("MainWindow", u"Branch/Tag", None))
+        self.label_fblBranch.setText(QCoreApplication.translate("MainWindow", u"-", None))
+        self.pushButton_fblCheckout.setText(QCoreApplication.translate("MainWindow", u"Checkout", None))
+        self.label_fblCommitCaption.setText(QCoreApplication.translate("MainWindow", u"Commit", None))
+        self.label_fblCommit.setText(QCoreApplication.translate("MainWindow", u"-", None))
+        self.pushButton_fblReload.setText(QCoreApplication.translate("MainWindow", u"Reload", None))
+#if QT_CONFIG(tooltip)
+        self.pushButton_fblReload.setToolTip(QCoreApplication.translate("MainWindow", u"Read the repository again: branch, commit and local changes", None))
+#endif // QT_CONFIG(tooltip)
+        self.label_fblBuildCaption.setText(QCoreApplication.translate("MainWindow", u"Build", None))
+        self.label_fblBuild.setText(QCoreApplication.translate("MainWindow", u"-", None))
+        self.label_fblFirmwareCaption.setText(QCoreApplication.translate("MainWindow", u"Firmware", None))
+        self.radioButton_fblCommit.setText(QCoreApplication.translate("MainWindow", u"From checked-out commit", None))
+        self.radioButton_fblManual.setText(QCoreApplication.translate("MainWindow", u"Manual", None))
+        self.pushButton_fblChooseJob.setText(QCoreApplication.translate("MainWindow", u"Choose Job", None))
+        self.label_fblStatus.setText("")
+        self.tabWidget_main.setTabText(self.tabWidget_main.indexOf(self.tab_gitlab), QCoreApplication.translate("MainWindow", u"GitLab", None))
+        self.groupBox_profile.setTitle(QCoreApplication.translate("MainWindow", u"Profile", None))
         self.label_profile.setText(QCoreApplication.translate("MainWindow", u"Profile", None))
         self.pushButton_reloadProfiles.setText(QCoreApplication.translate("MainWindow", u"Reload", None))
-        self.label_sourceRepo.setText(QCoreApplication.translate("MainWindow", u"Source repo", None))
-        self.lineEdit_sourceRepo.setPlaceholderText(QCoreApplication.translate("MainWindow", u"Folder of your source repo", None))
-        self.pushButton_browseRepo.setText(QCoreApplication.translate("MainWindow", u"Browse", None))
-#if QT_CONFIG(tooltip)
-        self.pushButton_reloadRepo.setToolTip(QCoreApplication.translate("MainWindow", u"Read the source repo again: branch, commit and local changes", None))
-#endif // QT_CONFIG(tooltip)
-        self.pushButton_reloadRepo.setText(QCoreApplication.translate("MainWindow", u"Reload", None))
-        self.label_repoSummary.setText(QCoreApplication.translate("MainWindow", u"Branch: - \u00b7 Commit: -", None))
-        self.pushButton_checkout.setText(QCoreApplication.translate("MainWindow", u"Checkout\u2026", None))
-        self.label_repoAutoHint.setText(QCoreApplication.translate("MainWindow", u"WFlash also reads the repo again each time you come back to its window.", None))
+        self.label_profilesDir.setText(QCoreApplication.translate("MainWindow", u"Profiles folder", None))
+        self.pushButton_browseProfilesDir.setText(QCoreApplication.translate("MainWindow", u"Browse\u2026", None))
+        self.label_downloadDir.setText(QCoreApplication.translate("MainWindow", u"Download folder", None))
+        self.pushButton_browseDownloadDir.setText(QCoreApplication.translate("MainWindow", u"Browse\u2026", None))
+        self.label_settingError.setText("")
+        self.groupBox_gitlab.setTitle(QCoreApplication.translate("MainWindow", u"GitLab connection", None))
+        self.label_gitlabUrl.setText(QCoreApplication.translate("MainWindow", u"GitLab URL", None))
+        self.lineEdit_gitlabUrl.setPlaceholderText(QCoreApplication.translate("MainWindow", u"https://gitlab.example.com/group", None))
+        self.label_token.setText(QCoreApplication.translate("MainWindow", u"Access token", None))
+        self.lineEdit_token.setPlaceholderText(QCoreApplication.translate("MainWindow", u"Personal Access Token (scope read_api)", None))
         self.groupBox_winidea.setTitle(QCoreApplication.translate("MainWindow", u"winIDEA", None))
         self.label_instance.setText(QCoreApplication.translate("MainWindow", u"Instance", None))
         self.pushButton_refreshInstances.setText(QCoreApplication.translate("MainWindow", u"Refresh", None))
-        self.groupBox_afterFlash.setTitle(QCoreApplication.translate("MainWindow", u"After flash", None))
+        self.label_afterFlash.setText(QCoreApplication.translate("MainWindow", u"After flash", None))
         self.checkBox_reset.setText(QCoreApplication.translate("MainWindow", u"Reset target", None))
         self.checkBox_run.setText(QCoreApplication.translate("MainWindow", u"Run after reset", None))
+        self.checkBox_verifyFlash.setText(QCoreApplication.translate("MainWindow", u"Verify samples", None))
 #if QT_CONFIG(tooltip)
         self.checkBox_verifyFlash.setToolTip(QCoreApplication.translate("MainWindow", u"Read samples of the flash back and compare them with the files. Adds about 3 minutes.", None))
 #endif // QT_CONFIG(tooltip)
-        self.checkBox_verifyFlash.setText(QCoreApplication.translate("MainWindow", u"Verify samples", None))
-        self.label_verifyHint.setText(QCoreApplication.translate("MainWindow", u"Verify samples reads parts of the flash back and compares them with the files. Adds about 3 minutes.", None))
-        self.pushButton_preferences.setText(QCoreApplication.translate("MainWindow", u"Preferences\u2026", None))
         self.tabWidget_main.setTabText(self.tabWidget_main.indexOf(self.tab_setting), QCoreApplication.translate("MainWindow", u"Setting", None))
         self.pushButton_copyLog.setText(QCoreApplication.translate("MainWindow", u"Copy", None))
         self.pushButton_clearLog.setText(QCoreApplication.translate("MainWindow", u"Clear", None))
         self.pushButton_exportBundle.setText(QCoreApplication.translate("MainWindow", u"Export debug bundle\u2026", None))
         self.tabWidget_output.setTabText(self.tabWidget_output.indexOf(self.tab_information), QCoreApplication.translate("MainWindow", u"Information", None))
+        self.menu_file.setTitle(QCoreApplication.translate("MainWindow", u"&File", None))
+        self.menu_view.setTitle(QCoreApplication.translate("MainWindow", u"&View", None))
+        self.menu_tools.setTitle(QCoreApplication.translate("MainWindow", u"&Tools", None))
+        self.menu_help.setTitle(QCoreApplication.translate("MainWindow", u"&Help", None))
     # retranslateUi
 

@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WFlash User Guide</title>
+<style>
+:root {
+  --ground: #f2f6f6; --surface: #ffffff; --text: #1a1a1a; --muted: #5a6472; --line: #d7dde5;
+  --primary: #0f6b63; --accent: #1f9488; --tint: #e7f3f1; --chip: #e3eceb;
+  --ok: #2c6e47; --warn-bg: #fff4dc; --warn-line: #d9a441; --warn-text: #6b4a00;
+  --err-bg: #fdecea; --err-line: #e6a5a0; --err-text: #8f1d17; --shadow: rgba(15, 40, 40, 0.18);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ground: #1b2124; --surface: #232a2d; --text: #e6ecec; --muted: #9aa6ad; --line: #3a464a;
+    --primary: #6fd3c6; --accent: #2bb3a3; --tint: #22383a; --chip: #2c3a3c;
+    --ok: #7fd3a0; --warn-bg: #3a3220; --warn-line: #8a6d2a; --warn-text: #f0d48a;
+    --err-bg: #3a2322; --err-line: #7a3b37; --err-text: #f2a8a2; --shadow: rgba(0, 0, 0, 0.45);
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--ground); color: var(--text);
+  font: 15px/1.6 "Segoe UI", system-ui, -apple-system, sans-serif; }
+.page { max-width: 980px; margin: 0 auto; padding: 32px 20px 64px; }
+header.top { display: flex; align-items: center; gap: 16px; margin-bottom: 8px; }
+header.top svg { flex: none; }
+h1 { margin: 0; font-size: 28px; color: var(--primary); }
+.lead { color: var(--muted); margin: 4px 0 28px; }
+nav.toc { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 18px; margin-bottom: 32px; }
+nav.toc ol { margin: 6px 0 0; padding-left: 22px; columns: 2; column-gap: 32px; }
+nav.toc a { color: var(--primary); text-decoration: none; }
+nav.toc a:hover { text-decoration: underline; }
+section { margin: 40px 0; }
+h2 { font-size: 21px; color: var(--primary); border-bottom: 2px solid var(--accent); padding-bottom: 6px; margin: 0 0 16px; }
+h3 { font-size: 16px; margin: 22px 0 8px; }
+ol.steps { counter-reset: step; list-style: none; padding: 0; margin: 0; }
+ol.steps > li { counter-increment: step; position: relative; padding: 2px 0 12px 44px; }
+ol.steps > li::before { content: counter(step); position: absolute; left: 0; top: 0; width: 30px; height: 30px;
+  border-radius: 15px; background: var(--accent); color: #ffffff; font-weight: 600; display: flex;
+  align-items: center; justify-content: center; font-size: 14px; }
+.ui { font-weight: 600; white-space: nowrap; }
+kbd { font: 12px Consolas, Menlo, monospace; background: var(--chip); border: 1px solid var(--line);
+  border-bottom-width: 2px; border-radius: 4px; padding: 1px 6px; }
+code { font: 13px Consolas, Menlo, monospace; background: var(--chip); border-radius: 4px; padding: 1px 5px; }
+.note { border-radius: 8px; padding: 10px 14px; margin: 14px 0; border: 1px solid; }
+.note.tip { background: var(--tint); border-color: var(--accent); }
+.note.warn { background: var(--warn-bg); border-color: var(--warn-line); color: var(--warn-text); }
+table { border-collapse: collapse; width: 100%; margin: 10px 0; background: var(--surface); border-radius: 8px; overflow: hidden; }
+th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { background: var(--tint); color: var(--primary); font-size: 13px; }
+
+/* ---- illustrations: drawn in HTML, not screenshots ---- */
+figure { margin: 18px 0 24px; }
+figcaption { color: var(--muted); font-size: 13px; margin-top: 8px; text-align: center; }
+.win { background: var(--ground); border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
+  box-shadow: 0 6px 18px var(--shadow); font-size: 12.5px; }
+.menubar { display: flex; gap: 2px; padding: 3px 8px; background: var(--surface); border-bottom: 1px solid var(--line); position: relative; }
+.menubar span { padding: 2px 10px; border-radius: 4px; }
+.menubar span.on { background: var(--tint); color: var(--primary); }
+.dropdown { position: absolute; top: 27px; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 6px; box-shadow: 0 6px 16px var(--shadow); padding: 4px 0; min-width: 240px; z-index: 2; }
+.dropdown div { display: flex; justify-content: space-between; gap: 24px; padding: 4px 12px; }
+.dropdown .sep { height: 1px; background: var(--line); padding: 0; margin: 4px 0; }
+.dropdown .k { color: var(--muted); font-size: 11.5px; }
+.head { display: flex; gap: 10px; padding: 10px; align-items: center; }
+.flashbtn { width: 76px; height: 56px; border-radius: 10px; background: var(--primary); color: #ffffff;
+  display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px; flex: none; }
+.flashbtn.off { background: #c9d3d2; }
+.flashbtn.cancel { background: #c0392b; }
+.bar { flex: 1; height: 16px; border-radius: 8px; background: var(--chip); overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--accent); }
+.tabs { display: flex; gap: 4px; padding: 0 10px; }
+.tabs span { padding: 5px 16px; border: 1px solid var(--line); border-bottom: none; border-radius: 8px 8px 0 0;
+  background: var(--chip); color: var(--muted); }
+.tabs span.on { background: var(--surface); color: var(--primary); font-weight: 600; border-top: 2px solid var(--accent); }
+.pane { background: var(--surface); border: 1px solid var(--line); margin: 0 10px 10px; border-radius: 0 8px 8px 8px; padding: 12px; }
+.grp { border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px 10px; margin-bottom: 10px; }
+.grp b.t { display: block; color: var(--primary); margin-bottom: 6px; }
+.row { display: grid; grid-template-columns: 120px 1fr auto; gap: 6px 8px; align-items: center; margin: 4px 0; }
+.row.wide { grid-template-columns: 120px 1fr; }
+.fld { border: 1px solid var(--line); border-radius: 6px; padding: 3px 8px; background: var(--surface);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.btn { border: 1px solid var(--line); border-radius: 6px; padding: 3px 10px; background: var(--surface); white-space: nowrap; }
+.btn.dim { color: var(--muted); opacity: 0.6; }
+.mut { color: var(--muted); }
+.okt { color: var(--ok); }
+.mono { font-family: Consolas, Menlo, monospace; }
+.radio { display: inline-flex; align-items: center; gap: 5px; margin-right: 14px; }
+.radio i { width: 12px; height: 12px; border-radius: 6px; border: 2px solid var(--muted); display: inline-block; }
+.radio i.on { border-color: var(--accent); background: radial-gradient(var(--accent) 45%, transparent 50%); }
+.switch { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; color: var(--primary); margin: 4px 0 10px; }
+.switch i { width: 34px; height: 18px; border-radius: 9px; background: var(--accent); position: relative; }
+.switch i::after { content: ""; position: absolute; top: 2px; left: 18px; width: 14px; height: 14px; border-radius: 7px; background: #ffffff; }
+.split { display: grid; grid-template-columns: 300px 1fr; gap: 10px; }
+.card { background: var(--tint); border-radius: 8px; padding: 10px 12px; }
+.kv { display: grid; grid-template-columns: 60px 1fr; gap: 1px 8px; padding-left: 8px; font-size: 12px; margin-bottom: 8px; }
+.pill { font-size: 10.5px; padding: 0 6px; border-radius: 8px; background: var(--surface); color: var(--primary); margin-left: 6px; }
+.tbl { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; margin-bottom: 8px; }
+.tbl b { display: block; padding: 5px 10px; color: var(--primary); }
+.tbl div { display: grid; grid-template-columns: 26px 56px 1fr 66px; gap: 6px; padding: 4px 10px; border-top: 1px solid var(--line); font-size: 12px; }
+.tag { background: var(--chip); border-radius: 4px; padding: 0 5px; font-size: 11px; justify-self: start; }
+.call { display: inline-flex; width: 20px; height: 20px; border-radius: 10px; background: #e67e22; color: #ffffff;
+  font-size: 12px; font-weight: 700; align-items: center; justify-content: center; margin-left: 4px; flex: none; }
+.legend { display: grid; grid-template-columns: 28px 1fr; gap: 4px 6px; font-size: 13.5px; margin-top: 10px; }
+.legend .call { margin: 2px 0 0; }
+@media (max-width: 720px) {
+  nav.toc ol { columns: 1; }
+  .split { grid-template-columns: 1fr; }
+  .row { grid-template-columns: 90px 1fr auto; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+<header class="top">
+  <svg width="56" height="56" viewBox="0 0 256 256" aria-hidden="true">
+    <rect width="256" height="256" rx="56" fill="#0f5346"/>
+    <rect x="68" y="68" width="120" height="120" rx="20" fill="#4f9484"/>
+    <g stroke="#cfe9e2" stroke-width="12" stroke-linecap="round">
+      <line x1="92" y1="68" x2="92" y2="44"/><line x1="164" y1="68" x2="164" y2="44"/>
+      <line x1="92" y1="188" x2="92" y2="212"/><line x1="164" y1="188" x2="164" y2="212"/>
+      <line x1="68" y1="92" x2="44" y2="92"/><line x1="68" y1="164" x2="44" y2="164"/>
+      <line x1="188" y1="92" x2="212" y2="92"/><line x1="188" y1="164" x2="212" y2="164"/>
+    </g>
+  </svg>
+  <div>
+    <h1>WFlash User Guide</h1>
+  </div>
+</header>
+<p class="lead">WFlash takes firmware built by GitLab CI and flashes it into the external QSPI flash of the SAF85xx ECU through winIDEA. It only changes the file paths in your winIDEA workspace, and puts them back if anything fails.</p>
+
+<nav class="toc" aria-label="Contents">
+  <strong>Contents</strong>
+  <ol>
+    <li><a href="#before">Before you start</a></li>
+    <li><a href="#window">The window at a glance</a></li>
+    <li><a href="#setup">First-time setup</a></li>
+    <li><a href="#firmware">Choose the firmware</a></li>
+    <li><a href="#flash">Flash the ECU</a></li>
+    <li><a href="#problems">When something goes wrong</a></li>
+    <li><a href="#report">Report a problem</a></li>
+    <li><a href="#keys">Menus and shortcuts</a></li>
+  </ol>
+</nav>
+
+<section id="before">
+  <h2>1. Before you start</h2>
+  <ol class="steps">
+    <li><strong>winIDEA 9.21</strong> is running with your ECU workspace (<code>.xjrf</code>) open, and flashing by hand with <span class="ui">Debug → Download</span> works.</li>
+    <li>The ECU is powered and the debug probe is connected.</li>
+    <li>The <strong>CAL file</strong> (<code>*_CAL_T008_*.sre</code>) is in the same folder as the workspace <code>.xjrf</code>.</li>
+    <li>You have a <strong>GitLab Personal Access Token</strong> with the <code>read_api</code> scope (GitLab → Preferences → Access Tokens).</li>
+    <li>For debugging: your <strong>App</strong> source repository is cloned on this PC. Boot Manager and Flash Bootloader repositories are optional.</li>
+  </ol>
+</section>
+
+<section id="window">
+  <h2>2. The window at a glance</h2>
+  <figure>
+    <div class="win" role="img" aria-label="WFlash main window with menu bar, Flash button, progress bar and three tabs">
+      <div class="menubar"><span>File</span><span>View</span><span>Tools</span><span>Help</span><span class="call">1</span></div>
+      <div class="head">
+        <div class="flashbtn">Flash</div><span class="call">2</span>
+        <div style="flex:1">
+          <div style="display:flex;gap:8px;align-items:center"><div class="bar"><i style="width:0%"></i></div><span class="mut">ETA: -- | Speed: --</span></div>
+          <div style="margin-top:6px;font-weight:600">Step: Idle</div>
+        </div>
+      </div>
+      <div class="tabs"><span class="on">Flash</span><span>GitLab</span><span>Setting</span><span class="call">3</span></div>
+      <div class="pane">
+        <div class="split">
+          <div class="card"><b style="color:var(--primary)">Firmware to flash</b><div class="mut" style="margin-top:6px">App, Boot Manager, Flash Bootloader…</div></div>
+          <div class="tbl"><b>Program Files</b><div><span>1</span><span class="tag">FFI</span><span class="mono">RAD_SUZ05_FFI.s3</span><span class="mono">0x0</span></div></div>
+        </div>
+      </div>
+      <div class="pane" style="border-radius:8px"><b style="color:var(--primary)">Information</b> <span class="call">4</span><div class="mono mut" style="margin-top:4px">12:30:52 INFO Cores before programming: M7_0 STOP, …</div></div>
+    </div>
+    <figcaption>The main window</figcaption>
+  </figure>
+  <div class="legend">
+    <span class="call">1</span><span><strong>Menu bar</strong>: debug bundle, folders, dark mode, tools, this guide.</span>
+    <span class="call">2</span><span><strong>Flash button and progress</strong>: also shows downloads and checkouts.</span>
+    <span class="call">3</span><span><strong>Tabs</strong>: <span class="ui">Flash</span> (daily work), <span class="ui">GitLab</span> (where the firmware comes from), <span class="ui">Setting</span>.</span>
+    <span class="call">4</span><span><strong>Information</strong>: what WFlash is doing, warnings and errors.</span>
+  </div>
+</section>
+
+<section id="setup">
+  <h2>3. First-time setup</h2>
+  <p>Open the <span class="ui">Setting</span> tab. WFlash saves every change at once and restores it next time.</p>
+  <figure>
+    <div class="win" role="img" aria-label="Setting tab with Profile, GitLab connection and winIDEA groups">
+      <div class="tabs" style="padding-top:8px"><span>Flash</span><span>GitLab</span><span class="on">Setting</span></div>
+      <div class="pane">
+        <div class="grp"><b class="t">Profile</b>
+          <div class="row"><span>Profile</span><span class="fld">SUZ05</span><span class="btn">Reload</span></div>
+          <div class="row"><span>Download folder</span><span class="fld mut">Default: %LOCALAPPDATA%\WFlash\cache</span><span class="btn">Browse…</span></div>
+        </div>
+        <div class="grp"><b class="t">GitLab connection</b>
+          <div class="row wide"><span>GitLab URL</span><span class="fld">https://gitlab.hella.com/alm/…/e-ad_radar_cust_suz05_group</span></div>
+          <div class="row wide"><span>Access token</span><span class="fld">••••••••••••••••</span></div>
+        </div>
+        <div class="grp" style="margin-bottom:0"><b class="t">winIDEA</b>
+          <div class="row"><span>Instance</span><span class="fld">SUZ_7G5_M7.xjrf (5315)</span><span class="btn">Refresh</span></div>
+          <div class="row wide"><span>After flash</span><span>☑ Reset target &nbsp; ☐ Run after reset &nbsp; ☐ Verify samples</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption>Setting tab</figcaption>
+  </figure>
+  <ol class="steps">
+    <li>Select your <span class="ui">Profile</span> (for example <strong>SUZ05</strong>). The GitLab URL and the projects are filled in from the profile.</li>
+    <li>Paste your <span class="ui">Access token</span>. It is stored in Windows Credential Manager, never in a file.</li>
+    <li>Choose <span class="ui">Tools → Test GitLab connection</span>. The Information panel should say the connection works.</li>
+    <li>Under <span class="ui">winIDEA</span>, pick your workspace in <span class="ui">Instance</span> (<span class="ui">Refresh</span> if winIDEA was started later).</li>
+    <li>Leave <span class="ui">Reset target</span> on. <span class="ui">Verify samples</span> reads parts of the flash back after programming; it adds about 3 minutes.</li>
+  </ol>
+</section>
+
+<section id="firmware">
+  <h2>4. Choose the firmware</h2>
+  <p>Open the <span class="ui">GitLab</span> tab. Each part (App, and with Advanced Debug, Boot Manager and Flash Bootloader) has the same panel.</p>
+  <figure>
+    <div class="win" role="img" aria-label="GitLab tab with the App panel and the Advanced Debug switch">
+      <div class="tabs" style="padding-top:8px"><span>Flash</span><span class="on">GitLab</span><span>Setting</span></div>
+      <div class="pane">
+        <div class="grp"><b class="t">App</b>
+          <div class="row"><span>Project</span><span class="fld">SUZ05_APP_Application_Software-Impl</span><span></span></div>
+          <div class="row"><span>Repository</span><span class="fld">C:\Data\git\SUZ05_APP_Application_Software-Impl</span><span class="btn">Browse</span></div>
+          <div class="row"><span>Branch/Tag</span><strong>Release_DD_05_03_01</strong><span class="btn">Checkout</span></div>
+          <div class="row"><span>Commit</span><span><b class="mono">8ebd595d</b> <span class="mut">· No local changes.</span></span><span class="btn">Reload</span></div>
+          <div class="row"><span>Build</span><span class="fld" style="max-width:240px">stingray_3p5mb_no_HTSM ▾</span><span></span></div>
+          <div class="row"><span>Firmware</span><span><span class="radio"><i class="on"></i>From checked-out commit</span><span class="radio"><i></i>Manual</span></span><span class="btn dim">Choose Job</span></div>
+          <div class="row wide"><span></span><span class="okt">FFI: create_ffi_stingray_3p5mb_no_HTSM · Release_DD_05_03_01 · 8ebd595d · Cached</span></div>
+        </div>
+        <span class="switch"><i></i>Advanced Debug</span>
+      </div>
+    </div>
+    <figcaption>GitLab tab: the App panel</figcaption>
+  </figure>
+  <ol class="steps">
+    <li><span class="ui">Browse</span> to your App repository. WFlash shows its branch and commit, and warns if files have local changes.</li>
+    <li>Pick the <span class="ui">Build</span> (configuration) you want to debug.</li>
+    <li>Choose how the firmware is selected:
+      <ul>
+        <li><span class="ui">From checked-out commit</span>: WFlash loads the CI artifact of the commit your repository is on, by itself. If that commit's pipeline is still running, it waits and loads it when the job finishes.</li>
+        <li><span class="ui">Manual</span>: press <span class="ui">Choose Job</span>, pick a branch and a successful job, then download it.</li>
+      </ul>
+    </li>
+    <li>To debug another commit, press <span class="ui">Checkout</span>, type part of a branch name to filter, pick a commit and confirm. WFlash refuses while your repository has local changes; it never stashes or discards your work.</li>
+    <li>To flash Boot Manager and Flash Bootloader too, turn on <span class="ui">Advanced Debug</span> and set their panels the same way. Their repositories are optional: without one, use <span class="ui">Manual</span>.</li>
+  </ol>
+  <div class="note tip"><strong>Tip.</strong> The status line under each panel tells you where the firmware came from: <code>Cached</code> means it was already in the download folder, <code>Downloaded</code> means it was just fetched from GitLab.</div>
+</section>
+
+<section id="flash">
+  <h2>5. Flash the ECU</h2>
+  <figure>
+    <div class="win" role="img" aria-label="Flash tab during programming, with the Cancel button and a progress bar">
+      <div class="head">
+        <div class="flashbtn cancel">Cancel</div>
+        <div style="flex:1">
+          <div style="display:flex;gap:8px;align-items:center"><div class="bar"><i style="width:62%"></i></div><span class="mut">ETA: 0:38</span></div>
+          <div style="margin-top:6px;font-weight:600">Step: Downloading to external flash (estimated) — 62%</div>
+        </div>
+      </div>
+      <div class="tabs"><span class="on">Flash</span><span>GitLab</span><span>Setting</span></div>
+      <div class="pane">
+        <div class="split">
+          <div class="card"><b style="color:var(--primary)">Firmware to flash</b>
+            <div style="margin-top:6px"><b>App</b><span class="pill">From commit</span></div>
+            <div class="kv"><span class="mut">Build</span><span>stingray_3p5mb_no_HTSM</span><span class="mut">Branch</span><span>Release_DD_05_03_01</span><span class="mut">Commit</span><span class="mono">8ebd595d</span><span class="mut">Status</span><span>Cached</span></div>
+            <span class="mut">Advanced Debug: off</span>
+          </div>
+          <div>
+            <div class="tbl"><b>Program Files</b>
+              <div><span>1</span><span class="tag">FFI</span><span class="mono">out\FFI\RAD_SUZ05_FFI.s3</span><span class="mono">0x0</span></div>
+              <div><span>2</span><span class="tag">CAL</span><span class="mono">20260623_…_CAL_T008_v0_0.sre</span><span class="mono">0x0</span></div>
+            </div>
+            <div class="tbl"><b>Symbol Files</b>
+              <div><span>1</span><span class="tag">ELF</span><span class="mono">out\bin\Radar_SUZ05_Gen7.elf</span><span></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <figcaption>Flash tab while programming</figcaption>
+  </figure>
+  <ol class="steps">
+    <li>Open the <span class="ui">Flash</span> tab and check <span class="ui">Firmware to flash</span>: the build, branch and commit of each part.</li>
+    <li>Check the two tables. A <strong>red row</strong> has no file yet; pick one from its list. <span class="ui">Flash</span> stays off until every row has a file.</li>
+    <li>Press <span class="ui">Flash</span>. WFlash connects to winIDEA, sets the file paths, checks the ECU cores and programs the flash (about 100 seconds).</li>
+    <li>When the step reads <strong>Done</strong>, power-cycle the ECU and check that it runs. If you are in another window, Windows shows a notification when the flash ends.</li>
+  </ol>
+  <div class="note warn"><strong>Cancel is locked while programming.</strong> Stopping in the middle of an erase could leave the ECU empty, so WFlash lets programming finish. Cancel works before that step, and the old workspace paths are put back.</div>
+</section>
+
+<section id="problems">
+  <h2>6. When something goes wrong</h2>
+  <table>
+    <thead><tr><th style="width:42%">What you see</th><th>What to do</th></tr></thead>
+    <tbody>
+      <tr><td><code>Cores not accessible … resetting again</code></td><td>Nothing: WFlash resets the ECU up to 10 times by itself. If it still fails, turn the ECU power off and on, then flash again.</td></tr>
+      <tr><td><code>Programming did not start … trying again</code></td><td>Nothing: winIDEA could not load its flash monitor, nothing was written. WFlash tries up to 3 times.</td></tr>
+      <tr><td><code>Flash failed: winIDEA could not start programming in 3 tries.</code></td><td>Turn the ECU power off and on, then flash again.</td></tr>
+      <tr><td><code>No CAL file was found next to the workspace</code></td><td>Copy the <code>*_CAL_T008_*.sre</code> file next to the <code>.xjrf</code>, then <span class="ui">Refresh</span> in Setting.</td></tr>
+      <tr><td><code>No pipeline for &lt;commit&gt;</code> or job <code>manual</code> / <code>skipped</code></td><td>Push the commit, or run the job in GitLab. WFlash waits for running jobs, not for jobs nobody started.</td></tr>
+      <tr><td>GitLab: token wrong or expired, missing scope, certificate error</td><td>Create a new token with <code>read_api</code>; for a certificate error, ask IT to install the company certificate in Windows.</td></tr>
+      <tr><td>Red banner <strong>ROLLBACK FAILED</strong></td><td>Check the Download Files and Symbol Files in winIDEA before flashing again.</td></tr>
+    </tbody>
+  </table>
+  <div class="note warn"><strong>Recover by hand.</strong> If the ECU does not start after a flash, select known good files in winIDEA and use <span class="ui">Debug → Download</span>. Turn off Boot Manager and Flash Bootloader rows if you are not sure about them.</div>
+</section>
+
+<section id="report">
+  <h2>7. Report a problem</h2>
+  <ol class="steps">
+    <li>Choose <span class="ui">File → Export debug bundle…</span> (<kbd>Ctrl</kbd>+<kbd>E</kbd>). It saves a zip with the log, the workspace paths before and after, and your flash history. Your token is masked.</li>
+    <li>Copy the winIDEA <span class="ui">Output</span> view of the failed flash.</li>
+    <li>Send both, with one line on what you expected.</li>
+  </ol>
+  <p><span class="ui">File → Open flash history</span> opens a CSV file (in Excel) with one line per flash: time, firmware of each part, resets, tries and result.</p>
+</section>
+
+<section id="keys">
+  <h2>8. Menus and shortcuts</h2>
+  <figure>
+    <div class="win" style="height:190px" role="img" aria-label="Tools menu opened">
+      <div class="menubar"><span>File</span><span>View</span><span class="on">Tools</span><span>Help</span>
+        <div class="dropdown" style="left:104px">
+          <div><span>Test GitLab connection</span><span></span></div>
+          <div><span>Check winIDEA cores</span><span></span></div>
+          <div class="sep"></div>
+          <div><span>Refresh winIDEA instances</span><span class="k">F5</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption>Tools menu</figcaption>
+  </figure>
+  <table>
+    <thead><tr><th style="width:42%">Menu</th><th>Items</th></tr></thead>
+    <tbody>
+      <tr><td><span class="ui">File</span></td><td>Export debug bundle… <kbd>Ctrl</kbd>+<kbd>E</kbd> · Open flash history · Open log folder · Open download folder · Exit <kbd>Ctrl</kbd>+<kbd>Q</kbd></td></tr>
+      <tr><td><span class="ui">View</span></td><td>Dark mode · Flash <kbd>Ctrl</kbd>+<kbd>1</kbd> · GitLab <kbd>Ctrl</kbd>+<kbd>2</kbd> · Setting <kbd>Ctrl</kbd>+<kbd>3</kbd></td></tr>
+      <tr><td><span class="ui">Tools</span></td><td>Test GitLab connection · Check winIDEA cores (read only: it never resets or writes) · Refresh winIDEA instances <kbd>F5</kbd></td></tr>
+      <tr><td><span class="ui">Help</span></td><td>User Guide <kbd>F1</kbd> · About WFlash</td></tr>
+    </tbody>
+  </table>
+</section>
+
+</div>
+</body>
+</html>

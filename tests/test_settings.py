@@ -140,3 +140,49 @@ def test_settings_saved_by_an_older_version_with_package_fields_still_load(tmp_p
     path = tmp_path / "s.json"
     path.write_text('{"gitlab_url": "https://gl", "package_project": "g/p", "package_name": "fw"}', encoding="utf-8")
     assert AppSettings.load(path).gitlab_url == "https://gl"
+
+
+def test_token_is_stored_under_the_host_and_found_for_any_group(monkeypatch):
+    store = {}
+    monkeypatch.setattr(keyring, "set_password", lambda s, u, p: store.__setitem__((s, u), p))
+    monkeypatch.setattr(keyring, "get_password", lambda s, u: store.get((s, u)))
+    st.set_token("https://gl.example.com/a/b/group", "glpat-2")
+    assert store == {(st.KEYRING_SERVICE, "https://gl.example.com"): "glpat-2"}
+    assert st.get_token("https://gl.example.com/other/group") == "glpat-2"
+
+
+def test_token_saved_by_an_older_version_under_the_full_url_is_still_found(monkeypatch):
+    store = {(st.KEYRING_SERVICE, "https://gl.example.com/"): "old"}
+    monkeypatch.setattr(keyring, "get_password", lambda s, u: store.get((s, u)))
+    assert st.get_token("https://gl.example.com/") == "old"
+
+
+def test_migrate_moves_the_old_suz05_profile_keys_once(tmp_path):
+    path = tmp_path / "s.json"
+    path.write_text(json.dumps({
+        "last_profile": "suz05.yaml",
+        "source_repos": {"suz05.yaml": "C:/src/app"},
+        "last_build": {"suz05.yaml": "stingray"},
+        "ci_project_overrides": {"suz05.yaml": "g/p", "suz05.yaml": "kept"},
+    }), encoding="utf-8")
+    s = AppSettings.load(path)
+    assert s.last_profile == "suz05.yaml"
+    assert s.source_repos["suz05.yaml"] == "C:/src/app"
+    assert s.last_build["suz05.yaml"] == "stingray"
+    assert s.ci_project_overrides["suz05.yaml"] == "kept"  # never overwritten
+    assert s.part_repos["suz05.yaml#app"] == "C:/src/app"
+
+
+def test_gitlab_url_for_prefers_the_typed_url_then_the_profile_then_the_old_setting():
+    s = AppSettings(gitlab_url="https://old")
+    assert s.gitlab_url_for("p.yaml", "https://profile/g") == "https://profile/g"
+    assert s.gitlab_url_for("p.yaml", None) == "https://old"
+    s.gitlab_urls["p.yaml"] = "https://typed/g"
+    assert s.gitlab_url_for("p.yaml", "https://profile/g") == "https://typed/g"
+
+
+def test_new_fields_round_trip(tmp_path):
+    path = tmp_path / "s.json"
+    AppSettings(part_modes={"suz05.yaml#bm": "manual"}, advanced_debug=True, last_tab=2, verify_samples=True).save(path)
+    s = AppSettings.load(path)
+    assert s.part_modes == {"suz05.yaml#bm": "manual"} and s.advanced_debug and s.last_tab == 2 and s.verify_samples
