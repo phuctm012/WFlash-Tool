@@ -586,7 +586,7 @@ python main.py --verbose
 
 Ở Vòng 11, bạn phải bấm Flash 4 lần. Ba lần đầu `begin_program` hỏng sau khoảng 7 giây (`Error loading monitor`), dù các core lúc đó đều bình thường. Giờ, trong cùng một lần bấm Flash, WFlash tự thử lại tối đa 3 lần: reset, kiểm tra core, rồi gọi `begin_program`. Mỗi lần bấm Flash vẫn chỉ có tối đa 10 lần reset, tính chung cho mọi lần thử. WFlash chỉ thử lại khi lần hỏng kết thúc nhanh (dưới 30 giây) và lần đọc kiểm tra báo `Error loading monitor`.
 
-Lấy branch `feat/program-retry` (`git fetch`, `git checkout feat/program-retry`), chạy `python -m pip install -e ".[dev]"` để có `truststore`, rồi `python main.py --verbose`.
+Lấy `main` mới (`git checkout main`, `git pull`), chạy `python -m pip install -e ".[dev]"` để có `truststore`, rồi `python main.py --verbose`.
 
 ⚠️ **Có ghi flash.**
 - **Bằng chứng:** mọi lần hỏng nhanh cho tới nay (34 lần ở Vòng 9, 3 lần ở Vòng 11) đều có `PROGRAMMING 0 bytes`, tức flash chưa bị xóa; thử lại cũng giống bạn bấm Flash lần nữa. Lần hỏng chậm (có thể đã xóa flash) thì không bao giờ được thử lại.
@@ -597,3 +597,5 @@ Lấy branch `feat/program-retry` (`git fetch`, `git checkout feat/program-retry
 2. Nếu có lần báo `Flash failed: winIDEA could not start programming in 3 tries.`: ghi lại, và chép Output winIDEA của lần đó.
 3. Sau mỗi lần Done: tắt bật nguồn, kiểm tra ECU chạy.
 4. Gửi debug bundle và Output winIDEA.
+
+Vòng 12 cũng kiểm tra icon mới (chip có chân ở bốn cạnh) trên thanh tiêu đề, taskbar và `WFlash.exe`, như Vòng 11 bước 7–8.

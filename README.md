@@ -102,4 +102,4 @@ Thứ tự trong workspace là FFI → CAL → BM → FBL; BM và FBL ghi đè l
 
     scripts\build_windows.bat
 
-Script chạy toàn bộ test, `-k thread`, stress test rồi PyInstaller. Kết quả: `dist\WFlash\WFlash.exe` (copy cả thư mục `dist\WFlash`; thư mục `wflash\resources` chứa theme và icon đã được gói kèm). `WFlash.exe` mang icon `wflash\resources\icons\wflash_probe_chip_teal.ico`; khi chạy, mọi cửa sổ dùng icon đó (bản `.svg` cho kích thước lớn).
+Script chạy toàn bộ test, `-k thread`, stress test rồi PyInstaller. Kết quả: `dist\WFlash\WFlash.exe` (copy cả thư mục `dist\WFlash`; thư mục `wflash\resources` chứa theme và icon đã được gói kèm). `WFlash.exe` mang icon `wflash\resources\icons\wflash_chip_teal.ico`; khi chạy, mọi cửa sổ dùng icon đó (bản `.svg` cho kích thước lớn).

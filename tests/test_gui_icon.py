@@ -35,7 +35,7 @@ def test_gui_missing_icon_files_only_warn(qapp, tmp_path, monkeypatch, caplog):
 
 def test_gui_exe_and_package_carry_the_icon():
     spec = (ROOT / "wflash.spec").read_text(encoding="utf-8")
-    assert 'icon="wflash/resources/icons/wflash_probe_chip_teal.ico"' in spec
+    assert 'icon="wflash/resources/icons/wflash_chip_teal.ico"' in spec
     assert '("wflash/resources", "wflash/resources")' in spec  # the icons ride along with the stylesheets
     assert '"resources/icons/*"' in (ROOT / "pyproject.toml").read_text(encoding="utf-8")
 

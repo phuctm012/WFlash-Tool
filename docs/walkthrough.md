@@ -1567,3 +1567,16 @@ Debug bundle Vòng 11 (`main`, 12:59) có 4 lần bấm Flash. Lần 1 và 2: sa
 ### Đã kiểm tra
 
 - Toàn bộ test, `-k thread`, stress test (kết quả ở commit). Chưa chạy trên ECU: chờ Vòng 12. Debug bundle cũng cho thấy `truststore` chưa được cài trên máy Windows (chưa chạy lại `pip install -e`).
+
+## Phase 3.22: Icon mới
+
+Người dùng gửi icon mới: chip màu teal có chân ở cả bốn cạnh, không còn mũi tên của bản cũ. Hai file `wflash_chip_teal.svg` và `.ico` (7 kích thước) thay cho `wflash_probe_chip_teal.*` trong `wflash/resources/icons/`. Cách nạp icon không đổi.
+
+### Thay đổi
+
+- **`wflash/resources/icons/wflash_chip_teal.svg`**, **`.ico`** (mới); xóa `wflash_probe_chip_teal.*`.
+- **`wflash/gui/style.py`** (`ICON_NAME`), **`wflash.spec`** (`icon=`), **`tests/test_gui_icon.py`**, **`README.md`**.
+
+### Đã kiểm tra
+
+- Toàn bộ test (có `test_gui_icon`: file có trong package, icon không rỗng ở 16 và 256 px), `-k thread`, stress test (kết quả ở commit merge). Chưa thấy icon trên Windows.
