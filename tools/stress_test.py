@@ -17,8 +17,11 @@ from __future__ import annotations
 import os
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+# The stress test flashes many times: keep its history out of the real flash_history.csv.
+os.environ["WFLASH_HISTORY_FILE"] = os.path.join(__import__("tempfile").mkdtemp(prefix="wflash_stress_"), "flash_history.csv")
 
 import argparse  # noqa: E402
+import csv  # noqa: E402
 import dataclasses  # noqa: E402
 import faulthandler  # noqa: E402
 import logging  # noqa: E402
@@ -38,7 +41,8 @@ if str(REPO) not in sys.path:
 
 faulthandler.enable()  # a hard crash still prints every thread's Python stack
 
-from PySide6.QtCore import QtMsgType, qInstallMessageHandler  # noqa: E402
+from PySide6.QtCore import QEvent, QtMsgType, qInstallMessageHandler  # noqa: E402
+from PySide6.QtGui import QDesktopServices  # noqa: E402
 from PySide6.QtWidgets import QApplication, QMessageBox  # noqa: E402
 
 from tests.gui_stubs import (  # noqa: E402
@@ -61,7 +65,8 @@ from wflash.core.flash_plan import ProgramRow, SymbolRow  # noqa: E402
 from wflash.core.flash_workflow import Step  # noqa: E402
 from wflash.core.logging_setup import close_file_handler, get_logger, setup_logging  # noqa: E402
 from wflash.core.settings import AppSettings  # noqa: E402
-from wflash.gui import gitlab_dialog, workers  # noqa: E402
+from wflash.core.gitlab_url import split_gitlab_url  # noqa: E402
+from wflash.gui import gitlab_dialog, main_window, part_controller, workers  # noqa: E402
 from wflash.gui.main_window import MainWindow  # noqa: E402
 from wflash.gui.style import apply_theme  # noqa: E402
 from wflash.gui.theme import THEMES, current_theme_name  # noqa: E402
@@ -85,10 +90,13 @@ THREADING_PATTERNS = (
     "another thread",
     "outside the GUI thread",
 )
+POLL_S = part_controller.POLL_S
 CANCEL_DELAYS_S = (0.0, 0.005, 0.02, 0.06, 0.15, 0.4)
 NEW_APP_SUFFIX = "App.s3"
 DEV_CAL = "20260623_142557_2018688_CAL_T008_v0_0.sre"
 DEV_BM, DEV_FBL = "FBL_M7_LIP_RfeClock_Image.bin", "Radar_SUZ05_Gen7_FBL.bin"
+DEV_FFI_JOB = "create_ffi_stingray_3p5mb_no_HTSM"
+DEV_URL = f"{GITLAB_URL}/group"  # with a group: the short BM and FBL project names are joined to it
 
 
 def suz05_rows():
@@ -149,7 +157,17 @@ class Stress:
         self.questions: list[str] = []
         self.answer = QMessageBox.StandardButton.Yes
         self._window_count = 0
-        self.keyring: dict[str, str] = {}
+        self.keyring: dict[str, str] = {GITLAB_URL: TOKEN}
+        self.opened: list[str] = []  # files and folders the menus asked the desktop to open
+
+    def get_token(self, url: str) -> str | None:
+        """Fake keyring lookup like the real one: by host, then by the full URL."""
+        if not url:
+            return None
+        return self.keyring.get(split_gitlab_url(url)[0]) or self.keyring.get(url.rstrip("/"))
+
+    def set_token(self, url: str, token: str) -> None:
+        self.keyring[split_gitlab_url(url)[0] or url] = token
 
     # -- infrastructure ---------------------------------------------------------------
     def check(self, condition: bool, label: str) -> bool:
@@ -177,7 +195,13 @@ class Stress:
             time.sleep(0.002)
         return True
 
+    def flush_closed_windows(self) -> None:
+        """processEvents() never runs deleteLater(): free the windows closed so far, which nothing uses
+        any more, or their widgets pile up and every later theme switch restyles all of them."""
+        QApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+
     def new_window(self, adapter, session: FakeGitLabSession | None = None, download_s: int | None = None):
+        self.flush_closed_windows()
         self._window_count += 1
         folder = self.workdir / f"window{self._window_count}"
         profiles = write_profiles(folder / "profiles", download_s)
@@ -284,7 +308,7 @@ class Stress:
             encoding="utf-8",
         )
         window.reload_profiles()
-        window.ui.comboBox_profile.setCurrentIndex(window.ui.comboBox_profile.findText("two"))
+        window.ui.comboBox_profile.setCurrentIndex(window.ui.comboBox_profile.findText("Two"))
         for source_id in ("ffi", "m7"):
             window.source_load_button(source_id).click()
             window._gitlab_dialog.firmwareReady.emit(self.artifact(f"two_{source_id}"), SOURCE)
@@ -309,63 +333,72 @@ class Stress:
         return folder
 
     def new_dev_window(self, label: str, session: FakeGitLabSession | None = None, read_repo: bool = True):
+        """SUZ05 with the GitLab URL of a group; the App repository typed in the GitLab tab."""
+        self.flush_closed_windows()
         self._window_count += 1
         folder = self.workdir / f"dev{self._window_count}"
         profiles = folder / "profiles"
         profiles.mkdir(parents=True)
         text = (REPO / "profiles" / "suz05.yaml").read_text(encoding="utf-8")
-        project = text.split("project: ", 1)[1].split("\n", 1)[0]
-        (profiles / "suz05.yaml").write_text(text.replace(project, PROJECT, 1), encoding="utf-8")
+        text = text.replace("project: SUZ05_APP_Application_Software-Impl", f"project: {PROJECT}", 1)
+        (profiles / "suz05.yaml").write_text(text, encoding="utf-8")
         workspace = folder / "ws"
         workspace.mkdir()
         (workspace / DEV_CAL).write_text("S0")
         adapter = FakeWinIDEAAdapter(download_seconds=0.2, rows=suz05_rows(), workspace=str(workspace / "SUZ_7G5_M7.xjrf"))
-        settings = AppSettings(gitlab_url=GITLAB_URL, profiles_dir=str(profiles), cache_dir=str(folder / "cache"))
+        settings = AppSettings(profiles_dir=str(profiles), cache_dir=str(folder / "cache"), last_profile="suz05.yaml",
+                               gitlab_urls={"suz05.yaml": DEV_URL}, last_build={"suz05.yaml": "stingray_3p5mb_no_HTSM"})
         window = MainWindow(settings, adapter, client_factory=SessionClientFactory(session or FakeGitLabSession()),
                             log_file=self.log_file, settings_path=folder / "settings.json")
         window.resize(1280, 820)
         window.show()
         self.check(self.pump_until(lambda: window.ui.comboBox_instance.count() == 1, 5.0), f"{label}: instance listed")
-        self.check(window.developer_mode(), f"{label}: developer panel for a profile with builds")
-        window.ui.comboBox_build.setCurrentText("stingray_3p5mb_no_HTSM")
-        window.ui.lineEdit_sourceRepo.setText(str(self.make_repo(folder / "src")))
+        self.check(window.developer_mode(), f"{label}: GitLab tab for a profile with builds")
+        app = window.parts["app"]
+        app.w_repo.setText(str(self.make_repo(folder / "src")))
         if read_repo:
-            window._on_repo_edited()
-            self.check(self.pump_until(lambda: window.ui.label_repoBranch.text() == "Branch: main", 5.0),
-                       f"{label}: repo read")
+            app._on_repo_edited()
+            self.check(self.pump_until(lambda: app.repo_state is not None, 5.0), f"{label}: App repo read")
+            self.check(window.ui.label_appBranch.text() == "main", f"{label}: App branch shown")
         return window, adapter
 
-    def deliver_debug(self, window, role: str, job: str) -> None:
-        name = DEV_BM if role == "bm" else DEV_FBL
+    def wait_part(self, part, roles, timeout_s: float = 8.0) -> bool:
+        return self.pump_until(lambda: set(roles) <= set(part.loaded) and not part.loading(), timeout_s)
+
+    def deliver_manual(self, window, part: str, role: str, job: str) -> None:
+        """What Choose Job delivers once its popup has downloaded the artifact."""
+        name = {"bm": DEV_BM, "fbl": DEV_FBL}[role]
         root = self.workdir / f"debug_{role}_{self._window_count}_{job}"
         (root / "out" / "bin").mkdir(parents=True, exist_ok=True)
         (root / "out" / "bin" / name).write_bytes(b"B")
         (root / "out" / "bin" / f"Radar_SUZ05_Gen7_{role.upper()}.elf").write_bytes(b"E")
-        window._loading_source = f"debug:{role}"
+        (root / ".complete").write_text("x")
+        window._loading_source = f"part:{part}:{role}"
         window.on_firmware_ready(root, dataclasses.replace(SOURCE, job_name=job, commit="41c7a0de"))
 
     def check_developer_flow(self, label: str) -> None:
-        """Repo -> build loaded by commit -> Advanced Debug off/on -> two flashes: BM unticked, then ticked."""
+        """App by commit -> Advanced Debug off/on -> BM by its commit, FBL manual -> two flashes."""
         window, adapter = self.new_dev_window(label)
-        # Reload and coming back to the window, hammered: one repo read at a time, no crash.
-        for n in range(6):
-            window.ui.pushButton_reloadRepo.click() if n % 2 else window.refresh_source_repo_on_activate()
-            reads = [k for k in window._workers.running_keys() if k.startswith("source-repo")]
-            self.check(len(reads) <= 1, f"{label}: one repo read at a time, got {reads}")
-        self.check(self.pump_until(lambda: not window._workers.has_running("source-repo"), 5.0),
-                   f"{label}: repeated repo reads settled")
-        self.check(window.ui.label_repoSummary.text().startswith("Branch: main"), f"{label}: Setting tab shows the repo")
-        window.load_build_firmware()
-        window.load_build_firmware()  # double click: one load
-        loads = [k for k in window._workers.running_keys() if k.startswith("source-load")]
-        self.check(len(loads) <= 1, f"{label}: double Load runs one worker, got {loads}")
-        self.check(self.pump_until(lambda: window.ui.label_loadStatus.text().startswith("FFI:"), 8.0),
-                   f"{label}: build loaded")
+        app = window.parts["app"]
+        self.check(self.wait_part(app, ("ffi", "elf")), f"{label}: App loaded from its commit")
+        # Reload and coming back to the window, hammered: one read and one load at a time.
+        downloads = window._client_factory.session.count("/artifacts")
+        for n in range(8):
+            app.reload() if n % 2 else window.refresh_source_repo_on_activate()
+            reads = [k for k in window._workers.running_keys() if k.startswith("part-repo-app")]
+            loads = [k for k in window._workers.running_keys() if k.startswith("part-load-app")]
+            self.check(len(reads) <= 1 and len(loads) <= 1, f"{label}: one read/load at a time, got {reads + loads}")
+        self.check(self.pump_until(lambda: not app.busy(), 5.0), f"{label}: repeated reloads settled")
+        self.check(window._client_factory.session.count("/artifacts") == downloads,
+                   f"{label}: the same commit is not downloaded again")
+        self.check(app.status_text().startswith("FFI: create_ffi_stingray_3p5mb_no_HTSM · main · "),
+                   f"{label}: status line {app.status_text()!r}")
         for _ in range(3):
             window.ui.checkBox_advancedDebug.toggle()
             self.pump(0.01)
         self.check(window.advanced_debug(), f"{label}: Advanced Debug on after three toggles")
         window.ui.checkBox_advancedDebug.setChecked(False)
+        self.check([r.role for r in window.mapping_rows()] == ["ffi", "cal", "elf"], f"{label}: no BM/FBL rows when off")
         self.check(self.pump_until(window.ui.pushButton_flash.isEnabled, 3.0), f"{label}: Flash enabled without BM/FBL")
         window.start_flash()
         self.check(self.wait_step(window, Step.DONE.value, 10.0), f"{label}: flash (Advanced Debug off) reached Done")
@@ -375,9 +408,15 @@ class Stress:
         self.check("main" in rows["RAD_SUZ05_FFI.s3"].path, f"{label}: FFI path in the branch folder")
 
         window.ui.checkBox_advancedDebug.setChecked(True)
-        self.deliver_debug(window, "bm", "build_STINGRAY_3P5MB")
-        self.deliver_debug(window, "fbl", "build")
-        self.check(window.flash_block_reason() == "", f"{label}: nothing blocks with the right BM job")
+        bm = window.parts["bm"]
+        bm.w_repo.setText(str(self.make_repo(self.workdir / f"dev{self._window_count}" / "bm")))
+        bm._on_repo_edited()
+        self.check(self.pump_until(lambda: bm.repo_state is not None, 5.0), f"{label}: BM repo read")
+        window.ui.radioButton_bmCommit.setChecked(True)
+        self.check(self.wait_part(bm, ("bm",)), f"{label}: BM loaded from its commit")
+        window.ui.radioButton_fblManual.setChecked(True)
+        self.deliver_manual(window, "fbl", "fbl", "build")
+        self.check(window.flash_block_reason() == "", f"{label}: nothing blocks: {window.flash_block_reason()!r}")
         self.check(self.pump_until(window.ui.pushButton_flash.isEnabled, 3.0), f"{label}: Flash enabled with BM/FBL")
         window.start_flash()
         self.check(self.wait_step(window, Step.DONE.value, 10.0), f"{label}: flash (Advanced Debug on) reached Done")
@@ -387,11 +426,41 @@ class Stress:
         self.check(rows[DEV_FBL].path.endswith(DEV_FBL) and "old/" not in rows[DEV_FBL].path, f"{label}: FBL path set")
         symbols = [r for r in adapter.symbol_rows if r.name.endswith("_BM.elf")]
         self.check(symbols and symbols[0].enabled and "old/" not in symbols[0].path, f"{label}: BM ELF ticked and set")
+        with open(os.environ["WFLASH_HISTORY_FILE"], encoding="utf-8-sig", newline="") as fh:
+            last = list(csv.DictReader(fh))[-1]
+        self.check(last["result"] == "Done" and last["advanced_debug"] == "on"
+                   and last["fbl_mode"] == "Manual" and last["bm_mode"] == "From commit",
+                   f"{label}: flash history line {last}")
         self.check(self.dialogs == [], f"{label}: no error dialog: {self.dialogs}")
         self.close_window(window, label)
 
+    def check_pipeline_wait(self, label: str) -> None:
+        """A running pipeline is polled; it finishes during a flash, the load waits; then a close mid-wait."""
+        part_controller.POLL_S = 0.05  # every 30 s in the app
+        session = FakeGitLabSession()
+        session.job_status[DEV_FFI_JOB] = "running"
+        window, _adapter = self.new_dev_window(label, session)
+        app = window.parts["app"]
+        self.check(self.pump_until(app.waiting, 5.0), f"{label}: waiting for the pipeline")
+        self.check("is running" in app.status_text(), f"{label}: status says running: {app.status_text()!r}")
+        session.job_status.clear()
+        self.check(self.wait_part(app, ("ffi", "elf"), 8.0), f"{label}: loaded once the pipeline finished")
+        self.check(not app.waiting(), f"{label}: no longer waiting")
+        # Waiting again, then the window closes mid-wait and mid-poll.
+        session.job_status[DEV_FFI_JOB] = "pending"
+        repo = Path(app.w_repo.text())
+        (repo / "b.c").write_text("2")
+        subprocess.run(["git", "-C", str(repo), "add", "."], check=True, capture_output=True)
+        subprocess.run(["git", "-C", str(repo), "commit", "-q", "-m", "second"], check=True, capture_output=True)
+        app.refresh_repo()
+        self.check(self.pump_until(app.waiting, 5.0), f"{label}: waiting for the new commit's pipeline")
+        self.close_window(window, f"{label}: closed while waiting", max_s=3.0)
+        self.check(not app.waiting(), f"{label}: wait timer stopped by close")
+        part_controller.POLL_S = POLL_S
+
     def section_flash(self) -> None:
         self.check_developer_flow("flash[developer]")
+        self.check_pipeline_wait("flash[pipeline-wait]")
         self.check_locked_flash("flash[locked]")
         self.check_two_sources("flash[two-sources]")
         for i in range(self.iterations):
@@ -649,12 +718,22 @@ class Stress:
 
         # Developer flow: closed while a build loads, and while the repo is being read.
         window, _adapter = self.new_dev_window("races[dev-load]", FakeGitLabSession(delay_s=0.4))
-        window.load_build_firmware()
-        self.check(window.source_busy(), "races: build load in flight before close")
-        self.close_window(window, "races: closed during build load", max_s=3.0)
+        self.check(self.pump_until(window.parts["app"].loading, 3.0), "races: App load in flight before close")
+        self.check(window.source_busy(), "races: source busy during the App load")
+        self.close_window(window, "races: closed during App load", max_s=3.0)
         window, _adapter = self.new_dev_window("races[dev-repo]", read_repo=False)
-        window._on_repo_edited()
+        window.parts["app"]._on_repo_edited()
         self.close_window(window, "races: closed during repo read", max_s=3.0)
+        # Manual chosen while the commit load runs: the load is dropped, never overwrites the choice.
+        window, _adapter = self.new_dev_window("races[dev-mode]", FakeGitLabSession(delay_s=0.3))
+        app = window.parts["app"]
+        self.check(self.pump_until(app.loading, 3.0), "races: App load in flight before Manual")
+        window.ui.radioButton_appManual.setChecked(True)
+        self.pump(0.8)
+        self.check(not app.loaded and not app.loading(), "races: Manual dropped the running commit load")
+        window.ui.radioButton_appCommit.setChecked(True)
+        self.check(self.wait_part(app, ("ffi", "elf")), "races: back to the commit, it loads")
+        self.close_window(window, "races[dev-mode]")
 
     def section_theme(self) -> None:
         app = QApplication.instance()
@@ -667,7 +746,7 @@ class Stress:
         for dark in (True, False, True):
             t0 = time.monotonic()
             window.apply_dark_mode(dark)
-            log.info("Theme switch took %.2f s (%d top-level widgets)", time.monotonic() - t0, len(app.topLevelWidgets()))
+            print(f"   theme switch took {time.monotonic() - t0:.2f} s ({len(app.topLevelWidgets())} top-level widgets)", flush=True)
             name = "dark" if dark else "light"
             self.check(current_theme_name() == name and THEMES[name]["primary"] in app.styleSheet(),
                        f"theme: switched to {name} while flashing")
@@ -683,6 +762,74 @@ class Stress:
         self.check(self.dialogs == [], f"theme: no error dialogs: {self.dialogs}")
         self.close_window(window, "theme")
         apply_theme(app, False)
+
+    def section_menu(self) -> None:
+        """Every menu action, hammered; Tools refused while flashing; a close with a Tools worker running."""
+        session = FakeGitLabSession()
+        adapter = FakeWinIDEAAdapter(download_seconds=1.0)
+        window = self.new_window(adapter, session)
+        ui = window.ui
+        self.dialogs.clear()
+        self.opened.clear()
+        for action in (ui.action_openLogFolder, ui.action_openDownloadFolder, ui.action_userGuide):
+            action.trigger()
+        self.check(len(self.opened) == 3 and all(Path(path).exists() for path in self.opened),
+                   f"menu: log folder, download folder and user guide opened: {self.opened}")
+        self.check(self.opened[-1].endswith("user_guide.html"), "menu: User Guide is the bundled HTML")
+        ui.action_about.trigger()
+        self.check(len(self.dialogs) == 1 and "WFlash v" in self.dialogs[0][1], "menu: About shows the version")
+        self.dialogs.clear()
+        for action, tab in ((ui.action_tabSetting, ui.tab_setting), (ui.action_tabFlash, ui.tab_flash)):
+            action.trigger()
+            self.check(ui.tabWidget_main.currentWidget() is tab, f"menu: {action.text()} shows its tab")
+        ui.action_tabGitlab.trigger()  # hidden for a profile without builds: stays on Flash
+        self.check(ui.tabWidget_main.currentWidget() is ui.tab_flash, "menu: hidden GitLab tab not shown")
+        for _ in range(4):
+            ui.action_darkMode.trigger()
+            self.pump(0.01)
+        self.check(current_theme_name() == "light" and not window.settings.dark_mode, "menu: dark mode toggled back")
+
+        requests = session.count(f"/projects/{PROJECT}")
+        for _ in range(4):
+            ui.action_testGitlab.trigger()
+            ui.action_checkCores.trigger()
+        running = [k for k in window._workers.running_keys() if k.startswith("tools-")]
+        self.check(len(running) <= 1, f"menu: one Tools worker at a time, got {running}")
+        self.check(self.pump_until(lambda: not window.tools_busy(), 5.0), "menu: Tools settled")
+        self.check(session.count(f"/projects/{PROJECT}") == requests + 1, "menu: one Test GitLab request")
+        ui.action_checkCores.trigger()
+        self.check(self.pump_until(lambda: not window.tools_busy(), 5.0), "menu: Check winIDEA cores settled")
+        self.check("core_states" in adapter.calls and adapter.connected_to is None,
+                   "menu: cores read, then disconnected")
+        self.check(not any(c in adapter.calls for c in ("download", "set_program_path")), "menu: Check cores is read only")
+        session.fail_status = 401
+        ui.action_testGitlab.trigger()
+        self.check(self.pump_until(lambda: not window.tools_busy(), 5.0), "menu: failed Test GitLab settled")
+        session.fail_status = None
+        self.check(self.dialogs == [], f"menu: Tools failures go to the log, no dialog: {self.dialogs}")
+
+        window.on_firmware_ready(self.artifact("menu"), SOURCE)
+        window.start_flash()
+        self.check(self.wait_step(window, Step.DOWNLOAD.value, 5.0), "menu: flash downloading")
+        cores_before = adapter.calls.count("core_states")
+        ui.action_testGitlab.trigger()
+        ui.action_checkCores.trigger()
+        ui.action_refreshInstances.trigger()
+        self.check(not window.tools_busy(), "menu: Tools refused while flashing")
+        self.check(not ui.action_checkCores.isEnabled(), "menu: Check cores disabled while flashing")
+        self.check(self.wait_step(window, Step.DONE.value, 10.0), "menu: flash reached Done")
+        self.check(self.wait_flash_idle(window), "menu: flash worker released")
+        self.check(adapter.calls.count("core_states") >= cores_before, "menu: no stray cores read")
+        ui.action_openHistory.trigger()
+        self.check(self.opened[-1] == os.environ["WFLASH_HISTORY_FILE"], "menu: flash history opened")
+        self.close_window(window, "menu")
+
+        # Closed while a Tools request is in flight.
+        window = self.new_window(FakeWinIDEAAdapter(), FakeGitLabSession(delay_s=0.4))
+        window.ui.action_testGitlab.trigger()
+        self.check(window.tools_busy(), "menu: Test GitLab in flight before close")
+        self.close_window(window, "menu: closed during Test GitLab", max_s=3.0)
+        self.check(self.dialogs == [], f"menu: no dialogs: {self.dialogs}")
 
     def section_secrets(self) -> None:
         window = self.new_window(FakeWinIDEAAdapter(download_seconds=0.1))
@@ -700,9 +847,12 @@ class Stress:
         file_text = self.log_file.read_text(encoding="utf-8")
         self.check(TOKEN not in file_text, "secrets: token absent from the log file")
         self.check("token in a message: ***" in file_text, "secrets: log file has the masked line")
+        self.keyring.clear()
+        window.ui.tabWidget_main.setCurrentWidget(window.ui.tab_setting)
+        window.ui.lineEdit_token.setText(TOKEN)
+        window.ui.lineEdit_token.editingFinished.emit()  # to the (fake) keyring, never to the settings
         dialog = self.open_dialog(window)
-        dialog.ui.lineEdit_token.setText(TOKEN)
-        dialog.load_refs()  # the typed token goes to the (fake) keyring, never to the settings
+        dialog.load_refs()
         self.pump_until(lambda: not dialog.busy(), 5.0)
         dialog._note(logging.INFO, f"PRIVATE-TOKEN: {TOKEN}")
         self.check(TOKEN not in dialog.ui.plainTextEdit_gitlabLog.toPlainText(), "secrets: token absent from the GitLab log")
@@ -710,7 +860,7 @@ class Stress:
         settings_file = self.workdir / f"window{self._window_count}" / "settings.json"
         self.check(settings_file.is_file() and TOKEN not in settings_file.read_text(encoding="utf-8"),
                    "secrets: token absent from settings.json")
-        self.check(self.keyring.get(GITLAB_URL) == TOKEN, "secrets: token stored in the keyring")
+        self.check(self.get_token(GITLAB_URL) == TOKEN, "secrets: token stored in the keyring")
         bundle = window.export_bundle(self.workdir / "bundle")
         with zipfile.ZipFile(bundle) as zf:
             contents = {name: zf.read(name).decode("utf-8", "replace") for name in zf.namelist()}
@@ -721,12 +871,13 @@ class Stress:
 
 
 SECTIONS = {
-    "flash": ("developer flow by commit + Advanced Debug; full fetch->map->flash, cancel mid-download, resize + log filter", Stress.section_flash),
+    "flash": ("GitLab tab parts by commit/manual + Advanced Debug, pipeline wait; full fetch->map->flash, cancel mid-download, resize + log filter", Stress.section_flash),
     "rollback": ("every failure branch; workspace paths restored, failed rollback shown", Stress.section_rollback),
     "gitlab": ("dialog: CI artifact, 401/403/404/connection, double-click, Stop, close mid-fetch",
                Stress.section_gitlab),
-    "races": ("cancel at 0..400 ms, double Flash/Cancel, close mid-download / mid-fetch / build load / repo read", Stress.section_races),
+    "races": ("cancel at 0..400 ms, double Flash/Cancel, close mid-download / mid-fetch / App load / repo read, Manual mid-load", Stress.section_races),
     "theme": ("light/dark switched while flashing and with the dialog open", Stress.section_theme),
+    "menu": ("every menu action, Tools one at a time and refused while flashing, close mid-request", Stress.section_menu),
     "secrets": ("a realistic PAT through panel, log file and debug bundle", Stress.section_secrets),
 }
 
@@ -784,9 +935,12 @@ def main(argv: list[str] | None = None) -> int:
     QMessageBox.warning = staticmethod(critical)
     QMessageBox.information = staticmethod(lambda *a, **k: QMessageBox.StandardButton.Ok)
     QMessageBox.question = staticmethod(question)
-    # The GitLab dialog reads/writes the token through these; keep the real keyring out of it.
-    gitlab_dialog.get_token = stress.keyring.get
-    gitlab_dialog.set_token = stress.keyring.__setitem__
+    QMessageBox.about = staticmethod(lambda parent, title, text: stress.dialogs.append((title, text)))
+    # Keep the real keyring and the desktop (Finder, browser) out of the run.
+    gitlab_dialog.get_token = stress.get_token
+    main_window.get_token = stress.get_token
+    main_window.set_token = stress.set_token
+    QDesktopServices.openUrl = staticmethod(lambda url: stress.opened.append(url.toLocalFile()) or True)
 
     selected = args.section or list(SECTIONS)
     started = time.monotonic()

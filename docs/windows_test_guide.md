@@ -599,3 +599,29 @@ Lấy `main` mới (`git checkout main`, `git pull`), chạy `python -m pip inst
 4. Gửi debug bundle và Output winIDEA.
 
 Vòng 12 cũng kiểm tra icon mới (chip có chân ở bốn cạnh) trên thanh tiêu đề, taskbar và `WFlash.exe`, như Vòng 11 bước 7–8.
+
+## Vòng 13: tab GitLab, tab Setting mới, thanh menu
+
+Giao diện thay đổi nhiều; phần flash không đổi so với Vòng 12. Lấy branch `feat/gitlab-tab`:
+
+```bat
+git fetch
+git checkout feat/gitlab-tab
+python -m pip install -e ".[dev]"
+python main.py
+```
+
+1. **Lần mở đầu.** Profile cũ `suz05_m7_ffi.yaml` giờ tên là **SUZ05** (`profiles/suz05.yaml`); app tự chuyển cài đặt. Tab **Setting**: GitLab URL đã có group (`…/e-ad_radar_cust_suz05_group`), Access token hiện sẵn (token cũ vẫn đọc được). Không còn nút Preferences, ô Verify TLS, Verbose. **Tools → Test GitLab connection**: log có `GitLab connection works: project …`.
+2. **Tab GitLab, App.** Chọn Repository là repo APP (hoặc thấy repo cũ đã được chuyển sang). Firmware để **From checked-out commit**: app tự tìm pipeline và tải FFI + ELF; dòng trạng thái `FFI: <job> · <branch> · <commit> · Downloaded`; thanh Flash hiện tiến trình tải. Tab Flash: khung **Firmware to flash** có App, From commit, Build, Branch, Commit, Status.
+3. **Chờ pipeline.** Commit một thay đổi nhỏ và push lên GitLab, rồi quay lại WFlash trong lúc pipeline còn chạy: trạng thái `Waiting for pipeline: … is running`. Chuyển sang cửa sổ khác. Khi job xong (app hỏi lại mỗi 30 giây): có thông báo **Firmware ready** ở góc màn hình và nút WFlash trên taskbar nháy. (Nếu không muốn push, bỏ qua bước này.)
+4. **Manual.** Chọn **Manual** cho App → **Choose Job** → FFI (.s3)… → chọn job → tải. Khung Firmware to flash ghi Manual. Đóng rồi mở lại WFlash: vẫn Manual, vẫn job đó (lấy từ cache).
+5. **Advanced Debug.** Bật: hiện Boot Manager và Flash Bootloader. Repository của chúng để trống thì chỉ dùng được Manual (ô hiện "Optional"). Chọn job cho cả hai bằng Choose Job. Tắt Advanced Debug: hai phần ẩn, bảng file chỉ còn FFI, CAL, ELF.
+6. **Tools → Check winIDEA cores.** Chỉ đọc: kết nối, đọc trạng thái core, ngắt; **không** reset, không ghi gì. Mong đợi: log có `winIDEA cores: M7_0 …, A53 …`. Đây là lần đầu `core_states()` chạy riêng (nó dùng lại hàm đọc core đã chạy ở Vòng 10–12).
+7. **(FLASH)** Flash một lần với App From commit, Advanced Debug tắt. Trong lúc chờ, chuyển sang cửa sổ khác.
+   - **Bằng chứng an toàn:** phần flash (`flash_workflow`, `download()`, kiểm tra core, thử lại) không đổi so với Vòng 12; chỉ giao diện và nơi lấy firmware đổi. File đặt vào workspace vẫn là FFI/ELF của đúng commit, như Vòng 9.
+   - **Rủi ro:** như Vòng 12.
+   - **Khôi phục:** Debug → Download bấm tay; tắt bật nguồn ECU nếu cần.
+   - Mong đợi: Done; có thông báo **Flash done** và taskbar nháy (chỉ khi cửa sổ WFlash không được chọn).
+8. **Lịch sử flash.** **File → Open flash history**: mở `flash_history.csv` (Excel). Dòng mới nhất có profile SUZ05, app (job · commit), app_mode From commit, resets, tries, program_s, result Done.
+9. **Menu.** View → Dark mode; Ctrl+1/2/3 đổi tab; F5 làm mới instance; F1 mở User Guide trong trình duyệt; Help → About hiện version `isystem.connect` (version winIDEA chỉ có sau lần flash đầu trong phiên).
+10. Gửi ảnh ba tab (sáng và tối), ảnh khung Firmware to flash, file `flash_history.csv` và debug bundle (File → Export debug bundle, Ctrl+E).
