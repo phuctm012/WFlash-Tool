@@ -78,6 +78,9 @@ def main(argv: list[str] | None = None) -> int:
     log = get_logger("main")
     log.info("WFlash %s starting (adapter=%s, log=%s)", __version__, args.adapter, log_file)
     install_excepthooks()
+    from wflash.core.system_certs import use_system_certificates
+
+    use_system_certificates()  # before any GitLab request
     app = QApplication.instance() or QApplication(sys.argv[:1])
     app.setApplicationName("WFlash")
     from wflash.gui.style import apply_theme

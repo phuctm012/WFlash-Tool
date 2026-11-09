@@ -150,6 +150,7 @@ class FlashMixin:
             self.ui.checkBox_verifyFlash,
             self.ui.pushButton_exportBundle,
             self.ui.frame_developer,
+            self.ui.frame_sourceRepoSetting,
         ):
             widget.setEnabled(not flashing)
         self.ui.pushButton_loadFromGitlab.setEnabled(not flashing and self.profile is not None)

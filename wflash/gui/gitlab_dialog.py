@@ -25,12 +25,11 @@ import dataclasses
 import datetime
 import logging
 from functools import partial
-from pathlib import Path
 from typing import Callable
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFontDatabase
-from PySide6.QtWidgets import QDialog, QFileDialog, QHeaderView, QPushButton, QTableWidgetItem
+from PySide6.QtWidgets import QDialog, QHeaderView, QPushButton, QTableWidgetItem
 
 from wflash.core.artifact_cache import ArtifactCache, NamedArtifactCache, build_cache_path, debug_cache_path
 from wflash.core.errors import CancelledError, GitLabError
@@ -68,9 +67,8 @@ def default_client_factory(settings: AppSettings) -> GitLabClient:
             "GitLab URL or token is not configured",
             hint="Open Load from GitLab… and enter the GitLab URL and a Personal Access Token (scope read_api).",
         )
-    return GitLabClient(
-        settings.gitlab_url, token, ca_bundle=settings.ca_bundle or None, verify=settings.verify_tls
-    )
+    # Certificates come from the system store (wflash.core.system_certs); no CA bundle file.
+    return GitLabClient(settings.gitlab_url, token, verify=settings.verify_tls)
 
 
 def warn_tls_disabled_once(url: str) -> None:
@@ -80,7 +78,7 @@ def warn_tls_disabled_once(url: str) -> None:
     _tls_warning_logged = True
     log.warning(
         "TLS certificate verification is OFF for %s. Use this only on a trusted network; "
-        "if GitLab uses an internal certificate, set its CA bundle instead.",
+        "if GitLab uses an internal certificate, ask IT to install it in the Windows certificate store instead.",
         url,
     )
 
@@ -132,8 +130,6 @@ class GitlabDialog(QDialog):
         self.ui.tableWidget_jobs.cellDoubleClicked.connect(self._on_job_double_clicked)
         self.ui.pushButton_stopDownload.clicked.connect(self.stop)
         self.ui.pushButton_cancel.clicked.connect(self.reject)
-        self.ui.pushButton_browseCa.clicked.connect(self._browse_ca)
-        self.ui.checkBox_verifyTls.toggled.connect(self._on_verify_toggled)
         self.ui.lineEdit_ciProject.textChanged.connect(self._update_ci_project_label)
         self.ui.lineEdit_ciProject.editingFinished.connect(self._store_ci_project)
         self._update_controls()
@@ -160,8 +156,6 @@ class GitlabDialog(QDialog):
         self._token_saved_for = (settings.gitlab_url, token)
         self.ui.lineEdit_token.setText(token)
         self.ui.checkBox_verifyTls.setChecked(settings.verify_tls)
-        self.ui.lineEdit_caBundle.setText(settings.ca_bundle)
-        self._on_verify_toggled(settings.verify_tls)
         key = self._profile_key_now()
         if key != self._profile_key:
             # Another profile: its project and jobs are different, start the CI tab afresh.
@@ -247,11 +241,6 @@ class GitlabDialog(QDialog):
             profile is not None and (not text or text == profile.gitlab.project)
         )
 
-    def _on_verify_toggled(self, checked: bool) -> None:
-        # The CA bundle only matters while certificates are verified.
-        self.ui.lineEdit_caBundle.setEnabled(checked)
-        self.ui.pushButton_browseCa.setEnabled(checked)
-
     # -- status, log --------------------------------------------------------------------
     def _note(self, level: int, text: str) -> None:
         log.log(level, "%s", text)
@@ -304,7 +293,6 @@ class GitlabDialog(QDialog):
         url = self.ui.lineEdit_gitlabUrl.text().strip().rstrip("/")
         if not url or url.startswith(("http://", "https://")):
             settings.gitlab_url = url
-        settings.ca_bundle = self.ui.lineEdit_caBundle.text().strip()
         settings.verify_tls = self.ui.checkBox_verifyTls.isChecked()
         if self._source_label is None:  # a source's job name must not leak into the other source
             settings.ci_job_name = self._job_name()
@@ -316,10 +304,6 @@ class GitlabDialog(QDialog):
         url = self.ui.lineEdit_gitlabUrl.text().strip().rstrip("/")
         if not url.startswith(("http://", "https://")):
             self._fail_input("Enter the GitLab URL (https://…) first.")
-            return False
-        ca = self.ui.lineEdit_caBundle.text().strip()
-        if self.ui.checkBox_verifyTls.isChecked() and ca and not Path(ca).is_file():
-            self._fail_input(f"CA bundle file not found: {ca}")
             return False
         self._store_fields()
         token = self.ui.lineEdit_token.text().strip()
@@ -336,13 +320,6 @@ class GitlabDialog(QDialog):
         if not self._host.settings.verify_tls:
             warn_tls_disabled_once(url)
         return True
-
-    def _browse_ca(self) -> None:
-        path, _ = QFileDialog.getOpenFileName(
-            self, "Select CA bundle", self.ui.lineEdit_caBundle.text(), "Certificates (*.pem *.crt *.cer);;All files (*)"
-        )
-        if path:
-            self.ui.lineEdit_caBundle.setText(path)
 
     # -- workers --------------------------------------------------------------------------
     def _snapshot(self) -> AppSettings:

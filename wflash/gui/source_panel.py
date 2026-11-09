@@ -49,6 +49,7 @@ class SourcePanelMixin:
         self._load_key: str | None = None
         ui = self.ui
         ui.pushButton_browseRepo.clicked.connect(self._browse_repo)
+        ui.pushButton_reloadRepo.clicked.connect(self.refresh_source_repo)
         ui.lineEdit_sourceRepo.editingFinished.connect(self._on_repo_edited)
         ui.pushButton_loadBuild.clicked.connect(self.load_build_firmware)
         ui.comboBox_build.currentIndexChanged.connect(self._on_build_changed)
@@ -65,6 +66,7 @@ class SourcePanelMixin:
         self._checkout_dialog.checkedOut.connect(self.refresh_source_repo)
         ui.pushButton_checkout.clicked.connect(self.open_checkout_dialog)
         ui.frame_developer.setVisible(False)
+        ui.frame_sourceRepoSetting.setVisible(False)
 
     # -- state ------------------------------------------------------------------------
     def developer_mode(self) -> bool:
@@ -110,10 +112,8 @@ class SourcePanelMixin:
         dev = self.developer_mode()
         ui = self.ui
         ui.frame_developer.setVisible(dev)
-        ui.label_firmwareSource.setVisible(not dev)
-        ui.frame_sourceCard.setVisible(not dev)
-        if dev:
-            ui.pushButton_loadFromGitlab.setVisible(False)
+        ui.frame_sourceRepoSetting.setVisible(dev)
+        ui.frame_gitlabSource.setVisible(not dev)
         self._role_rows, self._role_sources, self._cal_row = {}, {}, None
         self.repo_state = None
         ui.label_loadStatus.clear()
@@ -150,6 +150,11 @@ class SourcePanelMixin:
         self._save_settings()
         self.refresh_source_repo()
 
+    def refresh_source_repo_on_activate(self) -> None:
+        """The window got the focus back: the developer may have committed or switched branch meanwhile."""
+        if self.developer_mode() and not self.flash_active() and not self._closing:
+            self.refresh_source_repo()
+
     def refresh_source_repo(self, *_args) -> None:
         path = self.ui.lineEdit_sourceRepo.text().strip()
         if not self.developer_mode() or not path or self._workers.is_running(self._repo_key):
@@ -172,7 +177,9 @@ class SourcePanelMixin:
         if self._closing:
             return
         self._show_repo_state(None)
-        self.ui.label_repoChanges.setText(f"{exc} {getattr(exc, 'hint', '')}".strip())
+        text = f"{exc} {getattr(exc, 'hint', '')}".strip()
+        self.ui.label_repoChanges.setText(text)
+        self.ui.label_repoSummary.setText(text)
 
     def _show_repo_state(self, state: RepoState | None) -> None:
         self.repo_state = state
@@ -181,6 +188,7 @@ class SourcePanelMixin:
             ui.label_repoBranch.setText("Branch: -")
             ui.label_repoCommit.setText("Commit: -")
             ui.label_repoChanges.clear()
+            ui.label_repoSummary.setText("Branch: - · Commit: -")
             ui.pushButton_loadBuild.setText("Load firmware for this commit")
         else:
             ui.label_repoBranch.setText(f"Branch: {state.branch or '(detached)'}")
@@ -202,6 +210,10 @@ class SourcePanelMixin:
         if loaded and state.commit not in loaded and not any(state.commit.startswith(c) for c in loaded):
             notes.append("Loaded firmware is from another commit.")
         self.ui.label_repoChanges.setText(" ".join(notes))
+        changes = "No local changes." if not state.dirty else f"{len(state.changes)} file(s) with local changes."
+        self.ui.label_repoSummary.setText(
+            f"Branch: {state.branch or '(detached)'} · Commit: {state.commit[:SHORT]} · {changes}"
+        )
 
     def open_checkout_dialog(self, *_args) -> None:
         path = self.ui.lineEdit_sourceRepo.text().strip()

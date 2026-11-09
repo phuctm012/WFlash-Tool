@@ -347,6 +347,14 @@ class Stress:
     def check_developer_flow(self, label: str) -> None:
         """Repo -> build loaded by commit -> Advanced Debug off/on -> two flashes: BM unticked, then ticked."""
         window, adapter = self.new_dev_window(label)
+        # Reload and coming back to the window, hammered: one repo read at a time, no crash.
+        for n in range(6):
+            window.ui.pushButton_reloadRepo.click() if n % 2 else window.refresh_source_repo_on_activate()
+            reads = [k for k in window._workers.running_keys() if k.startswith("source-repo")]
+            self.check(len(reads) <= 1, f"{label}: one repo read at a time, got {reads}")
+        self.check(self.pump_until(lambda: not window._workers.has_running("source-repo"), 5.0),
+                   f"{label}: repeated repo reads settled")
+        self.check(window.ui.label_repoSummary.text().startswith("Branch: main"), f"{label}: Setting tab shows the repo")
         window.load_build_firmware()
         window.load_build_firmware()  # double click: one load
         loads = [k for k in window._workers.running_keys() if k.startswith("source-load")]
@@ -418,12 +426,13 @@ class Stress:
 
             adapter.download_seconds = 1.0
             window.start_flash()
-            levels = window.ui.comboBox_logLevel
+            tabs = window.ui.tabWidget_main
             for n, size in enumerate(((800, 600), (1600, 1000), (1024, 700), (1280, 820))):
                 window.resize(*size)
-                levels.setCurrentIndex(n % levels.count())
+                tabs.setCurrentIndex(n % tabs.count())  # Flash and Setting tabs while flashing
                 self.pump(0.05)
-            self.check(self.wait_step(window, Step.DONE.value, 10.0), f"{label}: flash with resize/filter reached Done")
+            tabs.setCurrentIndex(0)
+            self.check(self.wait_step(window, Step.DONE.value, 10.0), f"{label}: flash with resize/tab switch reached Done")
             self.check(self.wait_flash_idle(window), f"{label}: third worker released")
             self.check(self.dialogs == [], f"{label}: no error dialog in the happy paths: {self.dialogs}")
             self.close_window(window, label)
@@ -677,7 +686,6 @@ class Stress:
 
     def section_secrets(self) -> None:
         window = self.new_window(FakeWinIDEAAdapter(download_seconds=0.1))
-        window.ui.comboBox_logLevel.setCurrentIndex(0)  # DEBUG: show everything
         log.info("token in a message: %s", TOKEN)
         log.error("request headers {'PRIVATE-TOKEN': '%s'}", TOKEN)
         log.debug("url https://gitlab.example.com/api/v4/projects?private_token=%s", TOKEN)

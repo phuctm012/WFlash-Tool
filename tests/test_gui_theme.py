@@ -57,7 +57,7 @@ def test_gui_stylesheet_files_use_their_own_tokens(dark, name):
         '#progressBar_flash[state="done"]',
         "#label_rollbackWarning",
         "#frame_sourceCard",
-        "#label_settingHeader",
+        "#scrollArea_flashPanel",
     ):
         assert selector in text
 

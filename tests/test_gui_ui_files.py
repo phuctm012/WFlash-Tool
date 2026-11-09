@@ -101,12 +101,21 @@ def test_gui_generated_modules_import(qapp):
     assert ui.tableWidget_programFiles.horizontalHeaderItem(0).text() == "#"
     assert ui.label_flashBlocked.isHidden()
     assert ui.tabWidget_output.count() == 1 and ui.tabWidget_output.tabText(0) == "Information"
-    assert ui.comboBox_logLevel.currentText() == "INFO"
+    assert not hasattr(ui, "comboBox_logLevel")
+    assert [ui.tabWidget_main.tabText(i) for i in range(ui.tabWidget_main.count())] == ["Flash", "Setting"]
+    assert ui.tabWidget_main.currentIndex() == 0
+    assert ui.frame_developer.parent() is not None and ui.tableWidget_programFiles.window() is window
     assert ui.label_rollbackWarning.isHidden()
     assert ui.label_step.text() == "Step: Idle"
     assert ui.pushButton_flash.minimumSize().width() == 90 and ui.pushButton_flash.maximumSize().height() == 70
     assert not ui.progressBar_flash.isTextVisible()
-    assert ui.frame_settingPanel.maximumWidth() == 360
+    assert ui.frame_flashPanel.maximumWidth() == 360
+    flash_tab, setting_tab = ui.tab_flash, ui.tab_setting
+    for name in ("frame_developer", "frame_gitlabSource", "tableWidget_programFiles", "tableWidget_symbolFiles"):
+        assert flash_tab.isAncestorOf(getattr(ui, name)), name
+    for name in ("comboBox_profile", "lineEdit_sourceRepo", "pushButton_reloadRepo", "pushButton_checkout",
+                 "comboBox_instance", "checkBox_reset", "checkBox_verifyFlash", "pushButton_preferences"):
+        assert setting_tab.isAncestorOf(getattr(ui, name)), name
     preferences = QDialog()
     Ui_PreferencesDialog().setupUi(preferences)
     gitlab = QDialog()

@@ -65,40 +65,15 @@
         <property name="checked">
          <bool>true</bool>
         </property>
-       </widget>
-      </item>
-      <item row="3" column="0">
-       <widget class="QLabel" name="label_caBundle">
-        <property name="text">
-         <string>CA bundle:</string>
-        </property>
-        <property name="buddy">
-         <cstring>lineEdit_caBundle</cstring>
+        <property name="toolTip">
+         <string>Certificates are checked against the Windows certificate store, so an internal company certificate installed by IT works without any file.</string>
         </property>
        </widget>
       </item>
-      <item row="3" column="1">
-       <layout class="QHBoxLayout" name="horizontalLayout_caBundle">
-        <item>
-         <widget class="QLineEdit" name="lineEdit_caBundle">
-          <property name="placeholderText">
-           <string>Optional: .pem file for an internal certificate</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QPushButton" name="pushButton_browseCa">
-          <property name="text">
-           <string>Browse…</string>
-          </property>
-         </widget>
-        </item>
-       </layout>
-      </item>
-      <item row="4" column="0" colspan="2">
+      <item row="3" column="0" colspan="2">
        <widget class="QLabel" name="label_connectionHint">
         <property name="text">
-         <string>Required token scope: read_api (branches/tags, pipelines, jobs, artifacts). The token is stored in the system keyring (Windows Credential Manager), never in a file.</string>
+         <string>Certificates are checked against the Windows certificate store. Required token scope: read_api (branches/tags, pipelines, jobs, artifacts). The token is stored in the system keyring (Windows Credential Manager), never in a file.</string>
         </property>
         <property name="wordWrap">
          <bool>true</bool>
@@ -405,8 +380,6 @@
   <tabstop>lineEdit_gitlabUrl</tabstop>
   <tabstop>lineEdit_token</tabstop>
   <tabstop>checkBox_verifyTls</tabstop>
-  <tabstop>lineEdit_caBundle</tabstop>
-  <tabstop>pushButton_browseCa</tabstop>
   <tabstop>tabWidget_source</tabstop>
   <tabstop>lineEdit_ciProject</tabstop>
   <tabstop>comboBox_ref</tabstop>

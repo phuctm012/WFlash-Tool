@@ -1513,3 +1513,25 @@ Người dùng chạy nhánh `feat/core-check` trên ECU thật. Cả hai lần 
 ### Đã kiểm tra
 
 - Debug bundle `wflash_debug_20261109_112331`: 2 lần flash Done, `errors.txt` rỗng, không có cảnh báo nào ngoài các dòng reset lại và cảnh báo lệch phiên bản isystem.connect đã biết. Hai file Output winIDEA gửi kèm bị trống, nên số dòng `ERASING` không kiểm tra được. Người dùng xác nhận ECU chạy bình thường sau cả hai lần. Chỉ đổi tài liệu.
+
+## Phase 3.19: Hai tab Flash/Setting, Reload repo, lọc branch, chứng chỉ Windows, log gọn
+
+Người dùng yêu cầu bốn thay đổi giao diện, duyệt mockup trên canvas (artboard 4–7), rồi thêm yêu cầu bỏ bộ lọc log.
+
+1. **Reload repo.** Thêm nút Reload cạnh Source repo. WFlash cũng tự đọc lại repo mỗi khi cửa sổ được kích hoạt lại (`changeEvent` với `ActivationChange`). Người dùng chọn cách này thay vì hỏi git 10 giây một lần, để không chạy `git status` liên tục trên repo lớn. Mỗi lúc chỉ có một lần đọc repo chạy (`refresh_source_repo` đã có sẵn kiểm tra này), và không đọc khi đang flash.
+2. **Hai tab.** `main_window.ui` có `tabWidget_main`. Tab **Flash** gồm việc hằng ngày: dòng Branch/Commit chỉ để xem, Application, Advanced Debug, hoặc nút Load from GitLab và thẻ nguồn với profile thường, cùng hai bảng file. Tab **Setting** gồm Profile, Source repo với Browse/Reload/Checkout, winIDEA, After flash và Preferences, chia thành các `QGroupBox`, trang cuộn được. Phần đầu (nút Flash, thanh tiến trình, các dải cảnh báo) và khung Information nằm ngoài tab. Các widget có sẵn được chuyển nguyên, giữ tên. Panel cũ `frame_settingPanel` và tiêu đề `label_settingHeader` bị bỏ.
+3. **Chứng chỉ Windows.** Bỏ ô CA bundle trong Load from GitLab. Khi khởi động, `wflash/core/system_certs.py` gọi `truststore.inject_into_ssl()`, nên `requests` kiểm tra chứng chỉ bằng kho của hệ điều hành; trên Windows, chứng chỉ nội bộ do IT cài vào là dùng được. Thiếu `truststore` thì chỉ cảnh báo. `AppSettings.ca_bundle` vẫn giữ để file settings cũ đọc được, nhưng không còn dùng. Lời gợi ý khi lỗi SSL đổi theo.
+4. **Lọc branch trong Checkout.** `comboBox_branch` cho gõ (`editable`, `NoInsert`), completer lọc theo chữ có ở bất kỳ đâu trong tên, không phân biệt hoa thường. Vì `setCurrentText` của combo cho gõ chỉ đổi chữ hiện trên ô, code chọn branch qua chỉ số (`_chosen_branch`). Nút Checkout chỉ bật khi chữ đang gõ trùng đúng tên một branch, để không checkout nhầm branch cũ trong lúc đang gõ dở.
+5. **Log.** Bỏ ô Log level. Khung Information hiện INFO, WARNING, ERROR; DEBUG vẫn có trong log file, nên debug bundle không mất gì.
+
+### Thay đổi
+
+- **`wflash/gui/main_window.ui`**, **`ui_main_window.py`**: `tabWidget_main` (`tab_flash`, `tab_setting`), `frame_flashPanel`/`scrollArea_flashPanel`, `frame_gitlabSource`, `groupBox_firmware`/`winidea`/`afterFlash`, `frame_sourceRepoSetting`, `pushButton_reloadRepo`, `label_repoSummary`, `label_repoFlashHint`, `label_repoAutoHint`, `label_verifyHint`; bỏ `comboBox_logLevel`, `label_logLevel`, `frame_settingPanel`, `label_settingHeader`, `label_afterFlash`.
+- **`wflash/gui/gitlab_dialog.ui`**, **`gitlab_dialog.py`**: bỏ dòng CA bundle, gợi ý về kho chứng chỉ Windows. **`wflash/gui/checkout_dialog.ui`**, **`checkout_dialog.py`**: ô branch cho gõ để lọc.
+- **`wflash/gui/source_panel.py`**, **`main_window.py`**, **`flash_mixin.py`**, **`log_panel.py`**; **`wflash/core/system_certs.py`** (mới), **`gitlab_client.py`**, **`settings.py`**, **`wflash/main.py`**; **`pyproject.toml`**, **`wflash.spec`** (`truststore`); **`wflash/resources/style*.qss`**.
+- Test: chia tab, Reload, kích hoạt lại cửa sổ, lọc branch, chữ gõ không khớp thì không checkout, không còn ô CA bundle, log không có DEBUG, `truststore` có/không. `test_gui_window_min_size` chờ vòng sự kiện đầu (QTabWidget tính xong thanh tab khi đó). Stress test chuyển tab trong lúc flash và bấm Reload liên tục.
+- **`README.md`**, **`CLAUDE.md`**, **`docs/windows_test_guide.md`** (Vòng 11).
+
+### Đã kiểm tra
+
+- Toàn bộ test, `-k thread`, stress test, `main.py --adapter fake --smoke` (kết quả ở commit). Mockup canvas đã được duyệt. Đã chụp hai tab offscreen trên macOS với profile SUZ05 và adapter giả. Từ ảnh chụp, tỉ lệ chiều cao vùng tab so với khung Information được tăng từ 3:2 lên 5:2, để tab Flash hiện đủ Advanced Debug mà không phải cuộn, và nút Checkout… không còn bị kéo dài. Chưa chạy trên Windows: chứng chỉ GitLab qua `truststore` và cách các tab hiện với font Windows cần Vòng 11 xác nhận.

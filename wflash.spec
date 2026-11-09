@@ -7,7 +7,7 @@ from PyInstaller.utils.hooks import collect_all
 # package (__file__-relative), so they keep the same relative place inside the bundle.
 datas = [("profiles", "profiles"), ("wflash/resources", "wflash/resources")]
 binaries = []
-hiddenimports = ["keyring.backends.Windows", "keyring.backends.macOS"]
+hiddenimports = ["keyring.backends.Windows", "keyring.backends.macOS", "truststore"]
 
 # isystem.connect comes from the winIDEA 9.21 installation, not PyPI. Bundle it when the
 # build machine has it; otherwise the .exe still runs with --adapter fake.

@@ -25,6 +25,10 @@ def test_gui_window_minimum_covers_its_layout(qtbot, base, ui_class):
     ui_class().setupUi(window)
     qtbot.addWidget(window)
     window.show()
+    # A QTabWidget finishes its tab bar on the first pass of the event loop; the minimum is
+    # right from then on, which is before anyone can drag the window smaller.
+    qtbot.waitExposed(window)
+    qtbot.wait(10)
     needed = window.layout().minimumSize()
     assert window.minimumSize().height() >= needed.height()
     assert window.minimumSize().width() >= needed.width()

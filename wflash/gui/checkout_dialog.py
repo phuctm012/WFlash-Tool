@@ -19,8 +19,8 @@ from functools import partial
 from pathlib import Path
 from typing import Callable
 
-from PySide6.QtCore import Signal
-from PySide6.QtWidgets import QDialog, QHeaderView, QTableWidgetItem
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtWidgets import QCompleter, QDialog, QHeaderView, QTableWidgetItem
 
 from wflash.core.errors import CancelledError
 from wflash.core.logging_setup import get_logger
@@ -66,7 +66,16 @@ class CheckoutDialog(QDialog):
         for column in range(self.ui.tableWidget_commits.columnCount()):
             mode = QHeaderView.ResizeMode.Stretch if column == MESSAGE_COLUMN else QHeaderView.ResizeMode.ResizeToContents
             header.setSectionResizeMode(column, mode)
-        self.ui.comboBox_branch.currentIndexChanged.connect(self._on_branch_changed)
+        # Many branches: typing filters the list by any part of the name (user request, 2026-11-09).
+        # Designer cannot configure the editable combo's completer.
+        combo = self.ui.comboBox_branch
+        completer = combo.completer()
+        completer.setFilterMode(Qt.MatchFlag.MatchContains)
+        completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
+        completer.setCompletionMode(QCompleter.CompletionMode.PopupCompletion)
+        combo.currentIndexChanged.connect(self._on_branch_changed)
+        combo.editTextChanged.connect(self._update_controls)
+        combo.lineEdit().returnPressed.connect(self._on_branch_typed)
         self.ui.pushButton_fetch.clicked.connect(self.fetch_remote)
         self.ui.pushButton_checkout.clicked.connect(self.checkout_selected)
         self.ui.pushButton_cancelCheckout.clicked.connect(self.reject)
@@ -128,7 +137,7 @@ class CheckoutDialog(QDialog):
         idle = not self.busy()
         self.ui.comboBox_branch.setEnabled(idle and self.ui.comboBox_branch.count() > 0)
         self.ui.pushButton_fetch.setEnabled(idle and self._path is not None)
-        self.ui.pushButton_checkout.setEnabled(idle and self._selected_row() is not None)
+        self.ui.pushButton_checkout.setEnabled(idle and self._selected_row() is not None and bool(self._chosen_branch()))
 
     def _selected_row(self) -> int | None:
         rows = self.ui.tableWidget_commits.selectionModel().selectedRows()
@@ -167,21 +176,43 @@ class CheckoutDialog(QDialog):
         state, branches = result
         self._show_state(state)
         combo = self.ui.comboBox_branch
-        wanted = combo.currentText() or state.branch
+        wanted = self._chosen_branch() or state.branch
         combo.blockSignals(True)
         combo.clear()
         combo.addItems(branches)
-        if wanted in branches:
-            combo.setCurrentText(wanted)
+        # Editable combo: setCurrentText would only change the text, not the chosen branch.
+        combo.setCurrentIndex(branches.index(wanted) if wanted in branches else (0 if branches else -1))
         combo.blockSignals(False)
         self._load_commits()
+
+    def _chosen_branch(self) -> str:
+        """The branch the commits belong to: "" while the typed text names no branch."""
+        combo = self.ui.comboBox_branch
+        index = combo.currentIndex()
+        name = combo.itemText(index) if index >= 0 else ""
+        return name if name and combo.currentText() == name else ""
+
+    def _on_branch_typed(self) -> None:
+        """Enter in the branch field: pick the branch with exactly that name, or say there is none."""
+        combo = self.ui.comboBox_branch
+        text = combo.currentText().strip()
+        index = combo.findText(text)
+        if index < 0:
+            self.ui.label_checkoutError.setText(f"No branch named {text!r}.")
+            self._update_controls()
+            return
+        if index == combo.currentIndex():
+            combo.setEditText(combo.itemText(index))
+            self._update_controls()
+        else:
+            combo.setCurrentIndex(index)
 
     def _on_branch_changed(self, *_args) -> None:
         self.ui.label_checkoutError.clear()
         self._load_commits()
 
     def _load_commits(self) -> None:
-        branch = self.ui.comboBox_branch.currentText()
+        branch = self._chosen_branch()
         self.ui.tableWidget_commits.setRowCount(0)
         self._commits = []
         if not branch or self._path is None:
@@ -195,7 +226,7 @@ class CheckoutDialog(QDialog):
         if self._stale(key):
             return
         branch, commits, pipelines = result
-        if branch != self.ui.comboBox_branch.currentText():
+        if branch != self._chosen_branch():
             return  # the user picked another branch meanwhile; its own read is on the way
         self._commits = commits
         table = self.ui.tableWidget_commits
@@ -221,9 +252,9 @@ class CheckoutDialog(QDialog):
 
     def checkout_selected(self, *_args) -> None:
         row = self._selected_row()
-        if self.busy() or row is None or self._path is None:
+        branch = self._chosen_branch()
+        if self.busy() or row is None or self._path is None or not branch:
             return
-        branch = self.ui.comboBox_branch.currentText()
         commit = self._commits[row].commit
         self.ui.label_checkoutError.clear()
         if row == 0:

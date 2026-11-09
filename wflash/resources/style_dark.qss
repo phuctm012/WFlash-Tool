@@ -193,22 +193,7 @@ QCheckBox {
     spacing: 6px;
 }
 
-/* Main window: Setting panel, source card, hints, rollback banner. */
-QFrame#frame_settingPanel {
-    background-color: #232a2d;
-    border: 1px solid #3a464a;
-    border-radius: 6px;
-}
-QLabel#label_settingHeader {
-    background-color: #22383a;
-    color: #6fd3c6;
-    font-weight: 600;
-    padding: 6px 8px;
-    border: none;
-    border-bottom: 2px solid #2bb3a3;
-    border-top-left-radius: 6px;
-    border-top-right-radius: 6px;
-}
+/* Main window: Flash and Setting tabs, source card, hints, rollback banner. */
 QFrame#frame_sourceCard {
     background-color: #22383a;
     border: 1px solid #3a464a;
@@ -221,6 +206,7 @@ QLabel#label_sourceTitle {
 }
 QLabel#label_sourceDetail, QLabel#label_sourceCache,
 QLabel#label_mappingHint, QLabel#label_connectionHint, QLabel#label_ciProjectSource,
+QLabel#label_repoFlashHint, QLabel#label_repoAutoHint, QLabel#label_verifyHint,
 QLabel#label_flashStats {
     color: #9aaaa8;
 }
@@ -259,6 +245,7 @@ QLabel#label_applicationHeader, QCheckBox#checkBox_advancedDebug, QLabel#label_p
     color: #6fd3c6;
     font-weight: 600;
 }
-QScrollArea#scrollArea_setting, QWidget#scrollAreaWidgetContents_setting {
+QScrollArea#scrollArea_setting, QWidget#scrollAreaWidgetContents_setting,
+QScrollArea#scrollArea_flashPanel, QWidget#scrollAreaWidgetContents_flashPanel {
     background: transparent;
 }

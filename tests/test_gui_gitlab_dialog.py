@@ -163,11 +163,10 @@ def test_gui_url_required_before_any_request(host, session):
     assert "GitLab URL" in d.ui.label_downloadStatus.text()
 
 
-def test_gui_missing_ca_bundle_refused(host, tmp_path):
+def test_gui_dialog_has_no_ca_bundle_field(host):
     d = host.dialog
-    d.ui.lineEdit_caBundle.setText(str(tmp_path / "missing.pem"))
-    d.load_refs()
-    assert not d.busy() and "CA bundle file not found" in d.ui.label_downloadStatus.text()
+    assert not hasattr(d.ui, "lineEdit_caBundle") and not hasattr(d.ui, "pushButton_browseCa")
+    assert "Windows certificate store" in d.ui.label_connectionHint.text()
 
 
 def test_gui_token_goes_to_the_keyring_never_to_settings(host, keyring_store, qtbot):
@@ -194,7 +193,6 @@ def test_gui_verify_tls_off_is_saved_and_warned_once_per_session(host, qtbot, mo
     monkeypatch.setattr(gitlab_dialog, "_tls_warning_logged", False)
     d = host.dialog
     d.ui.checkBox_verifyTls.setChecked(False)
-    assert not d.ui.lineEdit_caBundle.isEnabled()
     with caplog.at_level(logging.WARNING, logger="wflash.gitlab"):
         for _ in range(2):
             d.load_refs()
@@ -210,7 +208,8 @@ def test_gui_default_client_factory_requires_url_and_token_and_passes_verify(mon
         default_client_factory(AppSettings(gitlab_url="https://gl"))
     assert "Load from GitLab" in info.value.hint
     monkeypatch.setattr(gitlab_dialog, "get_token", lambda url: TOKEN)
-    client = default_client_factory(AppSettings(gitlab_url="https://gl/", ca_bundle=""))
+    # A CA bundle saved by an older WFlash is ignored: certificates come from the system store.
+    client = default_client_factory(AppSettings(gitlab_url="https://gl/", ca_bundle="/old/ca.pem"))
     assert client.base == "https://gl/api/v4" and client.verify is True
     insecure = default_client_factory(AppSettings(gitlab_url="https://gl", ca_bundle="/ca.pem", verify_tls=False))
     assert insecure.verify is False
@@ -321,7 +320,7 @@ def test_gui_prepare_fills_fields_from_settings_profile_and_keyring(qtbot, tmp_p
     d.prepare()
     assert d.ui.lineEdit_gitlabUrl.text() == GITLAB_URL
     assert d.ui.lineEdit_token.text() == TOKEN
-    assert not d.ui.checkBox_verifyTls.isChecked() and not d.ui.lineEdit_caBundle.isEnabled()
+    assert not d.ui.checkBox_verifyTls.isChecked()
     assert d.ui.lineEdit_ciProject.text() == PROJECT
     assert d.ui.label_ciProjectSource.isVisibleTo(d)
     assert d.ui.comboBox_jobName.currentText() == "build_app"

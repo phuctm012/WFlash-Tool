@@ -1,4 +1,7 @@
-"""Log panel mixin: coloured, filterable view of the `wflash` log, Copy/Clear, debug bundle export.
+"""Log panel mixin: coloured view of the `wflash` log, Copy/Clear, debug bundle export.
+
+The panel shows INFO and above (user decision, 2026-11-09). DEBUG lines still go to the session log
+file, which is what the debug bundle copies, so nothing is lost for Export.
 
 Host contract (provided by MainWindow): `self.ui` (Ui_MainWindow), `self.ctx` (DebugContext),
 `self.log_file` (Path | None), `self.flash_active()` (FlashMixin), `self.statusBar()`.
@@ -21,6 +24,7 @@ log = get_logger("ui.log")
 
 PANEL_FORMAT = "%(asctime)s %(levelname)-7s %(name)s: %(message)s"
 MAX_RECORDS = 20000
+PANEL_MIN_LEVEL = logging.INFO  # no level filter in the GUI; the log file keeps DEBUG
 # Theme token per level; INFO uses the widget's normal text colour.
 LEVEL_TOKENS = {
     logging.DEBUG: "log_debug",
@@ -70,7 +74,6 @@ class LogPanelMixin:
         if logger.level == logging.NOTSET:
             logger.setLevel(logging.DEBUG)  # main() does this via setup_logging; tests may not
         logger.addHandler(self.log_handler)
-        self.ui.comboBox_logLevel.currentIndexChanged.connect(self._refilter_log)
         self.ui.pushButton_copyLog.clicked.connect(self.copy_log)
         self.ui.pushButton_clearLog.clicked.connect(self.clear_log)
         self.ui.pushButton_exportBundle.clicked.connect(self._on_export_bundle_clicked)
@@ -80,7 +83,7 @@ class LogPanelMixin:
 
     # -- view -----------------------------------------------------------------------
     def log_min_level(self) -> int:
-        return logging.getLevelNamesMapping()[self.ui.comboBox_logLevel.currentText()]
+        return PANEL_MIN_LEVEL
 
     def _append_log_record(self, level: int, text: str) -> None:
         self._log_records.append((level, text))

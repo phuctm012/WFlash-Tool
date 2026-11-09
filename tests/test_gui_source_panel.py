@@ -3,7 +3,8 @@ import subprocess
 from pathlib import Path
 
 import pytest
-from PySide6.QtWidgets import QMessageBox
+from PySide6.QtCore import QEvent
+from PySide6.QtWidgets import QApplication, QMessageBox
 
 from tests.gui_stubs import GITLAB_URL, PROJECT, FakeGitLabSession, SessionClientFactory, patch_keyring
 from wflash.core.fake_adapter import FakeWinIDEAAdapter
@@ -108,6 +109,37 @@ def test_gui_profile_with_builds_shows_the_developer_panel(env):
     assert window.ui.comboBox_build.count() == 4
 
 
+def test_gui_developer_parts_are_split_between_the_flash_and_setting_tabs(env):
+    window, *_ = env
+    ui = window.ui
+    assert ui.frame_developer.isVisibleTo(ui.tab_flash)
+    assert not ui.frame_gitlabSource.isVisibleTo(ui.tab_flash)
+    assert ui.frame_sourceRepoSetting.isVisibleTo(ui.tab_setting)
+    assert ui.tab_setting.isAncestorOf(ui.lineEdit_sourceRepo) and ui.tab_setting.isAncestorOf(ui.pushButton_checkout)
+
+
+def test_gui_reload_button_reads_the_repo_again(env, qtbot, repo):
+    window, *_ = env
+    use_repo(qtbot, window, repo)
+    (repo / "b.c").write_text("2")
+    git(repo, "add", ".")
+    git(repo, "commit", "-q", "-m", "second")
+    commit = read_state(repo).commit[:8]
+    window.ui.pushButton_reloadRepo.click()
+    qtbot.waitUntil(lambda: window.ui.label_repoCommit.text() == f"Commit: {commit}", timeout=5000)
+    assert window.ui.label_repoSummary.text() == f"Branch: main · Commit: {commit} · No local changes."
+
+
+def test_gui_coming_back_to_the_window_reads_the_repo_again(env, qtbot, repo, monkeypatch):
+    window, *_ = env
+    use_repo(qtbot, window, repo)
+    git(repo, "checkout", "-q", "-b", "elsewhere")
+    monkeypatch.setattr(window, "isActiveWindow", lambda: True)
+    QApplication.sendEvent(window, QEvent(QEvent.Type.ActivationChange))
+    qtbot.waitUntil(lambda: window.ui.label_repoBranch.text() == "Branch: elsewhere", timeout=5000)
+    assert "Branch: elsewhere" in window.ui.label_repoSummary.text()
+
+
 def test_gui_repo_shows_branch_commit_and_the_button_names_the_commit(env, qtbot, repo):
     window, *_ = env
     use_repo(qtbot, window, repo)
@@ -194,7 +226,7 @@ def test_gui_checkout_button_switches_branch_and_refreshes_the_panel(env, qtbot,
     window.ui.pushButton_checkout.click()
     dialog = window._checkout_dialog
     qtbot.waitUntil(lambda: dialog.isVisible() and not dialog.busy() and dialog.ui.comboBox_branch.count() == 2, timeout=5000)
-    dialog.ui.comboBox_branch.setCurrentText("feature")
+    dialog.ui.comboBox_branch.setCurrentIndex(dialog.ui.comboBox_branch.findText("feature"))
     qtbot.waitUntil(lambda: not dialog.busy() and dialog.ui.tableWidget_commits.rowCount() == 1, timeout=5000)
     dialog.ui.tableWidget_commits.selectRow(0)
     dialog.ui.pushButton_checkout.click()
