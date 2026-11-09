@@ -61,9 +61,9 @@ def env(qtbot, tmp_path, monkeypatch):
     patch_keyring(monkeypatch)
     profiles = tmp_path / "profiles"
     profiles.mkdir()
-    text = (ROOT / "profiles" / "suz05_m7_ffi.yaml").read_text(encoding="utf-8")
+    text = (ROOT / "profiles" / "suz05.yaml").read_text(encoding="utf-8")
     project = text.split("project: ", 1)[1].split("\n", 1)[0]
-    (profiles / "suz05_m7_ffi.yaml").write_text(text.replace(project, PROJECT, 1), encoding="utf-8")
+    (profiles / "suz05.yaml").write_text(text.replace(project, PROJECT, 1), encoding="utf-8")
     workspace = tmp_path / "ws"
     workspace.mkdir()
     (workspace / CAL).write_text("S0")

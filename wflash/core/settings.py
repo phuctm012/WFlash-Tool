@@ -11,9 +11,12 @@ import keyring
 import keyring.errors
 
 from wflash.core.errors import GitLabError
+from wflash.core.gitlab_url import split_gitlab_url
 from wflash.core.logging_setup import get_logger
 
 KEYRING_SERVICE = "WFlash-GitLab"
+# The SUZ05 profile was renamed (2026-11-09); settings saved under the old file name move over.
+RENAMED_PROFILES = ("suz05_m7_ffi.yaml", "suz05.yaml")
 log = get_logger("settings")
 
 
@@ -73,12 +76,39 @@ class AppSettings:
     # Profile file name -> the developer's source repo folder, and the last build chosen.
     source_repos: dict[str, str] = field(default_factory=dict)
     last_build: dict[str, str] = field(default_factory=dict)
+    # GitLab tab (2026-11-09). Keys "<profile file>#<part>", part = app | bm | fbl.
+    gitlab_urls: dict[str, str] = field(default_factory=dict)  # profile file -> URL typed in Setting
+    part_repos: dict[str, str] = field(default_factory=dict)
+    part_projects: dict[str, str] = field(default_factory=dict)  # only when it differs from the profile
+    part_modes: dict[str, str] = field(default_factory=dict)  # "commit" | "manual"
+    part_manual: dict[str, str] = field(default_factory=dict)  # JSON of the job chosen by hand
+    reset_target: bool = True
+    run_after_reset: bool = False
+    verify_samples: bool = False
+    advanced_debug: bool = False
+    window_geometry: str = ""  # base64 of QWidget.saveGeometry()
+    last_tab: int = 0
 
     def resolved_cache_dir(self) -> Path:
         return Path(self.cache_dir) if self.cache_dir else default_cache_dir()
 
     def resolved_profiles_dir(self) -> Path:
         return Path(self.profiles_dir) if self.profiles_dir else bundled_profiles_dir()
+
+    def gitlab_url_for(self, profile_file: str, profile_url: str | None) -> str:
+        """The URL typed for this profile, else the profile's own, else the one of older versions."""
+        return self.gitlab_urls.get(profile_file, "") or (profile_url or "") or self.gitlab_url
+
+    def migrate(self) -> None:
+        """Bring settings of older versions forward; never overwrites a value already set."""
+        old, new = RENAMED_PROFILES
+        for mapping in (self.source_repos, self.last_build, self.ci_project_overrides):
+            if old in mapping and new not in mapping:
+                mapping[new] = mapping[old]
+        if self.last_profile == old:
+            self.last_profile = new
+        for profile_file, repo in self.source_repos.items():
+            self.part_repos.setdefault(f"{profile_file}#app", repo)
 
     @classmethod
     def load(cls, path: Path | None = None) -> "AppSettings":
@@ -103,7 +133,9 @@ class AppSettings:
                 values[f.name] = value
             else:
                 log.warning("Ignoring setting %r: expected %s, got %r", f.name, _type_name(default), value)
-        return cls(**values)
+        loaded = cls(**values)
+        loaded.migrate()
+        return loaded
 
     def save(self, path: Path | None = None) -> None:
         path = path or settings_path()
@@ -112,18 +144,26 @@ class AppSettings:
 
 
 def get_token(gitlab_url: str) -> str | None:
+    """Token of the GitLab host of `gitlab_url`; older versions stored it under the full URL."""
     if not gitlab_url:
         return None
+    host = split_gitlab_url(gitlab_url)[0]
     try:
-        return keyring.get_password(KEYRING_SERVICE, gitlab_url)
+        for key in dict.fromkeys((host, gitlab_url.strip().rstrip("/"), gitlab_url)):
+            if key:
+                token = keyring.get_password(KEYRING_SERVICE, key)
+                if token:
+                    return token
+        return None
     except keyring.errors.KeyringError as exc:
         log.warning("Cannot read GitLab token from keyring: %s", exc)
         return None
 
 
 def set_token(gitlab_url: str, token: str) -> None:
+    """Stored under the host, so changing the group in the URL keeps the token."""
     try:
-        keyring.set_password(KEYRING_SERVICE, gitlab_url, token)
+        keyring.set_password(KEYRING_SERVICE, split_gitlab_url(gitlab_url)[0] or gitlab_url, token)
     except keyring.errors.KeyringError as exc:
         raise GitLabError(
             "Cannot store the GitLab token",

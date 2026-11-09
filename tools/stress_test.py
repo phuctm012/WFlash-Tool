@@ -313,9 +313,9 @@ class Stress:
         folder = self.workdir / f"dev{self._window_count}"
         profiles = folder / "profiles"
         profiles.mkdir(parents=True)
-        text = (REPO / "profiles" / "suz05_m7_ffi.yaml").read_text(encoding="utf-8")
+        text = (REPO / "profiles" / "suz05.yaml").read_text(encoding="utf-8")
         project = text.split("project: ", 1)[1].split("\n", 1)[0]
-        (profiles / "suz05_m7_ffi.yaml").write_text(text.replace(project, PROJECT, 1), encoding="utf-8")
+        (profiles / "suz05.yaml").write_text(text.replace(project, PROJECT, 1), encoding="utf-8")
         workspace = folder / "ws"
         workspace.mkdir()
         (workspace / DEV_CAL).write_text("S0")

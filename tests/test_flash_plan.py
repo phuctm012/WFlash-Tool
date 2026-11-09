@@ -6,7 +6,7 @@ from wflash.core.errors import MappingError
 from wflash.core.flash_plan import ProgramRow, SymbolRow, find_cal_files, make_plan
 from wflash.core.profile import load_profile
 
-PROFILE = load_profile(Path(__file__).resolve().parents[1] / "profiles" / "suz05_m7_ffi.yaml")
+PROFILE = load_profile(Path(__file__).resolve().parents[1] / "profiles" / "suz05.yaml")
 CAL = "20260623_142557_2018688_CAL_T008_v0_0.sre"
 BM, FBL = "FBL_M7_LIP_RfeClock_Image.bin", "Radar_SUZ05_Gen7_FBL.bin"
 

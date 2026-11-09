@@ -19,6 +19,7 @@ class _Strict(BaseModel):
 
 class GitLabSpec(_Strict):
     project: str = Field(min_length=1)
+    url: str | None = None  # default GitLab URL, may include the group of the projects
     job_filter: str = "*"
 
 
