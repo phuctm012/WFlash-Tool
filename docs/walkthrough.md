@@ -1580,3 +1580,21 @@ Người dùng gửi icon mới: chip màu teal có chân ở cả bốn cạnh,
 ### Đã kiểm tra
 
 - Toàn bộ test (có `test_gui_icon`: file có trong package, icon không rỗng ở 16 và 256 px), `-k thread`, stress test (kết quả ở commit merge). Chưa thấy icon trên Windows.
+
+## Phase 3.23: Kiểm tra core trước, chỉ reset khi cần
+
+Người dùng đổi thứ tự: kiểm tra core trước; nếu không có core nào NOT ACCESSIBLE thì flash luôn; nếu có thì reset rồi kiểm tra lại. Trước đây lần nào cũng reset trước, rồi mới kiểm tra. `_prepare_cores` giờ đọc trạng thái một lần, không chờ, trước mọi lần reset. Nếu có core NOT ACCESSIBLE thì vào vòng reset như cũ: sau mỗi lần reset chờ tối đa `CORE_WAIT_S`, và vẫn dùng chung ngân sách 10 lần reset cho cả lần bấm Flash.
+
+Hai trường hợp vẫn reset trước, do tôi tự quyết và đã báo người dùng:
+- **Lần thử lại sau khi `begin_program` hỏng nhanh.** Ở Vòng 11, trạng thái core trước mỗi lần hỏng đều bình thường; nếu chỉ kiểm tra rồi flash luôn thì lần thử lại sẽ giống hệt lần vừa hỏng.
+- **Khi không đọc được trạng thái core.** WFlash reset một lần, như trước khi có bước kiểm tra.
+
+### Thay đổi
+
+- **`wflash/core/winidea_adapter.py`**: `_prepare_cores(..., reset_first)`, `_inaccessible_cores(..., grace)` trả thêm `readable`; `download()` truyền `reset_first=attempt > 1`.
+- **`tests/test_real_adapter.py`**: core bình thường thì không reset; core NOT ACCESSIBLE thì kiểm tra trước rồi mới reset; lần thử lại thì reset trước; không đọc được trạng thái thì reset một lần; các test reset hỏng hoặc target không dừng chạy qua nhánh không đọc được trạng thái.
+- **`CLAUDE.md`**, **`docs/winidea_api_notes.md`**, **`docs/windows_test_guide.md`** (Vòng 12).
+
+### Đã kiểm tra
+
+- Toàn bộ test, `-k thread`, stress test (kết quả ở commit). Người dùng đã thử trên ECU và báo là ổn (2026-11-09); chưa có debug bundle hay số liệu cho lần thử đó.

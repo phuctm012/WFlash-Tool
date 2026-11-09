@@ -584,7 +584,7 @@ python main.py --verbose
 
 ## Vòng 12: tự thử lại khi winIDEA không bắt đầu lập trình
 
-Ở Vòng 11, bạn phải bấm Flash 4 lần. Ba lần đầu `begin_program` hỏng sau khoảng 7 giây (`Error loading monitor`), dù các core lúc đó đều bình thường. Giờ, trong cùng một lần bấm Flash, WFlash tự thử lại tối đa 3 lần: reset, kiểm tra core, rồi gọi `begin_program`. Mỗi lần bấm Flash vẫn chỉ có tối đa 10 lần reset, tính chung cho mọi lần thử. WFlash chỉ thử lại khi lần hỏng kết thúc nhanh (dưới 30 giây) và lần đọc kiểm tra báo `Error loading monitor`.
+Ở Vòng 11, bạn phải bấm Flash 4 lần. Ba lần đầu `begin_program` hỏng sau khoảng 7 giây (`Error loading monitor`), dù các core lúc đó đều bình thường. Giờ, khi bấm Flash, WFlash **kiểm tra core trước**: không có core nào NOT ACCESSIBLE thì flash luôn, không reset; có thì reset rồi kiểm tra lại. Nếu `begin_program` hỏng nhanh, trong cùng lần bấm WFlash tự thử lại tối đa 3 lần (lần thử lại thì reset trước, rồi kiểm tra core, rồi `begin_program`). Mỗi lần bấm Flash vẫn chỉ có tối đa 10 lần reset, tính chung cho mọi lần thử. WFlash chỉ thử lại khi lần hỏng kết thúc nhanh (dưới 30 giây) và lần đọc kiểm tra báo `Error loading monitor`.
 
 Lấy `main` mới (`git checkout main`, `git pull`), chạy `python -m pip install -e ".[dev]"` để có `truststore`, rồi `python main.py --verbose`.
 
