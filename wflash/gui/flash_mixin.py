@@ -164,6 +164,8 @@ class FlashMixin:
         for button in self.source_load_buttons():
             button.setEnabled(not flashing)
         self.ui.checkBox_run.setEnabled(not flashing and self.ui.checkBox_reset.isChecked())
+        if self._closing:
+            self.lock_menus()  # a worker finishing during the close wait must not re-enable them
 
     # -- downloads and checkouts on the Flash bar (spec 4.4) ------------------------------
     def show_side_progress(self, percent, text: str) -> None:

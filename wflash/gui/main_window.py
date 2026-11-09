@@ -333,6 +333,9 @@ class MainWindow(GitlabTabMixin, MappingTableMixin, FlashMixin, LogPanelMixin, M
         # signals still queued are settled by the slots instead of starting more work.
         self._closing = True
         self._close_in_progress = True
+        # The wait below pumps events and the menu bar is outside the central widget: no
+        # shortcut (Ctrl+E file dialog, F5, Tools…) may start anything while it runs.
+        self.lock_menus()
         self._remember_window()
         self.abort_parts()
         self._gitlab_dialog.abort_for_close()

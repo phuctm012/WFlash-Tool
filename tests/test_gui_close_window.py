@@ -254,3 +254,36 @@ def test_gui_thread_close_while_locked_warns_and_stays_open_on_no(make, qtbot):
     assert "cannot be interrupted" in make.questions[0]
     assert not w._closing and w.flash_active()
     qtbot.waitUntil(lambda: not w.flash_active(), timeout=5000)
+
+
+def test_gui_thread_close_keeps_every_menu_action_off_during_and_after_the_wait(make, qtbot, monkeypatch):
+    """The menu bar is outside the central widget: its shortcuts must not start anything while
+    the close wait pumps events, even after the flash worker finished inside that wait."""
+    class SlowToStop(FakeWinIDEAAdapter):
+        def download(self, progress, cancel, timeout_s):
+            time.sleep(0.5)
+            super().download(progress, cancel, timeout_s)
+
+    from PySide6.QtGui import QAction
+    from PySide6.QtWidgets import QFileDialog
+
+    dialogs = []
+    monkeypatch.setattr(QFileDialog, "getExistingDirectory", lambda *a, **k: dialogs.append(a) or "")
+    w = make.factory(SlowToStop(download_seconds=10))
+    w.start_flash()
+    qtbot.waitUntil(lambda: w.current_step() == Step.DOWNLOAD.value, timeout=3000)
+    seen = {}
+
+    def probe():
+        seen["on"] = [a.objectName() for a in w.findChildren(QAction) if a.isEnabled()]
+        for action in (w.ui.action_exportBundle, w.ui.action_testGitlab, w.ui.action_checkCores,
+                       w.ui.action_refreshInstances, w.ui.action_about):
+            action.trigger()  # disabled: does nothing
+        w._on_export_bundle_clicked()  # even called directly, no nested file dialog
+        seen["tools"] = w.tools_busy()
+
+    QTimer.singleShot(50, probe)
+    w.close()
+    assert seen["on"] == [] and seen["tools"] is False and dialogs == []
+    assert [a.objectName() for a in w.findChildren(QAction) if a.isEnabled()] == []
+    assert not w.ui.menuBar_main.isEnabled()

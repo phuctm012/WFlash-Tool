@@ -89,6 +89,10 @@ class GitlabTabMixin:
             return ""
         if self._cal_row is not None and not self._cal_row.candidates:
             return "No CAL file was found next to the workspace. Copy the *_CAL_T008_*.sre file there, then click Refresh."
+        for name, part in self.parts.items():
+            reason = part.stale_reason() if self.part_enabled(name) else ""
+            if reason:
+                return reason
         build = self.current_build()
         bm = self._role_sources.get("bm")
         if self.advanced_debug() and build is not None and bm is not None and bm.job_name != build.bm_job:
@@ -196,6 +200,16 @@ class GitlabTabMixin:
         self._update_developer_warning()
         self.render_summary()
 
+    def drop_part_firmware(self, part: PartController) -> None:
+        """The part switched mode: its rows go back to Not loaded until the other mode loads."""
+        for role in part.roles:
+            self._role_rows.pop(role, None)
+            self._role_sources.pop(role, None)
+        self.ctx.source = {key: src.to_dict() for key, src in self._role_sources.items()}
+        self.rebuild_developer_rows()
+        self._update_developer_warning()
+        self.render_summary()
+
     def retry_parts(self) -> None:
         """The GitLab connection changed: let every part try its load again."""
         if not self.developer_mode():
@@ -256,6 +270,7 @@ class GitlabTabMixin:
             self._side_progress = False
             self.clear_side_progress()
         self.render_summary()
+        self._show_block_reason()
         self._update_flash_controls()
 
     # -- rows -------------------------------------------------------------------------------

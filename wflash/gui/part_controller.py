@@ -93,7 +93,8 @@ class PartController(QObject):
         self.profile_file = ""
         self.repo_state: RepoState | None = None
         self.loaded: dict[str, tuple[Path, FirmwareSource]] = {}
-        self._loaded_key: tuple | None = None  # (commit, jobs, project) of what `loaded` holds by commit
+        self._loaded_key: tuple | None = None  # (commit, jobs, project) last tried; blocks automatic retries
+        self._loaded_for: tuple | None = None  # (commit, jobs, project) of what `loaded` holds by commit
         self._generation = 0
         self._starts: dict[str, int] = {}  # worker key -> generation at start (rule 4)
         self._repo_key: str | None = None
@@ -217,8 +218,9 @@ class PartController(QObject):
             repos[self.key()] = path
         else:
             repos.pop(self.key(), None)
-            if self.name != "app":
+            if self.name != "app" and self.mode == COMMIT:
                 self._set_mode(MANUAL)  # no repository: the job is chosen manually
+                self._take_mode_firmware()
         self.host._save_settings()
         self._update_controls()
         self.refresh_repo()
@@ -247,11 +249,24 @@ class PartController(QObject):
             self._generation += 1
             self.host._workers.cancel(self._load_key)
             self._load_for = None
+        self._take_mode_firmware()
+
+    def _take_mode_firmware(self) -> None:
+        """What is loaded belongs to the other mode: never show (or flash) a manual job as
+        "From commit", or the commit's firmware as "Manual". The commit is loaded again
+        (from the cache when it was downloaded before); Manual gets its remembered job back."""
+        self.loaded = {}
+        self._loaded_key = None
+        self._failed = False
+        self.host.drop_part_firmware(self)
         self._update_controls()
         if self.mode == COMMIT:
+            self._show_status("")
             self.load_for_commit()
         else:
-            self._show_status()
+            self._restore_manual()
+            if not self.loaded:
+                self._show_status("Press Choose Job to pick a job.")
 
     def _on_choose_clicked(self, *_args) -> None:
         if self.name == "app":
@@ -307,6 +322,22 @@ class PartController(QObject):
         self.w_branch.setText(state.branch or "(detached)")
         changes = (f"{len(state.changes)} file(s) have local changes." if state.dirty else "No local changes.")
         self.w_commit.setText(f"{state.commit[:SHORT]} · {changes}")
+
+    def stale_reason(self) -> str:
+        """From commit: the firmware held must be that of the repository's exact commit, build and
+        project (CLAUDE.md: never from another commit). "" when it is, or nothing is loaded."""
+        if not self.available() or self.mode != COMMIT or not self.loaded:
+            return ""
+        key = self.commit_key()
+        if key == self._loaded_for:
+            return ""
+        if self.repo_state is None:
+            return f"{self.label}: the repository cannot be read. Reload it, or select Manual."
+        held = self._loaded_for[0][:SHORT] if self._loaded_for else "?"
+        if self._loaded_for is not None and self._loaded_for[0] != self.repo_state.commit:
+            return (f"{self.label} firmware is for commit {held}, but the repository is at "
+                    f"{self.repo_state.commit[:SHORT]}. Wait for its pipeline, or select Manual.")
+        return f"{self.label} firmware does not fit the selected build or project yet."
 
     def status_text(self) -> str:
         return self.w_status.text()
@@ -421,7 +452,7 @@ class PartController(QObject):
         waited = self._wait_started is not None
         self._failed = False
         self.loaded = {role: (path, source) for role, path, source in results}
-        self._loaded_key = self._load_for
+        self._loaded_key = self._loaded_for = self._load_for
         self._reported = None
         self._stop_waiting()
         for role, path, source in results:

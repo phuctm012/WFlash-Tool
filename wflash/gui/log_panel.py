@@ -137,7 +137,7 @@ class LogPanelMixin:
         return path
 
     def _on_export_bundle_clicked(self) -> None:
-        if self.flash_active():
+        if self.flash_active() or self._closing:
             return
         desktop = Path.home() / "Desktop"
         start = desktop if desktop.is_dir() else Path.home()

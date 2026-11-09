@@ -326,3 +326,73 @@ def test_gui_settings_of_each_part_survive_a_restart(env, qtbot, repo, tmp_path)
     assert again.ui.lineEdit_appRepo.text() == str(repo) and again.ui.checkBox_advancedDebug.isChecked()
     wait_loaded(qtbot, again.parts["app"], ("ffi", "elf"))  # from the cache, by itself
     assert "Cached" in again.parts["app"].status_text()
+
+
+def test_gui_switching_mode_never_keeps_the_other_modes_firmware(env, qtbot, repo, tmp_path):
+    """Manual job chosen, then back to From commit on the same commit: the commit's firmware
+    comes back (from the cache), not the manual job labelled 'From commit'; and the other way."""
+    w = env.window
+    set_repo(qtbot, w, "app", repo)
+    app = w.parts["app"]
+    wait_loaded(qtbot, app, ("ffi", "elf"))
+    commit = read_state(repo).commit
+    commit_ffi = app.loaded["ffi"][0]
+    w.ui.radioButton_appManual.setChecked(True)
+    assert app.loaded == {} and "Press Choose Job" in app.status_text()
+    assert not w.mapping_complete()  # the commit's firmware is not flashed as "Manual"
+    manual = tmp_path / "manual"
+    (manual / "out" / "FFI").mkdir(parents=True)
+    (manual / "out" / "FFI" / "RAD_SUZ05_FFI.s3").write_bytes(b"S0")
+    (manual / ".complete").write_text("x")
+    w._loading_source = "part:app:ffi"
+    w.on_firmware_ready(manual, FirmwareSource("ci", PROJECT, "CI artifact · job #9 create_ffi_x",
+                                               f"{PROJECT} · dev · pipeline #1", "Cached · 1 file", "1234567890",
+                                               "create_ffi_x"))
+    calls = env.session.count("/artifacts")
+    w.ui.radioButton_appCommit.setChecked(True)
+    wait_loaded(qtbot, app, ("ffi", "elf"))
+    assert app.loaded["ffi"][0] == commit_ffi and app.loaded["ffi"][1].commit == commit
+    assert env.session.count("/artifacts") == calls  # from the cache
+    assert "From commit" in w.ui.label_summaryApp.text() and commit[:8] in w.ui.label_summaryApp.text()
+    w.ui.radioButton_appManual.setChecked(True)
+    assert app.loaded["ffi"][0] == manual and "elf" not in app.loaded  # the remembered manual job
+    assert "1234567890"[:8] in w.ui.label_summaryApp.text()
+
+
+def test_gui_firmware_of_an_older_commit_blocks_flash_until_the_new_one_loads(env, qtbot, repo):
+    """From commit never flashes another commit's firmware (CLAUDE.md): the repo moved on and the
+    new commit's job cannot be loaded, so the old firmware stays visible but Flash is blocked."""
+    w = env.window
+    set_repo(qtbot, w, "app", repo)
+    app = w.parts["app"]
+    wait_loaded(qtbot, app, ("ffi", "elf"))
+    qtbot.waitUntil(w.ui.pushButton_flash.isEnabled, timeout=3000)
+    old = read_state(repo).commit[:8]
+    env.session.job_status["create_ffi_stingray_3p5mb_no_HTSM"] = "manual"
+    (repo / "b.c").write_text("2")
+    git(repo, "add", ".")
+    git(repo, "commit", "-q", "-m", "second")
+    new = read_state(repo).commit[:8]
+    app.reload()
+    qtbot.waitUntil(lambda: "is manual" in app.status_text() and not app.busy(), timeout=5000)
+    reason = w.flash_block_reason()
+    assert f"commit {old}" in reason and f"at {new}" in reason
+    assert not w.ui.pushButton_flash.isEnabled() and w.ui.label_flashBlocked.isVisibleTo(w)
+    env.session.job_status.clear()
+    app.reload()
+    qtbot.waitUntil(lambda: app.loaded["ffi"][1].commit.startswith(new) and not app.loading(), timeout=8000)
+    assert w.flash_block_reason() == ""
+    qtbot.waitUntil(w.ui.pushButton_flash.isEnabled, timeout=3000)
+
+
+def test_gui_manual_firmware_is_not_blocked_by_the_repository_commit(env, qtbot, repo):
+    w = env.window
+    set_repo(qtbot, w, "app", repo)
+    wait_loaded(qtbot, w.parts["app"], ("ffi", "elf"))
+    w.ui.radioButton_appManual.setChecked(True)
+    (repo / "b.c").write_text("2")
+    git(repo, "add", ".")
+    git(repo, "commit", "-q", "-m", "second")
+    w.parts["app"].refresh_repo()
+    qtbot.waitUntil(lambda: not w.parts["app"].busy(), timeout=5000)
+    assert w.parts["app"].stale_reason() == ""

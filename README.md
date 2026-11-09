@@ -105,6 +105,7 @@ Profile khai báo `builds` (ví dụ `profiles/suz05.yaml`) thì có tab **GitLa
       ~/.venvs/wflash/bin/pytest -k thread -v        # vòng đời worker — không bao giờ bỏ qua
       ~/.venvs/wflash/bin/pytest -k "not gui" -q     # chỉ core
       ~/.venvs/wflash/bin/python tools/stress_test.py   # stress test headless, in STRESS_RESULT=PASS/FAIL
+      ~/.venvs/wflash/bin/python tools/stress_test.py --section fuzz --seed 7   # chạy lại một chuỗi thao tác ngẫu nhiên
 
 ## Build .exe (Windows)
 

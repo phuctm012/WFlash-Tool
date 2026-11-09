@@ -15,6 +15,7 @@ Prints `STRESS_RESULT=PASS` or `STRESS_RESULT=FAIL` and the checkpoint count; ex
 from __future__ import annotations
 
 import os
+import random
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 # The stress test flashes many times: keep its history out of the real flash_history.csv.
@@ -323,13 +324,24 @@ class Stress:
         self.close_window(window, label)
 
     # -- developer flow (profile with builds) --------------------------------------------
+    def git(self, repo: Path, *args: str) -> None:
+        """git, only ever inside the temporary work folder: never in the WFlash repo itself."""
+        repo = Path(repo).resolve()
+        if not repo.is_relative_to(self.workdir.resolve()) or repo == self.workdir.resolve():
+            raise RuntimeError(f"stress test refused to run git outside its work folder: {repo}")
+        subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True)
+
+    def commit_file(self, repo: Path, name: str, text: str) -> None:
+        self.git(repo, "rev-parse", "--git-dir")  # checks the path before writing anything
+        (Path(repo) / name).write_text(text)
+        self.git(repo, "add", name)
+        self.git(repo, "commit", "-q", "-m", name)
+
     def make_repo(self, folder: Path) -> Path:
         folder.mkdir(parents=True)
         for args in (("init", "-q", "-b", "main"), ("config", "user.email", "s@example.com"), ("config", "user.name", "S")):
-            subprocess.run(["git", "-C", str(folder), *args], check=True, capture_output=True)
-        (folder / "a.c").write_text("1")
-        subprocess.run(["git", "-C", str(folder), "add", "."], check=True, capture_output=True)
-        subprocess.run(["git", "-C", str(folder), "commit", "-q", "-m", "first"], check=True, capture_output=True)
+            self.git(folder, *args)
+        self.commit_file(folder, "a.c", "1")
         return folder
 
     def new_dev_window(self, label: str, session: FakeGitLabSession | None = None, read_repo: bool = True):
@@ -367,11 +379,13 @@ class Stress:
 
     def deliver_manual(self, window, part: str, role: str, job: str) -> None:
         """What Choose Job delivers once its popup has downloaded the artifact."""
-        name = {"bm": DEV_BM, "fbl": DEV_FBL}[role]
-        root = self.workdir / f"debug_{role}_{self._window_count}_{job}"
-        (root / "out" / "bin").mkdir(parents=True, exist_ok=True)
-        (root / "out" / "bin" / name).write_bytes(b"B")
-        (root / "out" / "bin" / f"Radar_SUZ05_Gen7_{role.upper()}.elf").write_bytes(b"E")
+        root = self.workdir / f"manual_{role}_{self._window_count}_{job}"
+        files = {"ffi": ["out/FFI/RAD_SUZ05_FFI.s3"], "elf": ["out/ELF/Radar_SUZ05_Gen7.elf"],
+                 "bm": [f"out/bin/{DEV_BM}", "out/bin/Radar_SUZ05_Gen7_BM.elf"],
+                 "fbl": [f"out/bin/{DEV_FBL}", "out/bin/Radar_SUZ05_Gen7_FBL.elf"]}[role]
+        for rel in files:
+            (root / rel).parent.mkdir(parents=True, exist_ok=True)
+            (root / rel).write_bytes(b"S0")
         (root / ".complete").write_text("x")
         window._loading_source = f"part:{part}:{role}"
         window.on_firmware_ready(root, dataclasses.replace(SOURCE, job_name=job, commit="41c7a0de"))
@@ -448,10 +462,7 @@ class Stress:
         self.check(not app.waiting(), f"{label}: no longer waiting")
         # Waiting again, then the window closes mid-wait and mid-poll.
         session.job_status[DEV_FFI_JOB] = "pending"
-        repo = Path(app.w_repo.text())
-        (repo / "b.c").write_text("2")
-        subprocess.run(["git", "-C", str(repo), "add", "."], check=True, capture_output=True)
-        subprocess.run(["git", "-C", str(repo), "commit", "-q", "-m", "second"], check=True, capture_output=True)
+        self.commit_file(self.workdir / f"dev{self._window_count}" / "src", "b.c", "2")
         app.refresh_repo()
         self.check(self.pump_until(app.waiting, 5.0), f"{label}: waiting for the new commit's pipeline")
         self.close_window(window, f"{label}: closed while waiting", max_s=3.0)
@@ -831,6 +842,108 @@ class Stress:
         self.close_window(window, "menu: closed during Test GitLab", max_s=3.0)
         self.check(self.dialogs == [], f"menu: no dialogs: {self.dialogs}")
 
+    def section_fuzz(self) -> None:
+        """Random user actions on the developer window, then a close at a random moment.
+
+        Each seed is reproducible (`--section fuzz --seed N`). Failures are the global ones:
+        uncaught exceptions, Qt threading warnings, a slow close, workers left running."""
+        part_controller.POLL_S = 0.05
+        # Weighted toward Flash: the dangerous mixes are a flash with everything else around it.
+        weights = {
+            "reload": 3, "activate": 3, "mode_app": 2, "mode_bm": 1, "mode_fbl": 1, "advanced": 2, "build": 1,
+            "profile": 1, "flash": 10, "cancel": 3, "tools_gitlab": 2, "tools_cores": 2, "refresh": 2,
+            "checkout": 1, "commit": 2, "pipeline": 2, "manual_debug": 4, "manual_app": 3, "theme": 1, "tab": 2, "pump": 6,
+        }
+        actions, action_weights = list(weights), list(weights.values())
+        flashes = 0
+        for seed in self.seeds:
+            rng = random.Random(seed)
+            label = f"fuzz[{seed}]"
+            session = FakeGitLabSession(delay_s=rng.choice((0.0, 0.02, 0.1)))
+            window, adapter = self.new_dev_window(label, session, read_repo=rng.random() < 0.7)
+            adapter.download_seconds = rng.choice((0.1, 0.4, 1.0))
+            write_profiles(Path(window.settings.profiles_dir))
+            window.reload_profiles()
+            app = window.parts["app"]
+            repo = self.workdir / f"dev{self._window_count}" / "src"  # fixed: the field may be emptied
+            self.answer = QMessageBox.StandardButton.Yes
+            done = []
+            for step in range(rng.randint(25, 60)):
+                action = rng.choices(actions, action_weights)[0]
+                done.append(action)
+                ui = window.ui
+                if action == "reload":
+                    rng.choice(list(window.parts.values())).reload()
+                elif action == "activate":
+                    window.refresh_source_repo_on_activate()
+                elif action.startswith("mode_"):
+                    part = action[5:]
+                    button = getattr(ui, f"radioButton_{part}{rng.choice(('Commit', 'Manual'))}")
+                    if button.isEnabled():
+                        button.setChecked(True)
+                elif action == "advanced" and ui.checkBox_advancedDebug.isEnabled():
+                    ui.checkBox_advancedDebug.toggle()
+                elif action == "build" and ui.comboBox_appBuild.isEnabled() and ui.comboBox_appBuild.count():
+                    ui.comboBox_appBuild.setCurrentIndex(rng.randrange(ui.comboBox_appBuild.count()))
+                elif action == "profile" and ui.comboBox_profile.isEnabled():
+                    ui.comboBox_profile.setCurrentIndex(rng.randrange(ui.comboBox_profile.count()))
+                    if not window.developer_mode() and rng.random() < 0.5:
+                        window.on_firmware_ready(self.artifact(f"fuzz{seed}_{step}"), SOURCE)
+                elif action == "flash" and ui.pushButton_flash.isEnabled() and not window.flash_active():
+                    window.start_flash()
+                    flashes += 1
+                elif action == "pump":
+                    self.pump(rng.uniform(0.1, 0.6))
+                elif action == "cancel":
+                    window.cancel_flash()
+                elif action == "tools_gitlab":
+                    ui.action_testGitlab.trigger()
+                elif action == "tools_cores":
+                    ui.action_checkCores.trigger()
+                elif action == "refresh":
+                    ui.action_refreshInstances.trigger()
+                elif action == "checkout" and window.developer_mode():
+                    part = window.parts["app"]
+                    if part.w_checkout.isEnabled():
+                        part.open_checkout()
+                        self.pump(rng.uniform(0, 0.15))
+                        window._checkout_dialog.reject()
+                elif action == "commit":
+                    self.commit_file(repo, f"f{step}.c", str(step))
+                elif action == "pipeline":
+                    if session.job_status:
+                        session.job_status.clear()
+                    else:
+                        session.job_status[DEV_FFI_JOB] = rng.choice(("running", "pending", "manual", "failed"))
+                elif action == "manual_debug" and window.developer_mode() and window.advanced_debug() \
+                        and not window.flash_active():
+                    for name in ("bm", "fbl"):
+                        part = window.parts[name]
+                        if part.mode == "manual" and part.jobs():
+                            self.deliver_manual(window, name, name, part.jobs()[0])
+                elif action == "manual_app" and window.developer_mode() and not window.flash_active():
+                    part = window.parts["app"]
+                    if part.mode == "manual" and part.jobs():
+                        for role, job in zip(part.roles, part.jobs()):
+                            self.deliver_manual(window, "app", role, job)
+                elif action == "theme":
+                    window.apply_dark_mode(rng.random() < 0.5)
+                elif action == "tab":
+                    ui.tabWidget_main.setCurrentIndex(rng.randrange(ui.tabWidget_main.count()))
+                self.pump(rng.choice((0.0, 0.005, 0.03, 0.1)))
+            log.info("%s actions: %s", label, " ".join(done))
+            closing_during = "flash" if window.flash_active() else ("load" if window.source_busy() else "idle")
+            closing_during += f" [dev={window.developer_mode()} adv={window.advanced_debug() if window.developer_mode() else "-"} complete={window.mapping_complete()} block={window.flash_block_reason()!r} app={sorted(app.loaded)} status={app.status_text()[:60]!r}]"
+            print(f"   {label}: {len(done)} actions, {flashes} flash(es) started, closed while {closing_during}",
+                  flush=True)
+            flashes = 0
+            self.dialogs.clear()
+            self.close_window(window, f"{label} closed after {len(done)} actions", max_s=5.0)
+            self.check(not any(part.waiting() for part in window.parts.values()), f"{label}: no wait timer left")
+            self.check(adapter.connected_to is None, f"{label}: winIDEA disconnected after close")
+        apply_theme(QApplication.instance(), False)
+        part_controller.POLL_S = POLL_S
+
     def section_secrets(self) -> None:
         window = self.new_window(FakeWinIDEAAdapter(download_seconds=0.1))
         log.info("token in a message: %s", TOKEN)
@@ -878,6 +991,7 @@ SECTIONS = {
     "races": ("cancel at 0..400 ms, double Flash/Cancel, close mid-download / mid-fetch / App load / repo read, Manual mid-load", Stress.section_races),
     "theme": ("light/dark switched while flashing and with the dialog open", Stress.section_theme),
     "menu": ("every menu action, Tools one at a time and refused while flashing, close mid-request", Stress.section_menu),
+    "fuzz": ("random user actions on the GitLab tab, Flash, Tools, profile/theme switches, then close", Stress.section_fuzz),
     "secrets": ("a realistic PAT through panel, log file and debug bundle", Stress.section_secrets),
 }
 
@@ -888,6 +1002,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--section", action="append", choices=sorted(SECTIONS), help="run only these (repeatable)")
     parser.add_argument("--iterations", type=int, default=2, help="repetitions of the flash section")
     parser.add_argument("--keep", action="store_true", help="keep the temporary work folder")
+    parser.add_argument("--seed", type=int, action="append", help="fuzz seeds (repeatable; default 1..12)")
     args = parser.parse_args(argv)
     if args.list:
         for name, (description, _) in SECTIONS.items():
@@ -898,6 +1013,7 @@ def main(argv: list[str] | None = None) -> int:
     workdir = Path(tempfile.mkdtemp(prefix="wflash_stress_"))
     log_file = setup_logging(log_dir=workdir / "logs")
     stress = Stress(workdir, log_file, args.iterations)
+    stress.seeds = args.seed or list(range(1, 13))
 
     def qt_handler(mode, context, message) -> None:
         if mode in (QtMsgType.QtWarningMsg, QtMsgType.QtCriticalMsg, QtMsgType.QtFatalMsg):

@@ -1626,3 +1626,25 @@ Người dùng muốn bỏ việc phải mở popup cho mỗi lần đổi firmw
 ### Đã kiểm tra
 
 - Toàn bộ test, `pytest -k thread`, `tools/stress_test.py` (kết quả ở commit), app mở được với `--adapter fake`. Trên macOS chỉ chạy được fake adapter: `core_states()` và `program_stats` của adapter thật chưa chạy trên ECU; Vòng 13 kiểm tra phần đó.
+
+## Phase 3.25: Rà lỗi sau đợt đổi giao diện lớn, fuzz test cho threading
+
+Người dùng yêu cầu stress test lại toàn bộ, tìm bug do thay đổi lớn, và test kỹ threading để app không bao giờ crash. Stress test cũ chạy theo kịch bản cố định nên tôi thêm section **fuzz**: mỗi seed là một chuỗi ngẫu nhiên 25–60 thao tác trên cửa sổ developer (Reload, quay lại cửa sổ, đổi From commit/Manual từng phần, Advanced Debug, Build, đổi profile, Flash, Cancel, Tools, Checkout, commit mới, pipeline chạy/manual/failed, chọn job tay, theme, tab), rồi đóng cửa sổ ở thời điểm bất kỳ (có lúc giữa lúc flash, có lúc giữa lúc tải). Chạy lại được bằng `--section fuzz --seed N`. Ba lỗi tìm được, đều đã sửa:
+
+1. **Đổi chế độ Firmware giữ firmware của chế độ kia.** Chọn job tay ở Manual rồi quay lại From checked-out commit (cùng commit): app không tải lại vì `_loaded_key` chưa đổi, nên vẫn giữ job tay nhưng ghi "From commit" (cả trong flash history). Chiều ngược lại, firmware của commit bị ghi là "Manual". Giờ đổi chế độ thì bỏ firmware đang giữ: From commit tải lại (từ cache nếu đã có), Manual lấy lại job đã nhớ hoặc báo "Press Choose Job". Xóa repository của BM/FBL (tự chuyển Manual) cũng đi qua đường này.
+2. **Firmware của commit cũ vẫn flash được.** Repo sang commit mới mà job của commit mới chưa tải được (manual, failed, không có trong pipeline, đang chờ) thì firmware commit cũ vẫn nằm đó, Flash vẫn bật, tab Flash ghi "From commit · <commit cũ> · Cached". Trái với quy tắc "không bao giờ lấy firmware của commit khác". Giờ Flash bị khóa, dải đỏ ghi rõ commit của firmware và commit của repo; tương tự khi build/project đã đổi mà firmware chưa theo kịp, hoặc repo không đọc được. Manual không bị kiểm tra này.
+3. **Phím tắt menu chạy được trong lúc đóng cửa sổ.** `closeEvent` chỉ khóa central widget, còn thanh menu nằm ngoài nó; trong lúc chờ (có pump event), Ctrl+E có thể mở hộp chọn thư mục lồng trong vòng chờ, F5/Tools có thể bắt đầu worker mới. Thêm nữa, khi worker flash kết thúc trong lúc chờ, `_update_flash_controls` bật lại các action. Giờ `lock_menus()` tắt mọi action và thanh menu ngay khi bắt đầu đóng, `_update_flash_controls` không bật lại khi đang đóng, và Export kiểm tra `_closing`.
+
+Một lỗi của chính stress test, gây hậu quả thật: ô Repository của App có lúc bị để trống, `Path("")` thành `.`, nên thao tác "commit" chạy `git add .` và `git commit` ngay trong repo WFlash: 11 commit rác trên `feat/gitlab-tab` local (chưa push), cuốn theo cả các thay đổi đang làm. Đã khắc phục bằng `git reset --soft c1b7e62` (giữ nguyên mọi thay đổi thật) và xóa các file `f*.c` rác. Giờ mọi lệnh git của stress test đi qua `Stress.git()`, từ chối mọi đường dẫn nằm ngoài thư mục tạm của nó.
+
+### Thay đổi
+
+- **`wflash/gui/part_controller.py`**: `_take_mode_firmware()`, `_loaded_for`, `stale_reason()`.
+- **`wflash/gui/gitlab_tab.py`**: `drop_part_firmware()`; `flash_block_reason()` gọi `stale_reason()` của từng phần đang bật; dải đỏ cập nhật khi phần nào đó xong việc.
+- **`wflash/gui/menu_actions.py`** (`lock_menus`), **`main_window.py`** (`closeEvent`), **`flash_mixin.py`**, **`log_panel.py`**.
+- **`tests/test_gui_gitlab_tab.py`**: đổi chế độ không giữ firmware của chế độ kia; firmware commit cũ khóa Flash cho tới khi commit mới tải xong; Manual không bị khóa. **`tests/test_gui_close_window.py`**: mọi action tắt trong và sau lúc chờ đóng, kể cả khi worker flash xong trong lúc chờ.
+- **`tools/stress_test.py`**: section `fuzz` (`--seed`), `Stress.git()` / `commit_file()` có rào chắn đường dẫn.
+
+### Đã kiểm tra
+
+- Kết quả chạy toàn bộ test, `-k thread`, stress test và fuzz ghi ở commit. Chỉ trên macOS với fake adapter; các thay đổi chỉ nằm ở GUI, không đụng adapter thật.

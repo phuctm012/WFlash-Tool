@@ -20,7 +20,7 @@ from functools import partial
 from pathlib import Path
 
 from PySide6.QtCore import QUrl
-from PySide6.QtGui import QDesktopServices
+from PySide6.QtGui import QAction, QDesktopServices
 from PySide6.QtWidgets import QApplication, QMessageBox, QSystemTrayIcon
 
 from wflash import APP_AUTHOR, __version__
@@ -58,6 +58,12 @@ class MenuActionsMixin:
         self._tray: QSystemTrayIcon | None = None
         if QSystemTrayIcon.isSystemTrayAvailable():
             self._tray = QSystemTrayIcon(app_icon(), self)
+
+    def lock_menus(self) -> None:
+        """Closing: every menu action off for good (Exit included: closeEvent ignores nested closes)."""
+        self.ui.menuBar_main.setEnabled(False)
+        for action in self.findChildren(QAction):
+            action.setEnabled(False)
 
     # -- File --------------------------------------------------------------------------
     def _open(self, path: Path, what: str) -> bool:
