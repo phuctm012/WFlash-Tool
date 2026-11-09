@@ -559,4 +559,4 @@ Lấy branch `feat/core-check`, chạy `python main.py --verbose`.
 3. **(FLASH)** Bấm Flash lần nữa ngay sau bước 2, không tắt nguồn. Ghi lại WFlash báo gì: flash được, hay bị chặn vì core NOT ACCESSIBLE.
 4. Gửi debug bundle, Output winIDEA của bước 2–3, và ảnh Session Explorer ở bước 1 và 3.
 
-**Kết quả Vòng 10 (2026-11-09): đạt.** Cả hai lần bấm Flash, lúc bắt đầu A53 và BBE32EP đều NOT ACCESSIBLE. Lần 1, WFlash reset 4 lần thì hết; lần 2, reset 2 lần thì hết. Sau đó cả hai lần flash xong khoảng 100 giây, rồi Done. Không phải tắt bật nguồn.
+**Kết quả Vòng 10 (2026-11-09): đạt.** Cả hai lần bấm Flash, lúc bắt đầu A53 và BBE32EP đều NOT ACCESSIBLE. Lần 1, WFlash reset 4 lần thì hết; lần 2, reset 2 lần thì hết. Sau đó cả hai lần flash xong khoảng 100 giây, rồi Done. Không phải tắt bật nguồn. Người dùng xác nhận ECU chạy bình thường sau cả hai lần.

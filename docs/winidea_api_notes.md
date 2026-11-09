@@ -438,7 +438,7 @@ In both states `CDebugFacade.getCPUStatus()` said `isStopped: 1`, so the old che
 | 1 (11:18) | 4 (1 + 3 more) | M7_0 STOP, M7_RFE RUN, A53 RUN, SPT IDLE, BBE32EP RUN | `begin_program` 100.8 s, confirmed, Done |
 | 2 (11:21) | 2 (1 + 1 more) | same | `begin_program` 99.9 s, confirmed, Done |
 
-Each reset plus read took about 3.2 s (1.3 s reset, then the 2 s grace ran out while the cores stayed inaccessible). So `CDebugFacade.reset()` does clear `NOT ACCESSIBLE`, but not always on the first try; the 34 failures of round 9 had only one reset each. After recovery A53 and BBE32EP were **RUN**, not STOP, and programming worked: only `NOT ACCESSIBLE` matters. `CSessionCtrl.begin_reset()` is not needed.
+Each reset plus read took about 3.2 s (1.3 s reset, then the 2 s grace ran out while the cores stayed inaccessible). So `CDebugFacade.reset()` does clear `NOT ACCESSIBLE`, but not always on the first try; the 34 failures of round 9 had only one reset each. After recovery A53 and BBE32EP were **RUN**, not STOP, and programming worked: only `NOT ACCESSIBLE` matters. `CSessionCtrl.begin_reset()` is not needed. The user confirmed the ECU ran normally after both flashes.
 
 ## Open questions
 

@@ -1512,4 +1512,4 @@ Người dùng chạy nhánh `feat/core-check` trên ECU thật. Cả hai lần 
 
 ### Đã kiểm tra
 
-- Debug bundle `wflash_debug_20261109_112331`: 2 lần flash Done, `errors.txt` rỗng, không có cảnh báo nào ngoài các dòng reset lại và cảnh báo lệch phiên bản isystem.connect đã biết. Hai file Output winIDEA gửi kèm bị trống, nên số dòng `ERASING` không kiểm tra được. Chỉ đổi tài liệu.
+- Debug bundle `wflash_debug_20261109_112331`: 2 lần flash Done, `errors.txt` rỗng, không có cảnh báo nào ngoài các dòng reset lại và cảnh báo lệch phiên bản isystem.connect đã biết. Hai file Output winIDEA gửi kèm bị trống, nên số dòng `ERASING` không kiểm tra được. Người dùng xác nhận ECU chạy bình thường sau cả hai lần. Chỉ đổi tài liệu.
