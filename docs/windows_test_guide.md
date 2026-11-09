@@ -578,4 +578,6 @@ python main.py --verbose
 4. **Chứng chỉ Windows.** Mở Load from GitLab (nút Choose job in GitLab… hoặc Load… của BM): không còn ô CA bundle. Để **Verify TLS certificate** bật, bấm Load branches/tags. Mong đợi: tải được danh sách, không lỗi SSL. Trong log đầu phiên có dòng `HTTPS certificates are checked against the system certificate store`. Nếu lỗi SSL: gửi lại log, và cho biết trước đây bạn có dùng file CA bundle hay đã tắt Verify TLS.
 5. **Log.** Khung Information không còn ô Log level, chỉ hiện INFO, WARNING, ERROR. Export debug bundle: `log.txt` trong đó vẫn có các dòng DEBUG (ví dụ `wflash.calls`).
 6. **(FLASH)** Flash một lần như Vòng 10, trong lúc chờ thì chuyển qua lại giữa hai tab. Mong đợi: flash xong bình thường; trong lúc flash, các ô ở tab Setting bị khóa. Bằng chứng an toàn: phần flash không đổi so với Vòng 10, chỉ giao diện đổi. Khôi phục như cũ: Debug → Download bấm tay.
-7. Gửi ảnh hai tab, ảnh popup Checkout khi đang lọc, và debug bundle.
+7. **Icon.** Thanh tiêu đề WFlash, các popup và **taskbar** hiện icon chip màu teal (không phải icon Python), kể cả khi chạy bằng `python main.py`.
+8. **(tùy chọn) Build exe.** `scripts\build_windows.bat`. Mong đợi: `dist\WFlash\WFlash.exe` có icon chip trong Explorer; mở exe thì cửa sổ và taskbar cũng có icon đó.
+9. Gửi ảnh hai tab, ảnh popup Checkout khi đang lọc, ảnh taskbar, và debug bundle.

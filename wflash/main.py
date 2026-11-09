@@ -71,6 +71,23 @@ def init_logging(verbose: bool) -> tuple[Path | None, Path | None]:
         return None, fallback
 
 
+APP_USER_MODEL_ID = "WFlash.WFlash"
+
+
+def set_windows_app_id() -> None:
+    """Windows groups a window on the taskbar by its process; under `python main.py` that is
+    python.exe, so the taskbar would show Python's icon. An own AppUserModelID gives WFlash its
+    icon there. Must run before the first window. Not needed for WFlash.exe, harmless there."""
+    if sys.platform != "win32":
+        return
+    try:
+        import ctypes
+
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(APP_USER_MODEL_ID)
+    except Exception as exc:  # cosmetic only: never stop the app for it
+        get_logger("main").warning("Could not set the taskbar identity: %s", exc)
+
+
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     settings = AppSettings.load()
@@ -81,8 +98,12 @@ def main(argv: list[str] | None = None) -> int:
     from wflash.core.system_certs import use_system_certificates
 
     use_system_certificates()  # before any GitLab request
+    set_windows_app_id()  # before the first window
     app = QApplication.instance() or QApplication(sys.argv[:1])
     app.setApplicationName("WFlash")
+    from wflash.gui.style import app_icon
+
+    app.setWindowIcon(app_icon())  # every window and dialog, and the taskbar
     from wflash.gui.style import apply_theme
 
     # Before the window exists, so the first paint already uses the saved theme.

@@ -1535,3 +1535,19 @@ Người dùng yêu cầu bốn thay đổi giao diện, duyệt mockup trên ca
 ### Đã kiểm tra
 
 - Toàn bộ test, `-k thread`, stress test, `main.py --adapter fake --smoke` (kết quả ở commit). Mockup canvas đã được duyệt. Đã chụp hai tab offscreen trên macOS với profile SUZ05 và adapter giả. Từ ảnh chụp, tỉ lệ chiều cao vùng tab so với khung Information được tăng từ 3:2 lên 5:2, để tab Flash hiện đủ Advanced Debug mà không phải cuộn, và nút Checkout… không còn bị kéo dài. Chưa chạy trên Windows: chứng chỉ GitLab qua `truststore` và cách các tab hiện với font Windows cần Vòng 11 xác nhận.
+
+## Phase 3.20: Icon của WFlash
+
+Người dùng gửi icon chip màu teal, gồm hai file: `.svg` và `.ico` có 7 kích thước từ 16 px. Icon nằm trong `wflash/resources/icons/`, cạnh stylesheet, để `pip install` và PyInstaller cùng gói kèm. Khi chạy, `app.setWindowIcon(app_icon())` đặt icon cho mọi cửa sổ và popup. `app_icon()` nạp cả SVG (đẹp ở mọi kích thước) lẫn ICO; thiếu file thì chỉ cảnh báo. Khi chạy bằng `python main.py` trên Windows, taskbar sẽ gộp cửa sổ vào `python.exe` và hiện icon Python. Vì vậy `set_windows_app_id()` đặt AppUserModelID riêng `WFlash.WFlash` trước khi mở cửa sổ đầu tiên; nếu lỗi thì chỉ cảnh báo. Khi build, `EXE(..., icon=...)` trong `wflash.spec` nhúng file `.ico` vào `WFlash.exe`.
+
+### Thay đổi
+
+- **`wflash/resources/icons/wflash_probe_chip_teal.svg`**, **`.ico`** (mới).
+- **`wflash/gui/style.py`**: `ICONS_DIR`, `app_icon()`. **`wflash/main.py`**: `setWindowIcon`, `set_windows_app_id()`.
+- **`wflash.spec`**: `icon=` của EXE. **`pyproject.toml`**: `resources/icons/*` trong package data.
+- **`tests/test_gui_icon.py`**: file có trong package, icon không rỗng ở 16 và 256 px, thiếu file chỉ cảnh báo, spec và pyproject có icon, AppUserModelID chỉ đặt trên Windows và lỗi thì chỉ cảnh báo.
+- **`README.md`**, **`docs/windows_test_guide.md`** (Vòng 11, bước 7–8).
+
+### Đã kiểm tra
+
+- Toàn bộ test, `-k thread`, stress test, `main.py --adapter fake --smoke` (kết quả ở commit). Chưa kiểm tra trên Windows: icon trên taskbar khi chạy `python main.py`, và icon của `WFlash.exe` sau khi build. Trên macOS không build được exe Windows.
