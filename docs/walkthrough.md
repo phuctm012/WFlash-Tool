@@ -1551,3 +1551,19 @@ Người dùng gửi icon chip màu teal, gồm hai file: `.svg` và `.ico` có 
 ### Đã kiểm tra
 
 - Toàn bộ test, `-k thread`, stress test, `main.py --adapter fake --smoke` (kết quả ở commit). Chưa kiểm tra trên Windows: icon trên taskbar khi chạy `python main.py`, và icon của `WFlash.exe` sau khi build. Trên macOS không build được exe Windows.
+
+## Phase 3.21: Tự thử lại bước lập trình khi winIDEA không bắt đầu được
+
+Debug bundle Vòng 11 (`main`, 12:59) có 4 lần bấm Flash. Lần 1 và 2: sau lần reset đầu không có core nào NOT ACCESSIBLE, nhưng `begin_program` vẫn hỏng sau 7 giây (`Error loading monitor`). Lần 3: phải reset 10 lần các core mới hết NOT ACCESSIBLE, rồi vẫn hỏng. Lần 4: 2 lần reset, flash thành công. Trạng thái core trước lần hỏng và lần thành công giống hệt nhau. Nghĩa là kiểm tra core chỉ bắt được một nguyên nhân; còn một nguyên nhân khác không thể hiện ở Session Explorer, và cách chữa của người dùng là bấm Flash lại. Người dùng chọn để WFlash tự làm việc đó trong cùng một lần bấm, với 10 lần reset tính chung cho mọi lần thử.
+
+`download()` giờ là một vòng tối đa `MAX_PROGRAM_ATTEMPTS` = 3 lần thử. Mỗi lần thử: reset và kiểm tra core (`_prepare_cores`, lấy từ ngân sách reset chung), `begin_program` (`_begin_program`), đọc kiểm tra (`_read_back`, trước đây là `_confirm_programmed`). Chỉ thử lại khi `begin_program` kết thúc dưới `QUICK_FAIL_S` = 30 giây **và** lần đọc báo `Error loading monitor`. Mọi lần như vậy đến nay đều có `PROGRAMMING 0 bytes`, không xóa gì. Lần hỏng chậm, lỗi đọc khác, hay `begin_program` tự ném lỗi thì không thử lại, vì flash có thể đã bị xóa. Hết ngân sách reset thì cũng dừng. Tiến trình trên GUI ghi "try 2 of 3". Nếu hỏng cả 3 lần, lời nhắn là "Flash failed: winIDEA could not start programming in 3 tries.". Workflow vẫn trả đường dẫn về như cũ như trước.
+
+### Thay đổi
+
+- **`wflash/core/winidea_adapter.py`**: vòng thử trong `download()`, `_begin_program`, `_read_back`, `_prepare_cores(resets_left)`, `MAX_PROGRAM_ATTEMPTS`, `QUICK_FAIL_S`.
+- **`tests/test_real_adapter.py`**: hỏng cả 3 lần (3 lần reset, 3 lần `begin_program`); lần thử 2 thành công (reset trước mỗi lần thử); hỏng chậm thì không thử lại; hết reset thì không thử lại; ngân sách reset dùng chung qua các lần thử; lỗi đọc khác thì không thử lại.
+- **`CLAUDE.md`**, **`docs/winidea_api_notes.md`** (Round 11), **`docs/windows_test_guide.md`** (Vòng 12).
+
+### Đã kiểm tra
+
+- Toàn bộ test, `-k thread`, stress test (kết quả ở commit). Chưa chạy trên ECU: chờ Vòng 12. Debug bundle cũng cho thấy `truststore` chưa được cài trên máy Windows (chưa chạy lại `pip install -e`).

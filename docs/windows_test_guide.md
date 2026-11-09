@@ -581,3 +581,19 @@ python main.py --verbose
 7. **Icon.** Thanh tiêu đề WFlash, các popup và **taskbar** hiện icon chip màu teal (không phải icon Python), kể cả khi chạy bằng `python main.py`.
 8. **(tùy chọn) Build exe.** `scripts\build_windows.bat`. Mong đợi: `dist\WFlash\WFlash.exe` có icon chip trong Explorer; mở exe thì cửa sổ và taskbar cũng có icon đó.
 9. Gửi ảnh hai tab, ảnh popup Checkout khi đang lọc, ảnh taskbar, và debug bundle.
+
+## Vòng 12: tự thử lại khi winIDEA không bắt đầu lập trình
+
+Ở Vòng 11, bạn phải bấm Flash 4 lần. Ba lần đầu `begin_program` hỏng sau khoảng 7 giây (`Error loading monitor`), dù các core lúc đó đều bình thường. Giờ, trong cùng một lần bấm Flash, WFlash tự thử lại tối đa 3 lần: reset, kiểm tra core, rồi gọi `begin_program`. Mỗi lần bấm Flash vẫn chỉ có tối đa 10 lần reset, tính chung cho mọi lần thử. WFlash chỉ thử lại khi lần hỏng kết thúc nhanh (dưới 30 giây) và lần đọc kiểm tra báo `Error loading monitor`.
+
+Lấy branch `feat/program-retry` (`git fetch`, `git checkout feat/program-retry`), chạy `python -m pip install -e ".[dev]"` để có `truststore`, rồi `python main.py --verbose`.
+
+⚠️ **Có ghi flash.**
+- **Bằng chứng:** mọi lần hỏng nhanh cho tới nay (34 lần ở Vòng 9, 3 lần ở Vòng 11) đều có `PROGRAMMING 0 bytes`, tức flash chưa bị xóa; thử lại cũng giống bạn bấm Flash lần nữa. Lần hỏng chậm (có thể đã xóa flash) thì không bao giờ được thử lại.
+- **Rủi ro:** thử cả 3 lần đều hỏng thì mất thêm khoảng 1 phút, rồi báo lỗi như trước.
+- **Khôi phục:** Debug → Download bấm tay; tắt bật nguồn ECU nếu cần.
+
+1. Bấm Flash như bình thường, vài lần (ví dụ ngay sau một lần flash xong, khi ECU đang chạy). Ghi lại cho mỗi lần: có dòng `Programming did not start (Error loading monitor after … s); trying again, 2 of 3` không, và lần bấm đó có kết thúc bằng **Done** không.
+2. Nếu có lần báo `Flash failed: winIDEA could not start programming in 3 tries.`: ghi lại, và chép Output winIDEA của lần đó.
+3. Sau mỗi lần Done: tắt bật nguồn, kiểm tra ECU chạy.
+4. Gửi debug bundle và Output winIDEA.
