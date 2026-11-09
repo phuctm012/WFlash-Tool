@@ -13,6 +13,7 @@ dependencies = [
     "pydantic>=2.5",
     "PyYAML>=6.0",
     "keyring>=24",
+    "truststore>=0.10",
 ]
 
 [project.optional-dependencies]
@@ -25,7 +26,7 @@ wflash = "wflash.main:main"
 include = ["wflash*"]
 
 [tool.setuptools.package-data]
-wflash = ["resources/*.qss"]
+wflash = ["resources/*.qss", "resources/icons/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

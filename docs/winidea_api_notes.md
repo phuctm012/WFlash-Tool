@@ -345,7 +345,7 @@ PROGRAMMING         0 bytes
 No core which could program flash is stopped
 ```
 
-Same code 39 as `umi.read` in the failed 09 run. User report: **only a power cycle of the ECU clears it; a reset from winIDEA does not.** So WFlash shows that advice and does not retry. At the user's request it does reset the CPU once before programming (`debug.reset()`, then waits for `isStopped`); whether that prevents the error is not known, and reset followed by `begin_program` in one session has not run on hardware yet.
+Same code 39 as `umi.read` in the failed 09 run. User report: **only a power cycle of the ECU clears it; a reset from winIDEA does not.** Round 9 links it to a core being `NOT ACCESSIBLE` (see "Round 9 and per-core state"). So WFlash shows that advice and does not retry. At the user's request it does reset the CPU once before programming (`debug.reset()`, then waits for `isStopped`); whether that prevents the error is not known, and reset followed by `begin_program` in one session has not run on hardware yet.
 
 Seen in WFlash during the verify: `Reading the flash failed at 0x000000: CUMIController::read failed! Error code unknown to isystem.connect facade: 39  [CUMIController.cpp, 551]; 001 - Operation failed! [fpcErrCode=0x39] [extErrCode=0x0000] [Error loading monitor]`.
 
@@ -404,6 +404,42 @@ Workspace rows: [0] `Radar_SUZ05_Gen7.s3` unticked; [1] FFI `.s3` offset 0x0; [2
 - The API run's Output ends with an extra `PROGRAMMING 0 bytes` line after `OK`. It did not affect the result. Not explained yet.
 - Spike 09 parses every row as S-record, so it fails on the BM `.bin` and reads 0 segments from the FBL `.bin`. That is a limit of the spike only; WFlash's verify uses `read_image`.
 
+## Round 9 and per-core state (spike 16, 2026-11-09)
+
+Round 9 (developer flow through WFlash): three flashes passed on the ECU (FFI+CAL; FFI+CAL+BM+FBL with verify; a firmware from another commit), each with **one** `ERASING`, 79 sectors, `OK`, then `PROGRAMMING 0 bytes`. That last line appears after every API run and has never affected the result. The same session had **34 failed attempts**: `begin_program` returned after 5-9 s, the confirming `umi.read` failed with code 39 (`Error loading monitor`), and the paths were restored. None of them wrote the flash. A `debug.reset()` came before every one of them, so that reset does not clear the state.
+
+User observation: flashing works only when **no core** in the Session Explorer shows `NOT ACCESSIBLE`. Spike 16 read the same state through the API, read only:
+
+```python
+session = ic.CSessionCtrl(cmgr)
+session.get_status().SoCs()[0].cores()[i].status()         # int, EStatus_Core_*
+session.get_status().SoCs()[0].cores()[i].status_string()  # 'STOP', 'RUN', 'IDLE', 'NOT ACCESSIBLE'
+session.get_topology().SoCs()[0].cores()[i].name()         # 'M7_0', same order as get_status
+```
+
+`SSessionStatus_Core` members: `PC`, `run_duration`, `status`, `status_string`. `SSessionTopology_Core`: `CPU_info`, `core_type`, `name`. Enums: `EStatus_Core_stDetached=0`, `stInaccessible=1`, `stStopped=2`, `stRunning=3`, `stHalted=4`, `stIdle=5`, `stSuspended=6`; `EStatus_SoC_DETACHED=0`, `NOPOWER=1`, `RESET=2`, `ATTACHING=3`, `ATTACHED=4`.
+
+| Core | flashing worked | flashing failed |
+|---|---|---|
+| M7_0 (Cortex-M7) | STOP | STOP |
+| M7_RFE (Cortex-M7) | STOP | RUN |
+| A53 (Cortex-A53) | STOP | NOT ACCESSIBLE |
+| SPT (SPTv3_4) | IDLE | IDLE |
+| BBE32EP (XtensaLX) | RUN | NOT ACCESSIBLE |
+
+In both states `CDebugFacade.getCPUStatus()` said `isStopped: 1`, so the old check could not tell them apart. `/IDE/System.Debug.SoCs[0].Cores` does not resolve (`E_INVALIDARG`).
+
+**Decision (user, 2026-11-09):** set paths → reset → read every core → if one is `NOT ACCESSIBLE`, reset again; otherwise program. RUN, STOP and IDLE are fine. The user found that a reset from winIDEA clears `NOT ACCESSIBLE`. `RealWinIDEAAdapter._prepare_cores` re-reads for up to `CORE_WAIT_S` (2 s, not measured) after each reset, resets at most `MAX_CORE_RESETS` (10) times in all for one press of Flash, the first reset included, then raises `FlashError` and the workflow restores the paths. If the states cannot be read it only warns. Not yet run on hardware.
+
+**Round 10 (debug bundle 2026-11-09 11:23): it works on the ECU.** Two presses of Flash, both with A53 and BBE32EP `NOT ACCESSIBLE` at the start:
+
+| Press | Resets | State after the last reset | Result |
+|---|---|---|---|
+| 1 (11:18) | 4 (1 + 3 more) | M7_0 STOP, M7_RFE RUN, A53 RUN, SPT IDLE, BBE32EP RUN | `begin_program` 100.8 s, confirmed, Done |
+| 2 (11:21) | 2 (1 + 1 more) | same | `begin_program` 99.9 s, confirmed, Done |
+
+Each reset plus read took about 3.2 s (1.3 s reset, then the 2 s grace ran out while the cores stayed inaccessible). So `CDebugFacade.reset()` does clear `NOT ACCESSIBLE`, but not always on the first try; the 34 failures of round 9 had only one reset each. After recovery A53 and BBE32EP were **RUN**, not STOP, and programming worked: only `NOT ACCESSIBLE` matters. `CSessionCtrl.begin_reset()` is not needed. The user confirmed the ECU ran normally after both flashes.
+
 ## Open questions
 
 1. **Version mismatch.** `isystem.connect` 9.26.11 against winIDEA 9.21.408. Connect, read, download, reset and run all worked, but `CLAUDE.md` requires the versions to match. Is there a Python SDK package under `C:/Data/_Devtools/Winidea408/` (9.21.408)? If yes, install it and re-run 01 to confirm nothing changes.
@@ -411,4 +447,4 @@ Workspace rows: [0] `Radar_SUZ05_Gen7.s3` unticked; [1] FFI `.s3` offset 0x0; [2
 3. **Writing paths**: re-run 03 with `--url "/IDE/System.Debug.Applications[0].SymbolFiles.File[1].Path"`, and with the external-flash URL once 06 finds it. Confirm the read-back, the restore, and whether the change shows in the dialogs **without saving the workspace**.
 4. **Does `CLoaderController.download()` program the Winbond device?** Compare with *Hardware → Winbond W25Q64JW SPI → Program* (time it; check the winIDEA Output/Progress view during the spike download).
 5. **Selecting one of several winIDEA instances** when `getInstanceId()` is empty.
-6. Per-core reset/halt state (`CMulticoreConnectionMgr`).
+6. ~~Per-core state~~ read with `CSessionCtrl.get_status()` (spike 16). `CDebugFacade.reset()` clears `NOT ACCESSIBLE`, sometimes only after a few tries (Round 10: 4 and 2 resets).

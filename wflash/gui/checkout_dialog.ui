@@ -39,7 +39,13 @@
         </sizepolicy>
        </property>
        <property name="toolTip">
-        <string>Local branches and branches on the remote</string>
+        <string>Local branches and branches on the remote. Type part of a name to narrow the list.</string>
+       </property>
+       <property name="editable">
+        <bool>true</bool>
+       </property>
+       <property name="insertPolicy">
+        <enum>QComboBox::InsertPolicy::NoInsert</enum>
        </property>
       </widget>
      </item>

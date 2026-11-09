@@ -46,6 +46,8 @@ class Ui_CheckoutDialog(object):
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.comboBox_branch.sizePolicy().hasHeightForWidth())
         self.comboBox_branch.setSizePolicy(sizePolicy)
+        self.comboBox_branch.setEditable(True)
+        self.comboBox_branch.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
 
         self.horizontalLayout_branch.addWidget(self.comboBox_branch)
 
@@ -132,7 +134,7 @@ class Ui_CheckoutDialog(object):
         self.label_currentState.setText(QCoreApplication.translate("CheckoutDialog", u"Current: -", None))
         self.label_branch.setText(QCoreApplication.translate("CheckoutDialog", u"Branch", None))
 #if QT_CONFIG(tooltip)
-        self.comboBox_branch.setToolTip(QCoreApplication.translate("CheckoutDialog", u"Local branches and branches on the remote", None))
+        self.comboBox_branch.setToolTip(QCoreApplication.translate("CheckoutDialog", u"Local branches and branches on the remote. Type part of a name to narrow the list.", None))
 #endif // QT_CONFIG(tooltip)
         self.pushButton_fetch.setText(QCoreApplication.translate("CheckoutDialog", u"Fetch", None))
 #if QT_CONFIG(tooltip)

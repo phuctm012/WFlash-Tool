@@ -31,16 +31,18 @@ def host(qtbot, tmp_path):
     clear_secrets()
 
 
-def test_gui_info_filter_hides_debug_until_changed(host, qtbot):
+def test_gui_panel_shows_info_warning_error_and_never_debug(host, qtbot):
     w, log = host
+    assert not hasattr(w.ui, "comboBox_logLevel")  # no level filter (user decision, 2026-11-09)
     log.debug("dbg-line")
     log.info("info-line")
-    qtbot.waitUntil(lambda: "info-line" in w.log_visible_text(), timeout=1000)
-    assert "dbg-line" not in w.log_visible_text()
-    w.ui.comboBox_logLevel.setCurrentIndex(w.ui.comboBox_logLevel.findText("DEBUG"))
-    assert "dbg-line" in w.log_visible_text()
-    w.ui.comboBox_logLevel.setCurrentIndex(w.ui.comboBox_logLevel.findText("ERROR"))
-    assert w.log_visible_text() == ""
+    log.warning("warn-line")
+    log.error("error-line")
+    qtbot.waitUntil(lambda: "error-line" in w.log_visible_text(), timeout=1000)
+    text = w.log_visible_text()
+    assert "info-line" in text and "warn-line" in text and "dbg-line" not in text
+    w.refresh_log_theme()  # repainting after a theme change keeps DEBUG out too
+    assert "dbg-line" not in w.log_visible_text() and "warn-line" in w.log_visible_text()
 
 
 def test_gui_error_keeps_traceback_and_flags_status_bar(host, qtbot):
@@ -70,8 +72,8 @@ def test_gui_copy_and_clear(host, qtbot):
     assert "copy me" in QGuiApplication.clipboard().text()
     qtbot.mouseClick(w.ui.pushButton_clearLog, Qt.MouseButton.LeftButton)
     assert w.log_visible_text() == ""
-    w.ui.comboBox_logLevel.setCurrentIndex(0)
-    assert w.log_visible_text() == ""  # cleared records do not come back on refilter
+    w.refresh_log_theme()
+    assert w.log_visible_text() == ""  # cleared records do not come back on a repaint
 
 
 def test_gui_thread_log_record_from_worker_thread_reaches_panel(host, qtbot):

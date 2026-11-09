@@ -36,6 +36,7 @@ Mục đích: xác minh API `isystem.connect` trên winIDEA 9.21 + workspace SAF
 | `python 13_device_options.py` | liệt kê option của thiết bị Winbond từ file workspace và đọc từng option | Không (chỉ đọc) |
 | `python 14_tick_options.py` | đọc dấu tick của Download Files và Symbol Files; `--toggle-row`, `--toggle-symbol` đảo rồi khôi phục | Đổi tạm, tự khôi phục; không flash |
 | `python 15_pipeline_sha.py` | tìm pipeline và job theo commit trên GitLab; token lấy từ biến `GITLAB_TOKEN` | Không |
+| `python 16_core_status.py --label all_stopped` | đọc trạng thái từng core (Session Explorer) qua `CSessionCtrl.get_status()` và `getCPUStatus`; in API cho từng core. Chạy một lần khi mọi core STOP, một lần khi có core NOT ACCESSIBLE (`--label not_accessible`) | Không (chỉ đọc) |
 | `python 11_find_examples.py` | tìm ví dụ và tài liệu `isystem.connect` trên máy, chép vào `results\examples` (không kết nối winIDEA) | Không |
 
 - Nhiều instance winIDEA: thêm `--instance <id>` (id lấy từ output 01).

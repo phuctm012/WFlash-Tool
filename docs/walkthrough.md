@@ -1455,3 +1455,99 @@ Người dùng chạy trên ECU thật với bốn dòng FFI, CAL, BM (`.bin`, o
 ### Đã kiểm tra
 
 - Đọc Output tay và Output API, `12_begin_program` (99.8 s, trả về `None`), `09_flash_compare` (FFI khớp trừ vùng BM ghi đè, CAL khớp). Chỉ đổi tài liệu. Dòng `PROGRAMMING 0 bytes` ở cuối Output của lần chạy API chưa giải thích được.
+
+## Phase 3.15: Kết quả Vòng 9 và kiểm tra core trước khi flash
+
+Vòng 9 đạt: ba lần flash qua luồng developer đều có một `ERASING`, và ECU chạy đúng. Debug bundle còn cho thấy 34 lần flash hỏng: `begin_program` trả về sau 5–9 giây, rồi lần đọc kiểm tra báo `Error loading monitor`. WFlash báo lỗi đúng và trả đường dẫn về như cũ, nhưng người dùng phải bấm lại nhiều lần. Người dùng nhận ra flash chỉ được khi không có core nào NOT ACCESSIBLE trong Session Explorer. Spike 16 (chỉ đọc) tìm được cách đọc trạng thái đó: `CSessionCtrl.get_status().SoCs()[0].cores()`, tên lấy từ `get_topology()`. Kiểm tra cũ bằng `getCPUStatus()` của M7_0 báo `isStopped` như nhau ở cả hai trạng thái, nên không phát hiện được. Theo quyết định của người dùng, adapter thật reset, đọc trạng thái các core, và chỉ chạy `begin_program` khi không có core nào NOT ACCESSIBLE. Trạng thái RUN, STOP, IDLE đều được chấp nhận, vì BBE32EP đang RUN mà vẫn flash được. Nếu bị chặn, `download()` báo lỗi nên workflow tự trả đường dẫn về như cũ. Nếu không đọc được trạng thái thì chỉ cảnh báo rồi vẫn flash, vì không đọc được khác với core hỏng.
+
+### Thay đổi
+
+- **`spike/16_core_status.py`**, **`spike/README.md`**: spike chỉ đọc, in trạng thái từng core, topology và các hằng `EStatus_*`.
+- **`wflash/core/winidea_adapter.py`**: `_core_states`, kiểm tra core (đọc lại trong `CORE_WAIT_S` = 2 s, con số chưa đo), `inaccessible_cores_error`, `CORE_HINT`; gọi giữa reset và `begin_program`.
+- **`wflash/core/fake_adapter.py`**: chế độ lỗi `core_inaccessible`.
+- **`tests/fake_isystem.py`**: `CSessionCtrl.get_status/get_topology`, các core theo kết quả spike 16, `cores_after_reset`, `core_status_error`, `get_status_hook`.
+- **`tests/test_real_adapter.py`**, **`tests/test_flash_workflow.py`**: bị chặn khi core NOT ACCESSIBLE (không gọi `begin_program`, trả đường dẫn về như cũ), core hồi lại trong khoảng chờ, không đọc được trạng thái thì vẫn flash, có ghi log trạng thái.
+- **`docs/winidea_api_notes.md`**: mục "Round 9 and per-core state". **`docs/windows_test_guide.md`**: Vòng 10. **`CLAUDE.md`**: thêm mục về NOT ACCESSIBLE.
+
+### Đã kiểm tra
+
+- Spike 16 trên ECU thật, hai trạng thái (mọi core STOP, và có core NOT ACCESSIBLE), kết quả như bảng trong `winidea_api_notes.md`.
+- Toàn bộ test, `-k thread`, stress test (kết quả ở commit). Kiểm tra trong adapter thật **chưa chạy trên phần cứng**: chờ Vòng 10. Chưa biết reset thêm lần nữa có làm hết NOT ACCESSIBLE không: 34 lần hỏng ở Vòng 9 đều đã reset một lần trước đó.
+
+## Phase 3.16: Reset lại khi có core NOT ACCESSIBLE
+
+Người dùng thử reset bằng winIDEA thì các core hết NOT ACCESSIBLE. Theo đó, người dùng chốt thứ tự: đặt đường dẫn, reset, đọc trạng thái mọi core; nếu có core NOT ACCESSIBLE thì reset lại, nếu không thì bắt đầu flash. Số lần reset thêm có giới hạn, `MAX_CORE_RESETS` = 3, để WFlash không lặp mãi. Hết số lần đó mà vẫn còn core NOT ACCESSIBLE thì WFlash dừng và trả đường dẫn về như cũ, như Phase 3.15. Mỗi lần reset lại đều ghi cảnh báo vào log, có trạng thái từng core.
+
+### Thay đổi
+
+- **`wflash/core/winidea_adapter.py`**: `_prepare_cores` (reset, đọc trạng thái, reset lại tối đa 3 lần) thay cho `_check_cores`; `_inaccessible_cores` đọc lại trạng thái trong `CORE_WAIT_S` sau mỗi lần reset. Lời nhắn lỗi nêu số lần đã reset.
+- **`tests/fake_isystem.py`**: `cores_after_reset` là danh sách, mỗi lần reset lấy phần tử tiếp theo.
+- **`tests/test_real_adapter.py`**: lần reset thứ ba làm hết NOT ACCESSIBLE thì flash; hết 3 lần thì dừng, không gọi `begin_program`; core tự hồi trong khoảng chờ thì không reset thêm.
+- **`docs/winidea_api_notes.md`**, **`docs/windows_test_guide.md`** (Vòng 10), **`CLAUDE.md`**.
+
+### Đã kiểm tra
+
+- Toàn bộ test, `-k thread`, stress test (kết quả ở commit). Chưa chạy trên phần cứng. Lệnh reset dùng ở đây là `CDebugFacade.reset()`, chính lệnh đã chạy trước 34 lần hỏng ở Vòng 9. Có thể nó không giống thao tác reset bạn bấm tay trong winIDEA. Vòng 10 sẽ cho biết. Nếu nó không làm hết NOT ACCESSIBLE thì lệnh nên thử tiếp là `CSessionCtrl.begin_reset()`.
+
+## Phase 3.17: Tối đa 10 lần reset cho mỗi lần bấm Flash
+
+Người dùng đổi giới hạn: mỗi lần bấm Flash có tối đa 10 lần reset, tính cả lần reset đầu tiên (trước đây là 1 lần đầu cộng 3 lần thêm). Lần reset sau khi flash xong (bước Reset target) không tính vào đây. Trường hợp xấu nhất, khi không lần reset nào làm hết NOT ACCESSIBLE, WFlash chờ khoảng 30–35 giây rồi mới báo lỗi. Mỗi lần reset mất khoảng 1,3 giây, cộng tối đa 2 giây chờ trạng thái.
+
+### Thay đổi
+
+- **`wflash/core/winidea_adapter.py`**: `MAX_CORE_RESETS = 10` là tổng số lần reset; vòng lặp của `_prepare_cores` đếm cả lần đầu; lời nhắn "still not accessible after 10 resets".
+- **`tests/test_real_adapter.py`**, **`docs/winidea_api_notes.md`**, **`docs/windows_test_guide.md`**, **`CLAUDE.md`**.
+
+### Đã kiểm tra
+
+- Toàn bộ test, `-k thread`, stress test (kết quả ở commit). Chưa chạy trên phần cứng.
+
+## Phase 3.18: Vòng 10 đạt: reset lại làm hết NOT ACCESSIBLE
+
+Người dùng chạy nhánh `feat/core-check` trên ECU thật. Cả hai lần bấm Flash, lúc bắt đầu A53 và BBE32EP đều NOT ACCESSIBLE. Lần 1 cần 4 lần reset, lần 2 cần 2 lần, rồi các core trở lại (A53, BBE32EP ở trạng thái RUN). Sau đó `begin_program` chạy khoảng 100 giây, lần đọc kiểm tra đạt, và bước Done hoàn tất. Không phải tắt bật nguồn. Như vậy chính `CDebugFacade.reset()` làm hết trạng thái đó, chỉ là đôi khi phải reset vài lần. Ở Vòng 9, mỗi lần bấm Flash chỉ reset một lần nên mới có 34 lần hỏng. Không cần thử `CSessionCtrl.begin_reset()`.
+
+### Thay đổi
+
+- **`docs/winidea_api_notes.md`**: kết quả Round 10 và bảng số lần reset. **`docs/windows_test_guide.md`**: kết quả Vòng 10.
+
+### Đã kiểm tra
+
+- Debug bundle `wflash_debug_20261109_112331`: 2 lần flash Done, `errors.txt` rỗng, không có cảnh báo nào ngoài các dòng reset lại và cảnh báo lệch phiên bản isystem.connect đã biết. Hai file Output winIDEA gửi kèm bị trống, nên số dòng `ERASING` không kiểm tra được. Người dùng xác nhận ECU chạy bình thường sau cả hai lần. Chỉ đổi tài liệu.
+
+## Phase 3.19: Hai tab Flash/Setting, Reload repo, lọc branch, chứng chỉ Windows, log gọn
+
+Người dùng yêu cầu bốn thay đổi giao diện, duyệt mockup trên canvas (artboard 4–7), rồi thêm yêu cầu bỏ bộ lọc log.
+
+1. **Reload repo.** Thêm nút Reload cạnh Source repo. WFlash cũng tự đọc lại repo mỗi khi cửa sổ được kích hoạt lại (`changeEvent` với `ActivationChange`). Người dùng chọn cách này thay vì hỏi git 10 giây một lần, để không chạy `git status` liên tục trên repo lớn. Mỗi lúc chỉ có một lần đọc repo chạy (`refresh_source_repo` đã có sẵn kiểm tra này), và không đọc khi đang flash.
+2. **Hai tab.** `main_window.ui` có `tabWidget_main`. Tab **Flash** gồm việc hằng ngày: dòng Branch/Commit chỉ để xem, Application, Advanced Debug, hoặc nút Load from GitLab và thẻ nguồn với profile thường, cùng hai bảng file. Tab **Setting** gồm Profile, Source repo với Browse/Reload/Checkout, winIDEA, After flash và Preferences, chia thành các `QGroupBox`, trang cuộn được. Phần đầu (nút Flash, thanh tiến trình, các dải cảnh báo) và khung Information nằm ngoài tab. Các widget có sẵn được chuyển nguyên, giữ tên. Panel cũ `frame_settingPanel` và tiêu đề `label_settingHeader` bị bỏ.
+3. **Chứng chỉ Windows.** Bỏ ô CA bundle trong Load from GitLab. Khi khởi động, `wflash/core/system_certs.py` gọi `truststore.inject_into_ssl()`, nên `requests` kiểm tra chứng chỉ bằng kho của hệ điều hành; trên Windows, chứng chỉ nội bộ do IT cài vào là dùng được. Thiếu `truststore` thì chỉ cảnh báo. `AppSettings.ca_bundle` vẫn giữ để file settings cũ đọc được, nhưng không còn dùng. Lời gợi ý khi lỗi SSL đổi theo.
+4. **Lọc branch trong Checkout.** `comboBox_branch` cho gõ (`editable`, `NoInsert`), completer lọc theo chữ có ở bất kỳ đâu trong tên, không phân biệt hoa thường. Vì `setCurrentText` của combo cho gõ chỉ đổi chữ hiện trên ô, code chọn branch qua chỉ số (`_chosen_branch`). Nút Checkout chỉ bật khi chữ đang gõ trùng đúng tên một branch, để không checkout nhầm branch cũ trong lúc đang gõ dở.
+5. **Log.** Bỏ ô Log level. Khung Information hiện INFO, WARNING, ERROR; DEBUG vẫn có trong log file, nên debug bundle không mất gì.
+
+### Thay đổi
+
+- **`wflash/gui/main_window.ui`**, **`ui_main_window.py`**: `tabWidget_main` (`tab_flash`, `tab_setting`), `frame_flashPanel`/`scrollArea_flashPanel`, `frame_gitlabSource`, `groupBox_firmware`/`winidea`/`afterFlash`, `frame_sourceRepoSetting`, `pushButton_reloadRepo`, `label_repoSummary`, `label_repoFlashHint`, `label_repoAutoHint`, `label_verifyHint`; bỏ `comboBox_logLevel`, `label_logLevel`, `frame_settingPanel`, `label_settingHeader`, `label_afterFlash`.
+- **`wflash/gui/gitlab_dialog.ui`**, **`gitlab_dialog.py`**: bỏ dòng CA bundle, gợi ý về kho chứng chỉ Windows. **`wflash/gui/checkout_dialog.ui`**, **`checkout_dialog.py`**: ô branch cho gõ để lọc.
+- **`wflash/gui/source_panel.py`**, **`main_window.py`**, **`flash_mixin.py`**, **`log_panel.py`**; **`wflash/core/system_certs.py`** (mới), **`gitlab_client.py`**, **`settings.py`**, **`wflash/main.py`**; **`pyproject.toml`**, **`wflash.spec`** (`truststore`); **`wflash/resources/style*.qss`**.
+- Test: chia tab, Reload, kích hoạt lại cửa sổ, lọc branch, chữ gõ không khớp thì không checkout, không còn ô CA bundle, log không có DEBUG, `truststore` có/không. `test_gui_window_min_size` chờ vòng sự kiện đầu (QTabWidget tính xong thanh tab khi đó). Stress test chuyển tab trong lúc flash và bấm Reload liên tục.
+- **`README.md`**, **`CLAUDE.md`**, **`docs/windows_test_guide.md`** (Vòng 11).
+
+### Đã kiểm tra
+
+- Toàn bộ test, `-k thread`, stress test, `main.py --adapter fake --smoke` (kết quả ở commit). Mockup canvas đã được duyệt. Đã chụp hai tab offscreen trên macOS với profile SUZ05 và adapter giả. Từ ảnh chụp, tỉ lệ chiều cao vùng tab so với khung Information được tăng từ 3:2 lên 5:2, để tab Flash hiện đủ Advanced Debug mà không phải cuộn, và nút Checkout… không còn bị kéo dài. Chưa chạy trên Windows: chứng chỉ GitLab qua `truststore` và cách các tab hiện với font Windows cần Vòng 11 xác nhận.
+
+## Phase 3.20: Icon của WFlash
+
+Người dùng gửi icon chip màu teal, gồm hai file: `.svg` và `.ico` có 7 kích thước từ 16 px. Icon nằm trong `wflash/resources/icons/`, cạnh stylesheet, để `pip install` và PyInstaller cùng gói kèm. Khi chạy, `app.setWindowIcon(app_icon())` đặt icon cho mọi cửa sổ và popup. `app_icon()` nạp cả SVG (đẹp ở mọi kích thước) lẫn ICO; thiếu file thì chỉ cảnh báo. Khi chạy bằng `python main.py` trên Windows, taskbar sẽ gộp cửa sổ vào `python.exe` và hiện icon Python. Vì vậy `set_windows_app_id()` đặt AppUserModelID riêng `WFlash.WFlash` trước khi mở cửa sổ đầu tiên; nếu lỗi thì chỉ cảnh báo. Khi build, `EXE(..., icon=...)` trong `wflash.spec` nhúng file `.ico` vào `WFlash.exe`.
+
+### Thay đổi
+
+- **`wflash/resources/icons/wflash_probe_chip_teal.svg`**, **`.ico`** (mới).
+- **`wflash/gui/style.py`**: `ICONS_DIR`, `app_icon()`. **`wflash/main.py`**: `setWindowIcon`, `set_windows_app_id()`.
+- **`wflash.spec`**: `icon=` của EXE. **`pyproject.toml`**: `resources/icons/*` trong package data.
+- **`tests/test_gui_icon.py`**: file có trong package, icon không rỗng ở 16 và 256 px, thiếu file chỉ cảnh báo, spec và pyproject có icon, AppUserModelID chỉ đặt trên Windows và lỗi thì chỉ cảnh báo.
+- **`README.md`**, **`docs/windows_test_guide.md`** (Vòng 11, bước 7–8).
+
+### Đã kiểm tra
+
+- Toàn bộ test, `-k thread`, stress test, `main.py --adapter fake --smoke` (kết quả ở commit). Chưa kiểm tra trên Windows: icon trên taskbar khi chạy `python main.py`, và icon của `WFlash.exe` sau khi build. Trên macOS không build được exe Windows.

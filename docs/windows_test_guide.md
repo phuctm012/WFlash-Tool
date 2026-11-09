@@ -543,3 +543,41 @@ Làm **sau khi phần B của Vòng 8 đạt**. Phần đó chứng minh winIDEA
 11. **(FLASH)** Tick Advanced Debug (BM, FBL đã nạp ở bước 9), bấm Flash. Mong đợi: 1 `ERASING`; dòng BM, FBL và ELF của chúng **được tick** và trỏ vào cache. Tắt bật nguồn, kiểm tra ECU chạy, và nếu có cách thì kiểm tra đúng BM, FBL vừa chọn.
 12. **(FLASH)** Checkout một commit khác có pipeline (firmware khác), Load firmware, bỏ Advanced Debug, Flash. Tắt bật nguồn, kiểm tra ECU đúng là chạy firmware mới.
 13. Export debug bundle, gửi lại cùng Output winIDEA của các bước 10–12 và ảnh chụp panel developer.
+
+## Vòng 10: kiểm tra core trước khi flash
+
+Vòng 9 đã đạt (3 lần flash, ECU chạy đúng). Nhưng trước đó có 34 lần flash hỏng sau 5–9 giây, và lần nào cũng có core **NOT ACCESSIBLE** trong Session Explorer. Spike 16 đọc được trạng thái đó qua API. Bây giờ WFlash: đặt đường dẫn → reset → đọc trạng thái mọi core → nếu có core NOT ACCESSIBLE thì **reset lại**, nếu không thì flash. Mỗi lần bấm Flash có tối đa **10 lần reset**, tính cả lần đầu. Hết 10 lần mà vẫn còn thì WFlash dừng, báo tên core, trả đường dẫn về như cũ, và không ghi gì vào flash.
+
+Lấy branch `feat/core-check`, chạy `python main.py --verbose`.
+
+⚠️ Bước 2 và 3 có ghi flash. Bằng chứng: chuỗi gọi xuống winIDEA giống Vòng 9 (đặt path, reset, `begin_program`), chỉ thêm hai lệnh đọc `get_topology`/`get_status` mà spike 16 đã chạy. Cách khôi phục vẫn là Debug → Download bấm tay, và tắt bật nguồn khi có core NOT ACCESSIBLE.
+
+1. **(FLASH nếu reset làm hết NOT ACCESSIBLE)** Làm cho có core NOT ACCESSIBLE (như ảnh 2 của bạn), rồi bấm Flash. Có hai kết quả có thể xảy ra, kết quả nào cũng ghi lại:
+   - Log có `Cores not accessible (...) after reset 1 of 10; resetting again`, sau đó là `Cores before programming: ...` không còn NOT ACCESSIBLE, và flash xong như Vòng 9. Nghĩa là lệnh reset của API làm được như reset bấm tay.
+   - Sau khoảng 30–35 giây báo "Flash not started: ... still not accessible after 10 resets.". Output winIDEA không có `ERASING`, workspace giữ đường dẫn cũ. Nghĩa là lệnh reset của API **khác** reset bấm tay. Hãy ghi rõ bạn reset bằng nút hay menu nào trong winIDEA.
+2. **(FLASH)** Tắt bật nguồn ECU cho tới khi Session Explorer không còn NOT ACCESSIBLE, bấm Flash. Mong đợi: log có `Cores before programming: M7_0 STOP, ...`, flash xong như Vòng 9 (1 `ERASING`), ECU chạy.
+3. **(FLASH)** Bấm Flash lần nữa ngay sau bước 2, không tắt nguồn. Ghi lại WFlash báo gì: flash được, hay bị chặn vì core NOT ACCESSIBLE.
+4. Gửi debug bundle, Output winIDEA của bước 2–3, và ảnh Session Explorer ở bước 1 và 3.
+
+**Kết quả Vòng 10 (2026-11-09): đạt.** Cả hai lần bấm Flash, lúc bắt đầu A53 và BBE32EP đều NOT ACCESSIBLE. Lần 1, WFlash reset 4 lần thì hết; lần 2, reset 2 lần thì hết. Sau đó cả hai lần flash xong khoảng 100 giây, rồi Done. Không phải tắt bật nguồn. Người dùng xác nhận ECU chạy bình thường sau cả hai lần.
+
+## Vòng 11: giao diện hai tab, Reload repo, lọc branch, chứng chỉ Windows
+
+Không ghi flash, trừ bước 6. Lấy branch `feat/ui-tabs`, cài lại vì có thư viện mới `truststore`:
+
+```bat
+git fetch
+git checkout feat/ui-tabs
+python -m pip install -e ".[dev]"
+python main.py --verbose
+```
+
+1. **Hai tab.** Cửa sổ có tab **Flash** và **Setting**. Tab Flash: dòng Branch/Commit, khung Application, Advanced Debug, hai bảng file. Tab Setting: Profile, Source repo (Browse, **Reload**, Checkout…), winIDEA instance, After flash (Reset, Run, Verify samples), Preferences…. Nút Flash, thanh tiến trình và khung Information luôn hiện ở cả hai tab.
+2. **Reload.** Trong terminal, commit thử hoặc đổi branch trong repo APP. Quay lại WFlash: dòng Branch/Commit tự cập nhật, không cần bấm gì. Làm lại lần nữa rồi bấm **Reload** ở tab Setting: cũng cập nhật.
+3. **Lọc branch.** Setting → **Checkout…**, gõ một phần tên (ví dụ `r5_led`, chữ thường cũng được): danh sách chỉ còn các branch có chữ đó. Chọn một dòng hoặc gõ đủ tên rồi Enter: bảng commit đổi theo. Gõ tên không có thật rồi Enter: báo "No branch named …", nút Checkout tắt.
+4. **Chứng chỉ Windows.** Mở Load from GitLab (nút Choose job in GitLab… hoặc Load… của BM): không còn ô CA bundle. Để **Verify TLS certificate** bật, bấm Load branches/tags. Mong đợi: tải được danh sách, không lỗi SSL. Trong log đầu phiên có dòng `HTTPS certificates are checked against the system certificate store`. Nếu lỗi SSL: gửi lại log, và cho biết trước đây bạn có dùng file CA bundle hay đã tắt Verify TLS.
+5. **Log.** Khung Information không còn ô Log level, chỉ hiện INFO, WARNING, ERROR. Export debug bundle: `log.txt` trong đó vẫn có các dòng DEBUG (ví dụ `wflash.calls`).
+6. **(FLASH)** Flash một lần như Vòng 10, trong lúc chờ thì chuyển qua lại giữa hai tab. Mong đợi: flash xong bình thường; trong lúc flash, các ô ở tab Setting bị khóa. Bằng chứng an toàn: phần flash không đổi so với Vòng 10, chỉ giao diện đổi. Khôi phục như cũ: Debug → Download bấm tay.
+7. **Icon.** Thanh tiêu đề WFlash, các popup và **taskbar** hiện icon chip màu teal (không phải icon Python), kể cả khi chạy bằng `python main.py`.
+8. **(tùy chọn) Build exe.** `scripts\build_windows.bat`. Mong đợi: `dist\WFlash\WFlash.exe` có icon chip trong Explorer; mở exe thì cửa sổ và taskbar cũng có icon đó.
+9. Gửi ảnh hai tab, ảnh popup Checkout khi đang lọc, ảnh taskbar, và debug bundle.

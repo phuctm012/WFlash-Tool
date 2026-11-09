@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import QThreadPool
+from PySide6.QtCore import QEvent, QThreadPool
 from PySide6.QtWidgets import QApplication, QDialog, QLabel, QMainWindow, QMessageBox
 
 from wflash import APP_AUTHOR, __version__
@@ -193,6 +193,12 @@ class MainWindow(SourcePanelMixin, MappingTableMixin, FlashMixin, LogPanelMixin,
         repolish(self.ui.pushButton_flash)
         repolish(self.ui.progressBar_flash)
         log.info("Theme: %s", "dark" if dark else "light")
+
+    def changeEvent(self, event) -> None:
+        # Coming back to WFlash (from a terminal or an IDE): read the source repo again.
+        if event.type() == QEvent.Type.ActivationChange and self.isActiveWindow():
+            self.refresh_source_repo_on_activate()
+        super().changeEvent(event)
 
     # -- shutdown -------------------------------------------------------------------
     def closeEvent(self, event) -> None:

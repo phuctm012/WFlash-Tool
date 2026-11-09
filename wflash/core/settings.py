@@ -59,7 +59,7 @@ def _type_name(default: object) -> str:
 @dataclass
 class AppSettings:
     gitlab_url: str = ""
-    ca_bundle: str = ""
+    ca_bundle: str = ""  # no longer used (2026-11-09): the system certificate store is; kept so old files load
     cache_dir: str = ""
     max_cached_jobs: int = 10
     profiles_dir: str = ""

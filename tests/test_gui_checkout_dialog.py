@@ -3,7 +3,7 @@ import subprocess
 import threading
 
 import pytest
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import Qt, QTimer
 
 from tests.gui_stubs import PROJECT, FakeGitLabSession, HostWindow, SessionClientFactory, patch_keyring
 from wflash.core.source_repo import read_state
@@ -56,8 +56,15 @@ def open_dialog(qtbot, host, repo, project=""):
 
 
 def choose_branch(qtbot, dialog, name, rows):
-    dialog.ui.comboBox_branch.setCurrentText(name)
-    qtbot.waitUntil(lambda: not dialog.busy() and dialog.ui.tableWidget_commits.rowCount() == rows, timeout=5000)
+    """Type the full name and press Enter, as a user does in the editable branch field."""
+    edit = dialog.ui.comboBox_branch.lineEdit()
+    edit.setText(name)
+    qtbot.keyClick(edit, Qt.Key.Key_Return)
+    qtbot.waitUntil(
+        lambda: not dialog.busy() and dialog._chosen_branch() == name
+        and dialog.ui.tableWidget_commits.rowCount() == rows,
+        timeout=5000,
+    )
 
 
 def test_gui_checkout_shows_the_current_state_and_branches(qtbot, host, repo):
@@ -129,4 +136,29 @@ def test_gui_thread_closing_during_fetch_waits_and_drops_the_result(qtbot, host,
     assert not dialog.isVisible() and not dialog.busy()
     assert not host._workers.has_running("checkout-")
     qtbot.wait(100)  # a queued result, if any, is dropped as stale
+    assert dialog.ui.label_checkoutError.text() == ""
+
+
+def test_gui_checkout_branch_field_filters_by_any_part_of_the_name(qtbot, host, repo):
+    dialog = open_dialog(qtbot, host, repo)
+    combo = dialog.ui.comboBox_branch
+    assert combo.isEditable()
+    completer = combo.completer()
+    completer.setCompletionPrefix("THE")  # "other", any case, not at the start
+    names = [completer.completionModel().index(i, 0).data() for i in range(completer.completionCount())]
+    assert names == ["other"]
+
+
+def test_gui_checkout_typed_text_that_names_no_branch_turns_checkout_off(qtbot, host, repo):
+    dialog = open_dialog(qtbot, host, repo)
+    dialog.ui.tableWidget_commits.selectRow(0)
+    assert dialog.ui.pushButton_checkout.isEnabled()
+    edit = dialog.ui.comboBox_branch.lineEdit()
+    edit.setText("oth")  # half typed: the table still shows main, Checkout must not act on it
+    assert not dialog.ui.pushButton_checkout.isEnabled()
+    qtbot.keyClick(edit, Qt.Key.Key_Return)
+    assert "No branch named 'oth'" in dialog.ui.label_checkoutError.text()
+    dialog.checkout_selected()  # ignored
+    assert read_state(repo).branch == "main"
+    choose_branch(qtbot, dialog, "other", 2)
     assert dialog.ui.label_checkoutError.text() == ""

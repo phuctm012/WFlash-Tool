@@ -112,11 +112,11 @@ def test_connection_error(client):
 
 
 @responses.activate
-def test_ssl_error_suggests_ca_bundle(client):
+def test_ssl_error_suggests_the_windows_certificate_store(client):
     responses.get(f"{API}/projects/42/repository/branches", body=requests.exceptions.SSLError("bad cert"))
     with pytest.raises(GitLabError) as info:
         client.list_refs(42)
-    assert "CA bundle" in info.value.hint
+    assert "Windows certificate store" in info.value.hint and "CA bundle" not in info.value.hint
 
 
 def test_token_is_registered_for_redaction(client):

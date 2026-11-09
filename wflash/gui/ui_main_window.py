@@ -16,11 +16,11 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
 from PySide6.QtWidgets import (QAbstractItemView, QApplication, QCheckBox, QComboBox,
-    QFrame, QGridLayout, QHBoxLayout, QHeaderView,
-    QLabel, QLineEdit, QMainWindow, QPlainTextEdit,
-    QProgressBar, QPushButton, QScrollArea, QSizePolicy,
-    QSpacerItem, QStatusBar, QTabWidget, QTableWidget,
-    QTableWidgetItem, QVBoxLayout, QWidget)
+    QFrame, QGridLayout, QGroupBox, QHBoxLayout,
+    QHeaderView, QLabel, QLineEdit, QMainWindow,
+    QPlainTextEdit, QProgressBar, QPushButton, QScrollArea,
+    QSizePolicy, QSpacerItem, QStatusBar, QTabWidget,
+    QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget)
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -99,64 +99,39 @@ class Ui_MainWindow(object):
 
         self.verticalLayout_main.addWidget(self.label_flashBlocked)
 
-        self.horizontalLayout_workArea = QHBoxLayout()
-        self.horizontalLayout_workArea.setObjectName(u"horizontalLayout_workArea")
-        self.frame_settingPanel = QFrame(self.centralWidget_main)
-        self.frame_settingPanel.setObjectName(u"frame_settingPanel")
-        self.frame_settingPanel.setMinimumSize(QSize(360, 0))
-        self.frame_settingPanel.setMaximumSize(QSize(360, 16777215))
-        self.frame_settingPanel.setFrameShape(QFrame.Shape.StyledPanel)
-        self.verticalLayout_settingPanel = QVBoxLayout(self.frame_settingPanel)
-        self.verticalLayout_settingPanel.setSpacing(0)
-        self.verticalLayout_settingPanel.setObjectName(u"verticalLayout_settingPanel")
-        self.verticalLayout_settingPanel.setContentsMargins(0, 0, 0, 0)
-        self.label_settingHeader = QLabel(self.frame_settingPanel)
-        self.label_settingHeader.setObjectName(u"label_settingHeader")
-
-        self.verticalLayout_settingPanel.addWidget(self.label_settingHeader)
-
-        self.scrollArea_setting = QScrollArea(self.frame_settingPanel)
-        self.scrollArea_setting.setObjectName(u"scrollArea_setting")
-        self.scrollArea_setting.setFrameShape(QFrame.Shape.NoFrame)
-        self.scrollArea_setting.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.scrollArea_setting.setWidgetResizable(True)
-        self.scrollAreaWidgetContents_setting = QWidget()
-        self.scrollAreaWidgetContents_setting.setObjectName(u"scrollAreaWidgetContents_setting")
-        self.verticalLayout_settingScroll = QVBoxLayout(self.scrollAreaWidgetContents_setting)
-        self.verticalLayout_settingScroll.setSpacing(0)
-        self.verticalLayout_settingScroll.setObjectName(u"verticalLayout_settingScroll")
-        self.verticalLayout_settingScroll.setContentsMargins(0, 0, 0, 0)
-        self.gridLayout_setting = QGridLayout()
-        self.gridLayout_setting.setObjectName(u"gridLayout_setting")
-        self.gridLayout_setting.setVerticalSpacing(8)
-        self.gridLayout_setting.setContentsMargins(10, 10, 10, 6)
-        self.frame_developer = QFrame(self.scrollAreaWidgetContents_setting)
+        self.tabWidget_main = QTabWidget(self.centralWidget_main)
+        self.tabWidget_main.setObjectName(u"tabWidget_main")
+        self.tab_flash = QWidget()
+        self.tab_flash.setObjectName(u"tab_flash")
+        self.horizontalLayout_flashTab = QHBoxLayout(self.tab_flash)
+        self.horizontalLayout_flashTab.setObjectName(u"horizontalLayout_flashTab")
+        self.frame_flashPanel = QFrame(self.tab_flash)
+        self.frame_flashPanel.setObjectName(u"frame_flashPanel")
+        self.frame_flashPanel.setMinimumSize(QSize(360, 0))
+        self.frame_flashPanel.setMaximumSize(QSize(360, 16777215))
+        self.frame_flashPanel.setFrameShape(QFrame.Shape.NoFrame)
+        self.verticalLayout_flashPanel = QVBoxLayout(self.frame_flashPanel)
+        self.verticalLayout_flashPanel.setSpacing(0)
+        self.verticalLayout_flashPanel.setObjectName(u"verticalLayout_flashPanel")
+        self.verticalLayout_flashPanel.setContentsMargins(0, 0, 0, 0)
+        self.scrollArea_flashPanel = QScrollArea(self.frame_flashPanel)
+        self.scrollArea_flashPanel.setObjectName(u"scrollArea_flashPanel")
+        self.scrollArea_flashPanel.setFrameShape(QFrame.Shape.NoFrame)
+        self.scrollArea_flashPanel.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.scrollArea_flashPanel.setWidgetResizable(True)
+        self.scrollAreaWidgetContents_flashPanel = QWidget()
+        self.scrollAreaWidgetContents_flashPanel.setObjectName(u"scrollAreaWidgetContents_flashPanel")
+        self.verticalLayout_flashScroll = QVBoxLayout(self.scrollAreaWidgetContents_flashPanel)
+        self.verticalLayout_flashScroll.setSpacing(9)
+        self.verticalLayout_flashScroll.setObjectName(u"verticalLayout_flashScroll")
+        self.verticalLayout_flashScroll.setContentsMargins(2, 2, 6, 2)
+        self.frame_developer = QFrame(self.scrollAreaWidgetContents_flashPanel)
         self.frame_developer.setObjectName(u"frame_developer")
         self.frame_developer.setFrameShape(QFrame.Shape.NoFrame)
         self.verticalLayout_developer = QVBoxLayout(self.frame_developer)
         self.verticalLayout_developer.setSpacing(8)
         self.verticalLayout_developer.setObjectName(u"verticalLayout_developer")
         self.verticalLayout_developer.setContentsMargins(0, 0, 0, 0)
-        self.gridLayout_sourceRepo = QGridLayout()
-        self.gridLayout_sourceRepo.setObjectName(u"gridLayout_sourceRepo")
-        self.gridLayout_sourceRepo.setContentsMargins(0, 0, 0, 0)
-        self.label_sourceRepo = QLabel(self.frame_developer)
-        self.label_sourceRepo.setObjectName(u"label_sourceRepo")
-
-        self.gridLayout_sourceRepo.addWidget(self.label_sourceRepo, 0, 0, 1, 1)
-
-        self.lineEdit_sourceRepo = QLineEdit(self.frame_developer)
-        self.lineEdit_sourceRepo.setObjectName(u"lineEdit_sourceRepo")
-
-        self.gridLayout_sourceRepo.addWidget(self.lineEdit_sourceRepo, 0, 1, 1, 1)
-
-        self.pushButton_browseRepo = QPushButton(self.frame_developer)
-        self.pushButton_browseRepo.setObjectName(u"pushButton_browseRepo")
-
-        self.gridLayout_sourceRepo.addWidget(self.pushButton_browseRepo, 0, 2, 1, 1)
-
-        self.horizontalLayout_repoState = QHBoxLayout()
-        self.horizontalLayout_repoState.setObjectName(u"horizontalLayout_repoState")
         self.verticalLayout_repoState = QVBoxLayout()
         self.verticalLayout_repoState.setSpacing(1)
         self.verticalLayout_repoState.setObjectName(u"verticalLayout_repoState")
@@ -176,19 +151,14 @@ class Ui_MainWindow(object):
 
         self.verticalLayout_repoState.addWidget(self.label_repoChanges)
 
+        self.label_repoFlashHint = QLabel(self.frame_developer)
+        self.label_repoFlashHint.setObjectName(u"label_repoFlashHint")
+        self.label_repoFlashHint.setWordWrap(True)
 
-        self.horizontalLayout_repoState.addLayout(self.verticalLayout_repoState)
-
-        self.pushButton_checkout = QPushButton(self.frame_developer)
-        self.pushButton_checkout.setObjectName(u"pushButton_checkout")
-
-        self.horizontalLayout_repoState.addWidget(self.pushButton_checkout)
+        self.verticalLayout_repoState.addWidget(self.label_repoFlashHint)
 
 
-        self.gridLayout_sourceRepo.addLayout(self.horizontalLayout_repoState, 1, 1, 1, 2)
-
-
-        self.verticalLayout_developer.addLayout(self.gridLayout_sourceRepo)
+        self.verticalLayout_developer.addLayout(self.verticalLayout_repoState)
 
         self.frame_application = QFrame(self.frame_developer)
         self.frame_application.setObjectName(u"frame_application")
@@ -301,41 +271,26 @@ class Ui_MainWindow(object):
         self.verticalLayout_developer.addWidget(self.frame_advancedDebug)
 
 
-        self.gridLayout_setting.addWidget(self.frame_developer, 1, 0, 1, 2)
+        self.verticalLayout_flashScroll.addWidget(self.frame_developer)
 
-        self.label_profile = QLabel(self.scrollAreaWidgetContents_setting)
-        self.label_profile.setObjectName(u"label_profile")
-
-        self.gridLayout_setting.addWidget(self.label_profile, 0, 0, 1, 1)
-
-        self.horizontalLayout_profile = QHBoxLayout()
-        self.horizontalLayout_profile.setObjectName(u"horizontalLayout_profile")
-        self.comboBox_profile = QComboBox(self.scrollAreaWidgetContents_setting)
-        self.comboBox_profile.setObjectName(u"comboBox_profile")
-        sizePolicy.setHeightForWidth(self.comboBox_profile.sizePolicy().hasHeightForWidth())
-        self.comboBox_profile.setSizePolicy(sizePolicy)
-
-        self.horizontalLayout_profile.addWidget(self.comboBox_profile)
-
-        self.pushButton_reloadProfiles = QPushButton(self.scrollAreaWidgetContents_setting)
-        self.pushButton_reloadProfiles.setObjectName(u"pushButton_reloadProfiles")
-
-        self.horizontalLayout_profile.addWidget(self.pushButton_reloadProfiles)
-
-
-        self.gridLayout_setting.addLayout(self.horizontalLayout_profile, 0, 1, 1, 1)
-
-        self.label_firmwareSource = QLabel(self.scrollAreaWidgetContents_setting)
+        self.frame_gitlabSource = QFrame(self.scrollAreaWidgetContents_flashPanel)
+        self.frame_gitlabSource.setObjectName(u"frame_gitlabSource")
+        self.frame_gitlabSource.setFrameShape(QFrame.Shape.NoFrame)
+        self.verticalLayout_gitlabSource = QVBoxLayout(self.frame_gitlabSource)
+        self.verticalLayout_gitlabSource.setSpacing(8)
+        self.verticalLayout_gitlabSource.setObjectName(u"verticalLayout_gitlabSource")
+        self.verticalLayout_gitlabSource.setContentsMargins(0, 0, 0, 0)
+        self.label_firmwareSource = QLabel(self.frame_gitlabSource)
         self.label_firmwareSource.setObjectName(u"label_firmwareSource")
 
-        self.gridLayout_setting.addWidget(self.label_firmwareSource, 2, 0, 1, 1)
+        self.verticalLayout_gitlabSource.addWidget(self.label_firmwareSource)
 
-        self.pushButton_loadFromGitlab = QPushButton(self.scrollAreaWidgetContents_setting)
+        self.pushButton_loadFromGitlab = QPushButton(self.frame_gitlabSource)
         self.pushButton_loadFromGitlab.setObjectName(u"pushButton_loadFromGitlab")
 
-        self.gridLayout_setting.addWidget(self.pushButton_loadFromGitlab, 2, 1, 1, 1)
+        self.verticalLayout_gitlabSource.addWidget(self.pushButton_loadFromGitlab)
 
-        self.frame_sourceCard = QFrame(self.scrollAreaWidgetContents_setting)
+        self.frame_sourceCard = QFrame(self.frame_gitlabSource)
         self.frame_sourceCard.setObjectName(u"frame_sourceCard")
         self.frame_sourceCard.setFrameShape(QFrame.Shape.StyledPanel)
         self.verticalLayout_sourceCard = QVBoxLayout(self.frame_sourceCard)
@@ -366,93 +321,30 @@ class Ui_MainWindow(object):
         self.verticalLayout_sourceCard.addLayout(self.verticalLayout_sourceSlots)
 
 
-        self.gridLayout_setting.addWidget(self.frame_sourceCard, 3, 0, 1, 2)
-
-        self.label_instance = QLabel(self.scrollAreaWidgetContents_setting)
-        self.label_instance.setObjectName(u"label_instance")
-
-        self.gridLayout_setting.addWidget(self.label_instance, 4, 0, 1, 1)
-
-        self.horizontalLayout_instance = QHBoxLayout()
-        self.horizontalLayout_instance.setObjectName(u"horizontalLayout_instance")
-        self.comboBox_instance = QComboBox(self.scrollAreaWidgetContents_setting)
-        self.comboBox_instance.setObjectName(u"comboBox_instance")
-        sizePolicy.setHeightForWidth(self.comboBox_instance.sizePolicy().hasHeightForWidth())
-        self.comboBox_instance.setSizePolicy(sizePolicy)
-
-        self.horizontalLayout_instance.addWidget(self.comboBox_instance)
-
-        self.pushButton_refreshInstances = QPushButton(self.scrollAreaWidgetContents_setting)
-        self.pushButton_refreshInstances.setObjectName(u"pushButton_refreshInstances")
-
-        self.horizontalLayout_instance.addWidget(self.pushButton_refreshInstances)
+        self.verticalLayout_gitlabSource.addWidget(self.frame_sourceCard)
 
 
-        self.gridLayout_setting.addLayout(self.horizontalLayout_instance, 4, 1, 1, 1)
+        self.verticalLayout_flashScroll.addWidget(self.frame_gitlabSource)
 
-        self.label_afterFlash = QLabel(self.scrollAreaWidgetContents_setting)
-        self.label_afterFlash.setObjectName(u"label_afterFlash")
+        self.verticalSpacer_flashPanel = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
 
-        self.gridLayout_setting.addWidget(self.label_afterFlash, 5, 0, 1, 1)
+        self.verticalLayout_flashScroll.addItem(self.verticalSpacer_flashPanel)
 
-        self.horizontalLayout_afterFlash = QHBoxLayout()
-        self.horizontalLayout_afterFlash.setObjectName(u"horizontalLayout_afterFlash")
-        self.checkBox_reset = QCheckBox(self.scrollAreaWidgetContents_setting)
-        self.checkBox_reset.setObjectName(u"checkBox_reset")
-        self.checkBox_reset.setChecked(True)
+        self.scrollArea_flashPanel.setWidget(self.scrollAreaWidgetContents_flashPanel)
 
-        self.horizontalLayout_afterFlash.addWidget(self.checkBox_reset)
-
-        self.checkBox_run = QCheckBox(self.scrollAreaWidgetContents_setting)
-        self.checkBox_run.setObjectName(u"checkBox_run")
-
-        self.horizontalLayout_afterFlash.addWidget(self.checkBox_run)
+        self.verticalLayout_flashPanel.addWidget(self.scrollArea_flashPanel)
 
 
-        self.gridLayout_setting.addLayout(self.horizontalLayout_afterFlash, 5, 1, 1, 1)
-
-        self.checkBox_verifyFlash = QCheckBox(self.scrollAreaWidgetContents_setting)
-        self.checkBox_verifyFlash.setObjectName(u"checkBox_verifyFlash")
-
-        self.gridLayout_setting.addWidget(self.checkBox_verifyFlash, 6, 1, 1, 1)
-
-
-        self.verticalLayout_settingScroll.addLayout(self.gridLayout_setting)
-
-        self.verticalSpacer_settingPanel = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
-
-        self.verticalLayout_settingScroll.addItem(self.verticalSpacer_settingPanel)
-
-        self.scrollArea_setting.setWidget(self.scrollAreaWidgetContents_setting)
-
-        self.verticalLayout_settingPanel.addWidget(self.scrollArea_setting)
-
-        self.horizontalLayout_preferences = QHBoxLayout()
-        self.horizontalLayout_preferences.setObjectName(u"horizontalLayout_preferences")
-        self.horizontalLayout_preferences.setContentsMargins(10, -1, 10, 10)
-        self.horizontalSpacer_preferences = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
-
-        self.horizontalLayout_preferences.addItem(self.horizontalSpacer_preferences)
-
-        self.pushButton_preferences = QPushButton(self.frame_settingPanel)
-        self.pushButton_preferences.setObjectName(u"pushButton_preferences")
-
-        self.horizontalLayout_preferences.addWidget(self.pushButton_preferences)
-
-
-        self.verticalLayout_settingPanel.addLayout(self.horizontalLayout_preferences)
-
-
-        self.horizontalLayout_workArea.addWidget(self.frame_settingPanel)
+        self.horizontalLayout_flashTab.addWidget(self.frame_flashPanel)
 
         self.verticalLayout_mapping = QVBoxLayout()
         self.verticalLayout_mapping.setObjectName(u"verticalLayout_mapping")
-        self.label_programFiles = QLabel(self.centralWidget_main)
+        self.label_programFiles = QLabel(self.tab_flash)
         self.label_programFiles.setObjectName(u"label_programFiles")
 
         self.verticalLayout_mapping.addWidget(self.label_programFiles)
 
-        self.tableWidget_programFiles = QTableWidget(self.centralWidget_main)
+        self.tableWidget_programFiles = QTableWidget(self.tab_flash)
         if (self.tableWidget_programFiles.columnCount() < 4):
             self.tableWidget_programFiles.setColumnCount(4)
         __qtablewidgetitem = QTableWidgetItem()
@@ -471,12 +363,12 @@ class Ui_MainWindow(object):
 
         self.verticalLayout_mapping.addWidget(self.tableWidget_programFiles)
 
-        self.label_symbolFiles = QLabel(self.centralWidget_main)
+        self.label_symbolFiles = QLabel(self.tab_flash)
         self.label_symbolFiles.setObjectName(u"label_symbolFiles")
 
         self.verticalLayout_mapping.addWidget(self.label_symbolFiles)
 
-        self.tableWidget_symbolFiles = QTableWidget(self.centralWidget_main)
+        self.tableWidget_symbolFiles = QTableWidget(self.tab_flash)
         if (self.tableWidget_symbolFiles.columnCount() < 4):
             self.tableWidget_symbolFiles.setColumnCount(4)
         __qtablewidgetitem4 = QTableWidgetItem()
@@ -495,16 +387,217 @@ class Ui_MainWindow(object):
 
         self.verticalLayout_mapping.addWidget(self.tableWidget_symbolFiles)
 
-        self.label_mappingHint = QLabel(self.centralWidget_main)
+        self.label_mappingHint = QLabel(self.tab_flash)
         self.label_mappingHint.setObjectName(u"label_mappingHint")
 
         self.verticalLayout_mapping.addWidget(self.label_mappingHint)
 
 
-        self.horizontalLayout_workArea.addLayout(self.verticalLayout_mapping)
+        self.horizontalLayout_flashTab.addLayout(self.verticalLayout_mapping)
+
+        self.tabWidget_main.addTab(self.tab_flash, "")
+        self.tab_setting = QWidget()
+        self.tab_setting.setObjectName(u"tab_setting")
+        self.verticalLayout_settingTab = QVBoxLayout(self.tab_setting)
+        self.verticalLayout_settingTab.setObjectName(u"verticalLayout_settingTab")
+        self.verticalLayout_settingTab.setContentsMargins(0, 0, 0, 0)
+        self.scrollArea_setting = QScrollArea(self.tab_setting)
+        self.scrollArea_setting.setObjectName(u"scrollArea_setting")
+        self.scrollArea_setting.setFrameShape(QFrame.Shape.NoFrame)
+        self.scrollArea_setting.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.scrollArea_setting.setWidgetResizable(True)
+        self.scrollAreaWidgetContents_setting = QWidget()
+        self.scrollAreaWidgetContents_setting.setObjectName(u"scrollAreaWidgetContents_setting")
+        self.verticalLayout_settingScroll = QVBoxLayout(self.scrollAreaWidgetContents_setting)
+        self.verticalLayout_settingScroll.setSpacing(12)
+        self.verticalLayout_settingScroll.setObjectName(u"verticalLayout_settingScroll")
+        self.verticalLayout_settingScroll.setContentsMargins(14, 14, 14, 14)
+        self.groupBox_firmware = QGroupBox(self.scrollAreaWidgetContents_setting)
+        self.groupBox_firmware.setObjectName(u"groupBox_firmware")
+        self.groupBox_firmware.setMaximumSize(QSize(760, 16777215))
+        self.gridLayout_firmware = QGridLayout(self.groupBox_firmware)
+        self.gridLayout_firmware.setObjectName(u"gridLayout_firmware")
+        self.gridLayout_firmware.setHorizontalSpacing(8)
+        self.gridLayout_firmware.setVerticalSpacing(8)
+        self.label_profile = QLabel(self.groupBox_firmware)
+        self.label_profile.setObjectName(u"label_profile")
+
+        self.gridLayout_firmware.addWidget(self.label_profile, 0, 0, 1, 1)
+
+        self.horizontalLayout_profile = QHBoxLayout()
+        self.horizontalLayout_profile.setObjectName(u"horizontalLayout_profile")
+        self.comboBox_profile = QComboBox(self.groupBox_firmware)
+        self.comboBox_profile.setObjectName(u"comboBox_profile")
+        sizePolicy.setHeightForWidth(self.comboBox_profile.sizePolicy().hasHeightForWidth())
+        self.comboBox_profile.setSizePolicy(sizePolicy)
+
+        self.horizontalLayout_profile.addWidget(self.comboBox_profile)
+
+        self.pushButton_reloadProfiles = QPushButton(self.groupBox_firmware)
+        self.pushButton_reloadProfiles.setObjectName(u"pushButton_reloadProfiles")
+
+        self.horizontalLayout_profile.addWidget(self.pushButton_reloadProfiles)
 
 
-        self.verticalLayout_main.addLayout(self.horizontalLayout_workArea)
+        self.gridLayout_firmware.addLayout(self.horizontalLayout_profile, 0, 1, 1, 1)
+
+        self.frame_sourceRepoSetting = QFrame(self.groupBox_firmware)
+        self.frame_sourceRepoSetting.setObjectName(u"frame_sourceRepoSetting")
+        self.frame_sourceRepoSetting.setFrameShape(QFrame.Shape.NoFrame)
+        self.gridLayout_sourceRepo = QGridLayout(self.frame_sourceRepoSetting)
+        self.gridLayout_sourceRepo.setObjectName(u"gridLayout_sourceRepo")
+        self.gridLayout_sourceRepo.setHorizontalSpacing(6)
+        self.gridLayout_sourceRepo.setVerticalSpacing(6)
+        self.gridLayout_sourceRepo.setContentsMargins(0, 0, 0, 0)
+        self.label_sourceRepo = QLabel(self.frame_sourceRepoSetting)
+        self.label_sourceRepo.setObjectName(u"label_sourceRepo")
+
+        self.gridLayout_sourceRepo.addWidget(self.label_sourceRepo, 0, 0, 1, 1)
+
+        self.lineEdit_sourceRepo = QLineEdit(self.frame_sourceRepoSetting)
+        self.lineEdit_sourceRepo.setObjectName(u"lineEdit_sourceRepo")
+
+        self.gridLayout_sourceRepo.addWidget(self.lineEdit_sourceRepo, 0, 1, 1, 1)
+
+        self.pushButton_browseRepo = QPushButton(self.frame_sourceRepoSetting)
+        self.pushButton_browseRepo.setObjectName(u"pushButton_browseRepo")
+
+        self.gridLayout_sourceRepo.addWidget(self.pushButton_browseRepo, 0, 2, 1, 1)
+
+        self.pushButton_reloadRepo = QPushButton(self.frame_sourceRepoSetting)
+        self.pushButton_reloadRepo.setObjectName(u"pushButton_reloadRepo")
+
+        self.gridLayout_sourceRepo.addWidget(self.pushButton_reloadRepo, 0, 3, 1, 1)
+
+        self.horizontalLayout_repoSetting = QHBoxLayout()
+        self.horizontalLayout_repoSetting.setObjectName(u"horizontalLayout_repoSetting")
+        self.label_repoSummary = QLabel(self.frame_sourceRepoSetting)
+        self.label_repoSummary.setObjectName(u"label_repoSummary")
+        self.label_repoSummary.setWordWrap(True)
+
+        self.horizontalLayout_repoSetting.addWidget(self.label_repoSummary)
+
+        self.pushButton_checkout = QPushButton(self.frame_sourceRepoSetting)
+        self.pushButton_checkout.setObjectName(u"pushButton_checkout")
+
+        self.horizontalLayout_repoSetting.addWidget(self.pushButton_checkout)
+
+        self.horizontalLayout_repoSetting.setStretch(0, 1)
+
+        self.gridLayout_sourceRepo.addLayout(self.horizontalLayout_repoSetting, 1, 1, 1, 3)
+
+        self.label_repoAutoHint = QLabel(self.frame_sourceRepoSetting)
+        self.label_repoAutoHint.setObjectName(u"label_repoAutoHint")
+        self.label_repoAutoHint.setWordWrap(True)
+
+        self.gridLayout_sourceRepo.addWidget(self.label_repoAutoHint, 2, 1, 1, 3)
+
+
+        self.gridLayout_firmware.addWidget(self.frame_sourceRepoSetting, 1, 0, 1, 2)
+
+
+        self.verticalLayout_settingScroll.addWidget(self.groupBox_firmware)
+
+        self.groupBox_winidea = QGroupBox(self.scrollAreaWidgetContents_setting)
+        self.groupBox_winidea.setObjectName(u"groupBox_winidea")
+        self.groupBox_winidea.setMaximumSize(QSize(760, 16777215))
+        self.gridLayout_winidea = QGridLayout(self.groupBox_winidea)
+        self.gridLayout_winidea.setObjectName(u"gridLayout_winidea")
+        self.gridLayout_winidea.setHorizontalSpacing(8)
+        self.label_instance = QLabel(self.groupBox_winidea)
+        self.label_instance.setObjectName(u"label_instance")
+
+        self.gridLayout_winidea.addWidget(self.label_instance, 0, 0, 1, 1)
+
+        self.horizontalLayout_instance = QHBoxLayout()
+        self.horizontalLayout_instance.setObjectName(u"horizontalLayout_instance")
+        self.comboBox_instance = QComboBox(self.groupBox_winidea)
+        self.comboBox_instance.setObjectName(u"comboBox_instance")
+        sizePolicy.setHeightForWidth(self.comboBox_instance.sizePolicy().hasHeightForWidth())
+        self.comboBox_instance.setSizePolicy(sizePolicy)
+
+        self.horizontalLayout_instance.addWidget(self.comboBox_instance)
+
+        self.pushButton_refreshInstances = QPushButton(self.groupBox_winidea)
+        self.pushButton_refreshInstances.setObjectName(u"pushButton_refreshInstances")
+
+        self.horizontalLayout_instance.addWidget(self.pushButton_refreshInstances)
+
+
+        self.gridLayout_winidea.addLayout(self.horizontalLayout_instance, 0, 1, 1, 1)
+
+
+        self.verticalLayout_settingScroll.addWidget(self.groupBox_winidea)
+
+        self.groupBox_afterFlash = QGroupBox(self.scrollAreaWidgetContents_setting)
+        self.groupBox_afterFlash.setObjectName(u"groupBox_afterFlash")
+        self.groupBox_afterFlash.setMaximumSize(QSize(760, 16777215))
+        self.verticalLayout_afterFlash = QVBoxLayout(self.groupBox_afterFlash)
+        self.verticalLayout_afterFlash.setSpacing(6)
+        self.verticalLayout_afterFlash.setObjectName(u"verticalLayout_afterFlash")
+        self.horizontalLayout_afterFlash = QHBoxLayout()
+        self.horizontalLayout_afterFlash.setObjectName(u"horizontalLayout_afterFlash")
+        self.checkBox_reset = QCheckBox(self.groupBox_afterFlash)
+        self.checkBox_reset.setObjectName(u"checkBox_reset")
+        self.checkBox_reset.setChecked(True)
+
+        self.horizontalLayout_afterFlash.addWidget(self.checkBox_reset)
+
+        self.checkBox_run = QCheckBox(self.groupBox_afterFlash)
+        self.checkBox_run.setObjectName(u"checkBox_run")
+
+        self.horizontalLayout_afterFlash.addWidget(self.checkBox_run)
+
+        self.checkBox_verifyFlash = QCheckBox(self.groupBox_afterFlash)
+        self.checkBox_verifyFlash.setObjectName(u"checkBox_verifyFlash")
+
+        self.horizontalLayout_afterFlash.addWidget(self.checkBox_verifyFlash)
+
+        self.horizontalSpacer_afterFlash = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.horizontalLayout_afterFlash.addItem(self.horizontalSpacer_afterFlash)
+
+
+        self.verticalLayout_afterFlash.addLayout(self.horizontalLayout_afterFlash)
+
+        self.label_verifyHint = QLabel(self.groupBox_afterFlash)
+        self.label_verifyHint.setObjectName(u"label_verifyHint")
+        self.label_verifyHint.setWordWrap(True)
+
+        self.verticalLayout_afterFlash.addWidget(self.label_verifyHint)
+
+
+        self.verticalLayout_settingScroll.addWidget(self.groupBox_afterFlash)
+
+        self.widget_preferencesRow = QWidget(self.scrollAreaWidgetContents_setting)
+        self.widget_preferencesRow.setObjectName(u"widget_preferencesRow")
+        self.widget_preferencesRow.setMaximumSize(QSize(760, 16777215))
+        self.horizontalLayout_preferences = QHBoxLayout(self.widget_preferencesRow)
+        self.horizontalLayout_preferences.setObjectName(u"horizontalLayout_preferences")
+        self.horizontalLayout_preferences.setContentsMargins(0, 0, 0, 0)
+        self.horizontalSpacer_preferences = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.horizontalLayout_preferences.addItem(self.horizontalSpacer_preferences)
+
+        self.pushButton_preferences = QPushButton(self.widget_preferencesRow)
+        self.pushButton_preferences.setObjectName(u"pushButton_preferences")
+
+        self.horizontalLayout_preferences.addWidget(self.pushButton_preferences)
+
+
+        self.verticalLayout_settingScroll.addWidget(self.widget_preferencesRow)
+
+        self.verticalSpacer_settingTab = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+
+        self.verticalLayout_settingScroll.addItem(self.verticalSpacer_settingTab)
+
+        self.scrollArea_setting.setWidget(self.scrollAreaWidgetContents_setting)
+
+        self.verticalLayout_settingTab.addWidget(self.scrollArea_setting)
+
+        self.tabWidget_main.addTab(self.tab_setting, "")
+
+        self.verticalLayout_main.addWidget(self.tabWidget_main)
 
         self.tabWidget_output = QTabWidget(self.centralWidget_main)
         self.tabWidget_output.setObjectName(u"tabWidget_output")
@@ -514,20 +607,6 @@ class Ui_MainWindow(object):
         self.verticalLayout_information.setObjectName(u"verticalLayout_information")
         self.horizontalLayout_logBar = QHBoxLayout()
         self.horizontalLayout_logBar.setObjectName(u"horizontalLayout_logBar")
-        self.label_logLevel = QLabel(self.tab_information)
-        self.label_logLevel.setObjectName(u"label_logLevel")
-
-        self.horizontalLayout_logBar.addWidget(self.label_logLevel)
-
-        self.comboBox_logLevel = QComboBox(self.tab_information)
-        self.comboBox_logLevel.addItem("")
-        self.comboBox_logLevel.addItem("")
-        self.comboBox_logLevel.addItem("")
-        self.comboBox_logLevel.addItem("")
-        self.comboBox_logLevel.setObjectName(u"comboBox_logLevel")
-
-        self.horizontalLayout_logBar.addWidget(self.comboBox_logLevel)
-
         self.horizontalSpacer_logBar = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
         self.horizontalLayout_logBar.addItem(self.horizontalSpacer_logBar)
@@ -562,25 +641,24 @@ class Ui_MainWindow(object):
 
         self.verticalLayout_main.addWidget(self.tabWidget_output)
 
-        self.verticalLayout_main.setStretch(2, 3)
-        self.verticalLayout_main.setStretch(3, 2)
+        self.verticalLayout_main.setStretch(4, 5)
+        self.verticalLayout_main.setStretch(5, 2)
         MainWindow.setCentralWidget(self.centralWidget_main)
         self.statusBar_main = QStatusBar(MainWindow)
         self.statusBar_main.setObjectName(u"statusBar_main")
         MainWindow.setStatusBar(self.statusBar_main)
 #if QT_CONFIG(shortcut)
-        self.label_sourceRepo.setBuddy(self.lineEdit_sourceRepo)
         self.label_build.setBuddy(self.comboBox_build)
-        self.label_profile.setBuddy(self.comboBox_profile)
         self.label_firmwareSource.setBuddy(self.pushButton_loadFromGitlab)
+        self.label_profile.setBuddy(self.comboBox_profile)
+        self.label_sourceRepo.setBuddy(self.lineEdit_sourceRepo)
         self.label_instance.setBuddy(self.comboBox_instance)
-        self.label_logLevel.setBuddy(self.comboBox_logLevel)
 #endif // QT_CONFIG(shortcut)
 
         self.retranslateUi(MainWindow)
 
+        self.tabWidget_main.setCurrentIndex(0)
         self.tabWidget_output.setCurrentIndex(0)
-        self.comboBox_logLevel.setCurrentIndex(1)
 
 
         QMetaObject.connectSlotsByName(MainWindow)
@@ -593,14 +671,10 @@ class Ui_MainWindow(object):
         self.label_flashStats.setText(QCoreApplication.translate("MainWindow", u"ETA: -- | Speed: --", None))
         self.label_step.setText(QCoreApplication.translate("MainWindow", u"Step: Idle", None))
         self.label_rollbackWarning.setText(QCoreApplication.translate("MainWindow", u"ROLLBACK FAILED \u2014 the winIDEA workspace may still point to the new files. Check the download and symbol file list in winIDEA before flashing again.", None))
-        self.label_settingHeader.setText(QCoreApplication.translate("MainWindow", u"Setting", None))
-        self.label_sourceRepo.setText(QCoreApplication.translate("MainWindow", u"Source repo", None))
-        self.lineEdit_sourceRepo.setPlaceholderText(QCoreApplication.translate("MainWindow", u"Folder of your source repo", None))
-        self.pushButton_browseRepo.setText(QCoreApplication.translate("MainWindow", u"Browse", None))
         self.label_repoBranch.setText(QCoreApplication.translate("MainWindow", u"Branch: -", None))
         self.label_repoCommit.setText(QCoreApplication.translate("MainWindow", u"Commit: -", None))
         self.label_repoChanges.setText("")
-        self.pushButton_checkout.setText(QCoreApplication.translate("MainWindow", u"Checkout\u2026", None))
+        self.label_repoFlashHint.setText(QCoreApplication.translate("MainWindow", u"Updated when you come back to WFlash. Change the repo or branch in Setting.", None))
         self.label_applicationHeader.setText(QCoreApplication.translate("MainWindow", u"Application", None))
         self.label_build.setText(QCoreApplication.translate("MainWindow", u"Build", None))
         self.pushButton_loadBuild.setText(QCoreApplication.translate("MainWindow", u"Load firmware for this commit", None))
@@ -613,23 +687,11 @@ class Ui_MainWindow(object):
         self.label_fblName.setText(QCoreApplication.translate("MainWindow", u"FBL", None))
         self.label_fblSource.setText(QCoreApplication.translate("MainWindow", u"Not loaded", None))
         self.pushButton_loadFbl.setText(QCoreApplication.translate("MainWindow", u"Load\u2026", None))
-        self.label_profile.setText(QCoreApplication.translate("MainWindow", u"Profile", None))
-        self.pushButton_reloadProfiles.setText(QCoreApplication.translate("MainWindow", u"Reload", None))
         self.label_firmwareSource.setText(QCoreApplication.translate("MainWindow", u"Firmware source", None))
         self.pushButton_loadFromGitlab.setText(QCoreApplication.translate("MainWindow", u"Load from GitLab\u2026", None))
         self.label_sourceTitle.setText(QCoreApplication.translate("MainWindow", u"No firmware loaded \u2014 use Load from GitLab\u2026", None))
         self.label_sourceDetail.setText("")
         self.label_sourceCache.setText("")
-        self.label_instance.setText(QCoreApplication.translate("MainWindow", u"winIDEA", None))
-        self.pushButton_refreshInstances.setText(QCoreApplication.translate("MainWindow", u"Refresh", None))
-        self.label_afterFlash.setText(QCoreApplication.translate("MainWindow", u"After flash", None))
-        self.checkBox_reset.setText(QCoreApplication.translate("MainWindow", u"Reset target", None))
-        self.checkBox_run.setText(QCoreApplication.translate("MainWindow", u"Run after reset", None))
-#if QT_CONFIG(tooltip)
-        self.checkBox_verifyFlash.setToolTip(QCoreApplication.translate("MainWindow", u"Read samples of the flash back and compare them with the files. Adds about 3 minutes.", None))
-#endif // QT_CONFIG(tooltip)
-        self.checkBox_verifyFlash.setText(QCoreApplication.translate("MainWindow", u"Verify samples", None))
-        self.pushButton_preferences.setText(QCoreApplication.translate("MainWindow", u"Preferences\u2026", None))
         self.label_programFiles.setText(QCoreApplication.translate("MainWindow", u"Program Files", None))
         ___qtablewidgetitem = self.tableWidget_programFiles.horizontalHeaderItem(0)
         ___qtablewidgetitem.setText(QCoreApplication.translate("MainWindow", u"#", None))
@@ -647,12 +709,33 @@ class Ui_MainWindow(object):
         ___qtablewidgetitem6 = self.tableWidget_symbolFiles.horizontalHeaderItem(2)
         ___qtablewidgetitem6.setText(QCoreApplication.translate("MainWindow", u"File", None))
         self.label_mappingHint.setText(QCoreApplication.translate("MainWindow", u"Load firmware to fill the mapping.", None))
-        self.label_logLevel.setText(QCoreApplication.translate("MainWindow", u"Log level", None))
-        self.comboBox_logLevel.setItemText(0, QCoreApplication.translate("MainWindow", u"DEBUG", None))
-        self.comboBox_logLevel.setItemText(1, QCoreApplication.translate("MainWindow", u"INFO", None))
-        self.comboBox_logLevel.setItemText(2, QCoreApplication.translate("MainWindow", u"WARNING", None))
-        self.comboBox_logLevel.setItemText(3, QCoreApplication.translate("MainWindow", u"ERROR", None))
-
+        self.tabWidget_main.setTabText(self.tabWidget_main.indexOf(self.tab_flash), QCoreApplication.translate("MainWindow", u"Flash", None))
+        self.groupBox_firmware.setTitle(QCoreApplication.translate("MainWindow", u"Firmware", None))
+        self.label_profile.setText(QCoreApplication.translate("MainWindow", u"Profile", None))
+        self.pushButton_reloadProfiles.setText(QCoreApplication.translate("MainWindow", u"Reload", None))
+        self.label_sourceRepo.setText(QCoreApplication.translate("MainWindow", u"Source repo", None))
+        self.lineEdit_sourceRepo.setPlaceholderText(QCoreApplication.translate("MainWindow", u"Folder of your source repo", None))
+        self.pushButton_browseRepo.setText(QCoreApplication.translate("MainWindow", u"Browse", None))
+#if QT_CONFIG(tooltip)
+        self.pushButton_reloadRepo.setToolTip(QCoreApplication.translate("MainWindow", u"Read the source repo again: branch, commit and local changes", None))
+#endif // QT_CONFIG(tooltip)
+        self.pushButton_reloadRepo.setText(QCoreApplication.translate("MainWindow", u"Reload", None))
+        self.label_repoSummary.setText(QCoreApplication.translate("MainWindow", u"Branch: - \u00b7 Commit: -", None))
+        self.pushButton_checkout.setText(QCoreApplication.translate("MainWindow", u"Checkout\u2026", None))
+        self.label_repoAutoHint.setText(QCoreApplication.translate("MainWindow", u"WFlash also reads the repo again each time you come back to its window.", None))
+        self.groupBox_winidea.setTitle(QCoreApplication.translate("MainWindow", u"winIDEA", None))
+        self.label_instance.setText(QCoreApplication.translate("MainWindow", u"Instance", None))
+        self.pushButton_refreshInstances.setText(QCoreApplication.translate("MainWindow", u"Refresh", None))
+        self.groupBox_afterFlash.setTitle(QCoreApplication.translate("MainWindow", u"After flash", None))
+        self.checkBox_reset.setText(QCoreApplication.translate("MainWindow", u"Reset target", None))
+        self.checkBox_run.setText(QCoreApplication.translate("MainWindow", u"Run after reset", None))
+#if QT_CONFIG(tooltip)
+        self.checkBox_verifyFlash.setToolTip(QCoreApplication.translate("MainWindow", u"Read samples of the flash back and compare them with the files. Adds about 3 minutes.", None))
+#endif // QT_CONFIG(tooltip)
+        self.checkBox_verifyFlash.setText(QCoreApplication.translate("MainWindow", u"Verify samples", None))
+        self.label_verifyHint.setText(QCoreApplication.translate("MainWindow", u"Verify samples reads parts of the flash back and compares them with the files. Adds about 3 minutes.", None))
+        self.pushButton_preferences.setText(QCoreApplication.translate("MainWindow", u"Preferences\u2026", None))
+        self.tabWidget_main.setTabText(self.tabWidget_main.indexOf(self.tab_setting), QCoreApplication.translate("MainWindow", u"Setting", None))
         self.pushButton_copyLog.setText(QCoreApplication.translate("MainWindow", u"Copy", None))
         self.pushButton_clearLog.setText(QCoreApplication.translate("MainWindow", u"Clear", None))
         self.pushButton_exportBundle.setText(QCoreApplication.translate("MainWindow", u"Export debug bundle\u2026", None))

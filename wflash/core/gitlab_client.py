@@ -99,7 +99,8 @@ class GitLabClient:
         except requests.exceptions.SSLError as exc:
             raise GitLabError(
                 f"SSL error connecting to GitLab: {exc}",
-                hint="If GitLab uses an internal certificate, set the CA bundle file in Load from GitLab…",
+                hint="If GitLab uses an internal certificate, ask IT to install it in the Windows certificate store, "
+                "or untick Verify TLS certificate in Load from GitLab… on a trusted network.",
             ) from exc
         except requests.exceptions.RequestException as exc:
             raise GitLabError(f"Cannot reach GitLab: {exc}") from exc

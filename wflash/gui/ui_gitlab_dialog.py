@@ -60,31 +60,11 @@ class Ui_GitlabDialog(object):
 
         self.gridLayout_connection.addWidget(self.checkBox_verifyTls, 2, 1, 1, 1)
 
-        self.label_caBundle = QLabel(self.groupBox_connection)
-        self.label_caBundle.setObjectName(u"label_caBundle")
-
-        self.gridLayout_connection.addWidget(self.label_caBundle, 3, 0, 1, 1)
-
-        self.horizontalLayout_caBundle = QHBoxLayout()
-        self.horizontalLayout_caBundle.setObjectName(u"horizontalLayout_caBundle")
-        self.lineEdit_caBundle = QLineEdit(self.groupBox_connection)
-        self.lineEdit_caBundle.setObjectName(u"lineEdit_caBundle")
-
-        self.horizontalLayout_caBundle.addWidget(self.lineEdit_caBundle)
-
-        self.pushButton_browseCa = QPushButton(self.groupBox_connection)
-        self.pushButton_browseCa.setObjectName(u"pushButton_browseCa")
-
-        self.horizontalLayout_caBundle.addWidget(self.pushButton_browseCa)
-
-
-        self.gridLayout_connection.addLayout(self.horizontalLayout_caBundle, 3, 1, 1, 1)
-
         self.label_connectionHint = QLabel(self.groupBox_connection)
         self.label_connectionHint.setObjectName(u"label_connectionHint")
         self.label_connectionHint.setWordWrap(True)
 
-        self.gridLayout_connection.addWidget(self.label_connectionHint, 4, 0, 1, 2)
+        self.gridLayout_connection.addWidget(self.label_connectionHint, 3, 0, 1, 2)
 
 
         self.verticalLayout_gitlabDialog.addWidget(self.groupBox_connection)
@@ -265,7 +245,6 @@ class Ui_GitlabDialog(object):
 #if QT_CONFIG(shortcut)
         self.label_gitlabUrl.setBuddy(self.lineEdit_gitlabUrl)
         self.label_token.setBuddy(self.lineEdit_token)
-        self.label_caBundle.setBuddy(self.lineEdit_caBundle)
         self.label_ciProject.setBuddy(self.lineEdit_ciProject)
         self.label_ref.setBuddy(self.comboBox_ref)
         self.label_jobName.setBuddy(self.comboBox_jobName)
@@ -273,9 +252,7 @@ class Ui_GitlabDialog(object):
 #endif // QT_CONFIG(shortcut)
         QWidget.setTabOrder(self.lineEdit_gitlabUrl, self.lineEdit_token)
         QWidget.setTabOrder(self.lineEdit_token, self.checkBox_verifyTls)
-        QWidget.setTabOrder(self.checkBox_verifyTls, self.lineEdit_caBundle)
-        QWidget.setTabOrder(self.lineEdit_caBundle, self.pushButton_browseCa)
-        QWidget.setTabOrder(self.pushButton_browseCa, self.tabWidget_source)
+        QWidget.setTabOrder(self.checkBox_verifyTls, self.tabWidget_source)
         QWidget.setTabOrder(self.tabWidget_source, self.lineEdit_ciProject)
         QWidget.setTabOrder(self.lineEdit_ciProject, self.comboBox_ref)
         QWidget.setTabOrder(self.comboBox_ref, self.pushButton_loadRefs)
@@ -302,10 +279,10 @@ class Ui_GitlabDialog(object):
         self.label_token.setText(QCoreApplication.translate("GitlabDialog", u"Access token:", None))
         self.lineEdit_token.setPlaceholderText(QCoreApplication.translate("GitlabDialog", u"Personal Access Token (scope read_api)", None))
         self.checkBox_verifyTls.setText(QCoreApplication.translate("GitlabDialog", u"Verify TLS certificate (recommended)", None))
-        self.label_caBundle.setText(QCoreApplication.translate("GitlabDialog", u"CA bundle:", None))
-        self.lineEdit_caBundle.setPlaceholderText(QCoreApplication.translate("GitlabDialog", u"Optional: .pem file for an internal certificate", None))
-        self.pushButton_browseCa.setText(QCoreApplication.translate("GitlabDialog", u"Browse\u2026", None))
-        self.label_connectionHint.setText(QCoreApplication.translate("GitlabDialog", u"Required token scope: read_api (branches/tags, pipelines, jobs, artifacts). The token is stored in the system keyring (Windows Credential Manager), never in a file.", None))
+#if QT_CONFIG(tooltip)
+        self.checkBox_verifyTls.setToolTip(QCoreApplication.translate("GitlabDialog", u"Certificates are checked against the Windows certificate store, so an internal company certificate installed by IT works without any file.", None))
+#endif // QT_CONFIG(tooltip)
+        self.label_connectionHint.setText(QCoreApplication.translate("GitlabDialog", u"Certificates are checked against the Windows certificate store. Required token scope: read_api (branches/tags, pipelines, jobs, artifacts). The token is stored in the system keyring (Windows Credential Manager), never in a file.", None))
         self.label_ciProject.setText(QCoreApplication.translate("GitlabDialog", u"Project:", None))
         self.lineEdit_ciProject.setPlaceholderText(QCoreApplication.translate("GitlabDialog", u"group/project (empty = the profile's project)", None))
         self.label_ciProjectSource.setText(QCoreApplication.translate("GitlabDialog", u"from profile", None))

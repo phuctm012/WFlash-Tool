@@ -3,11 +3,11 @@ import importlib.util
 
 from PyInstaller.utils.hooks import collect_all
 
-# wflash/resources holds the Teal stylesheets; wflash/gui/style.py finds them next to the
-# package (__file__-relative), so they keep the same relative place inside the bundle.
+# wflash/resources holds the Teal stylesheets and the window icons; wflash/gui/style.py finds
+# them next to the package (__file__-relative), so they keep the same relative place inside the bundle.
 datas = [("profiles", "profiles"), ("wflash/resources", "wflash/resources")]
 binaries = []
-hiddenimports = ["keyring.backends.Windows", "keyring.backends.macOS"]
+hiddenimports = ["keyring.backends.Windows", "keyring.backends.macOS", "truststore"]
 
 # isystem.connect comes from the winIDEA 9.21 installation, not PyPI. Bundle it when the
 # build machine has it; otherwise the .exe still runs with --adapter fake.
@@ -27,5 +27,9 @@ a = Analysis(
     hiddenimports=hiddenimports,
 )
 pyz = PYZ(a.pure)
-exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="WFlash", console=False)
+# The .ico is the icon Explorer and the taskbar show for WFlash.exe itself.
+exe = EXE(
+    pyz, a.scripts, [], exclude_binaries=True, name="WFlash", console=False,
+    icon="wflash/resources/icons/wflash_probe_chip_teal.ico",
+)
 coll = COLLECT(exe, a.binaries, a.datas, name="WFlash")

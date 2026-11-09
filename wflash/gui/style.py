@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication, QWidget
 
 from wflash.core.logging_setup import get_logger
@@ -17,6 +18,23 @@ from wflash.gui.theme import set_theme_name
 log = get_logger("ui.style")
 
 RESOURCES_DIR = Path(__file__).resolve().parents[1] / "resources"
+
+
+ICONS_DIR = RESOURCES_DIR / "icons"
+ICON_NAME = "wflash_probe_chip_teal"
+
+
+def app_icon() -> QIcon:
+    """The WFlash icon for every window. SVG scales to any size; the .ico has fixed sizes for
+    Windows (and is the file the .exe embeds, see wflash.spec). A missing file only warns."""
+    icon = QIcon()
+    for suffix in (".svg", ".ico"):
+        path = ICONS_DIR / f"{ICON_NAME}{suffix}"
+        if path.is_file():
+            icon.addFile(str(path))
+        else:
+            log.warning("Icon file missing: %s", path)
+    return icon
 
 
 def stylesheet_path(dark: bool) -> Path:
