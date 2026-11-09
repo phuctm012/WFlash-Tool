@@ -1597,4 +1597,4 @@ Hai trường hợp vẫn reset trước, do tôi tự quyết và đã báo ng�
 
 ### Đã kiểm tra
 
-- Toàn bộ test, `-k thread`, stress test (kết quả ở commit). Chưa chạy trên ECU. Điều cần quan sát ở Vòng 12: bỏ reset trước lần flash đầu thì `Error loading monitor` có xuất hiện nhiều hơn không.
+- Toàn bộ test, `-k thread`, stress test (kết quả ở commit). Người dùng đã thử trên ECU và báo là ổn (2026-11-09); chưa có debug bundle hay số liệu cho lần thử đó.
