@@ -21,7 +21,7 @@ RESOURCES_DIR = Path(__file__).resolve().parents[1] / "resources"
 
 
 ICONS_DIR = RESOURCES_DIR / "icons"
-ICON_NAME = "wflash_probe_chip_teal"
+ICON_NAME = "wflash_chip_teal"
 
 
 def app_icon() -> QIcon:

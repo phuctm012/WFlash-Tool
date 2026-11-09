@@ -30,6 +30,6 @@ pyz = PYZ(a.pure)
 # The .ico is the icon Explorer and the taskbar show for WFlash.exe itself.
 exe = EXE(
     pyz, a.scripts, [], exclude_binaries=True, name="WFlash", console=False,
-    icon="wflash/resources/icons/wflash_probe_chip_teal.ico",
+    icon="wflash/resources/icons/wflash_chip_teal.ico",
 )
 coll = COLLECT(exe, a.binaries, a.datas, name="WFlash")

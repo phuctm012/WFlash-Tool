@@ -440,6 +440,21 @@ In both states `CDebugFacade.getCPUStatus()` said `isStopped: 1`, so the old che
 
 Each reset plus read took about 3.2 s (1.3 s reset, then the 2 s grace ran out while the cores stayed inaccessible). So `CDebugFacade.reset()` does clear `NOT ACCESSIBLE`, but not always on the first try; the 34 failures of round 9 had only one reset each. After recovery A53 and BBE32EP were **RUN**, not STOP, and programming worked: only `NOT ACCESSIBLE` matters. `CSessionCtrl.begin_reset()` is not needed. The user confirmed the ECU ran normally after both flashes.
 
+## Round 11: cores accessible, programming still fails (debug bundle 2026-11-09 12:59)
+
+Four presses of Flash on `main` (core check without retries):
+
+| Press | Resets | State before `begin_program` | `begin_program` | Result |
+|---|---|---|---|---|
+| 1 (12:30:50) | 1 | M7_0 STOP, M7_RFE RUN, A53 RUN, SPT IDLE, BBE32EP RUN | 7.6 s | `Error loading monitor` |
+| 2 (12:31:13) | 1 | same | 7.0 s | `Error loading monitor` |
+| 3 (12:31:32) | 10 | A53, BBE32EP `NOT ACCESSIBLE` until the 10th reset, then as above | 7.2 s | `Error loading monitor` |
+| 4 (12:32:23) | 2 | as above | 101.2 s | Done |
+
+The core states before a failed and before a good run are **identical**, here and in round 10. So the core check catches only one cause; another one does not show in the Session Explorer. Every quick failure so far (34 in round 9, 3 here) returned after 5-9 s with `PROGRAMMING 0 bytes`, and the next press usually worked.
+
+**Decision (user, 2026-11-09):** after such a quick failure WFlash tries again within the same press of Flash: reset, core check, `begin_program`. At most `MAX_PROGRAM_ATTEMPTS` = 3 tries; the resets of all tries share the one budget of `MAX_CORE_RESETS` = 10. Only a failure that took less than `QUICK_FAIL_S` = 30 s **and** whose read-back says `Error loading monitor` is retried; a slower failure or any other error is not, because the flash may already be erased. Not yet run on hardware.
+
 ## Open questions
 
 1. **Version mismatch.** `isystem.connect` 9.26.11 against winIDEA 9.21.408. Connect, read, download, reset and run all worked, but `CLAUDE.md` requires the versions to match. Is there a Python SDK package under `C:/Data/_Devtools/Winidea408/` (9.21.408)? If yes, install it and re-run 01 to confirm nothing changes.

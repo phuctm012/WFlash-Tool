@@ -107,8 +107,14 @@ HALT_WAIT_S = 5.0
 HALT_POLL_S = 0.2
 MONITOR_ERROR_TEXT = "error loading monitor"
 PROBE_BYTES = 16
-# Observed on the user's ECU: only a power cycle clears it, a reset from winIDEA does not.
+# Shown once WFlash has used up its own retries (resets and programming tries) for one press of Flash.
 POWER_CYCLE_HINT = "Turn the ECU power off and on, then flash again."
+# Rounds 9-11: "Error loading monitor" makes begin_program return after 5-9 s with "PROGRAMMING 0 bytes",
+# nothing erased; a good run takes about 100 s. User decision (2026-11-09): such a quick failure is tried
+# again (reset, core check, begin_program) within the same press of Flash. A slower failure may have
+# erased the flash and is never retried.
+MAX_PROGRAM_ATTEMPTS = 3
+QUICK_FAIL_S = 30.0
 # Spike 16 (2026-11-09): EStatus_Core_stInaccessible. Flashing failed with "Error loading monitor" whenever
 # a core showed NOT ACCESSIBLE in the Session Explorer, and worked when none did (a core in RUN was fine).
 CORE_INACCESSIBLE = 1
@@ -370,9 +376,46 @@ class RealWinIDEAAdapter:
         begin_program() does NOT raise when winIDEA fails to load its flash monitor: it returned
         normally after 4.8 s instead of about 100 s, and winIDEA only printed the failure in its
         Output view. The next read failed at once with the same error, so one read confirms it.
+
+        Such a quick failure is tried again, up to MAX_PROGRAM_ATTEMPTS in all: reset, core check,
+        begin_program. The resets of every try share one budget of MAX_CORE_RESETS (user decision).
         """
         ic, cmgr, _ide = self._session()
-        self._prepare_cores(ic, cmgr)
+        resets_left = MAX_CORE_RESETS
+        for attempt in range(1, MAX_PROGRAM_ATTEMPTS + 1):
+            resets_left = self._prepare_cores(ic, cmgr, resets_left)
+            label = "Programming external flash (estimated)"
+            if attempt > 1:
+                label = f"Programming external flash, try {attempt} of {MAX_PROGRAM_ATTEMPTS} (estimated)"
+            elapsed = self._begin_program(ic, cmgr, progress, timeout_s, label)
+            failure = self._read_back(ic, cmgr)
+            if failure is None:
+                log.info("Programming finished in %.1f s (try %d of %d)", elapsed, attempt, MAX_PROGRAM_ATTEMPTS)
+                return
+            detail, exc = failure
+            if MONITOR_ERROR_TEXT not in detail.lower():
+                raise FlashError(
+                    "The flash could not be confirmed.", hint="Check the Output view in winIDEA, then flash again."
+                ) from exc
+            if elapsed >= QUICK_FAIL_S:
+                log.error("Not trying again: programming ran %.0f s before it failed, the flash may be erased", elapsed)
+            elif attempt == MAX_PROGRAM_ATTEMPTS:
+                log.error("Programming did not start in %d tries", attempt)
+            elif resets_left == 0:
+                log.error("Not trying again: the %d resets for this flash are used up", MAX_CORE_RESETS)
+            else:
+                log.warning(
+                    "Programming did not start (Error loading monitor after %.1f s); trying again, %d of %d",
+                    elapsed, attempt + 1, MAX_PROGRAM_ATTEMPTS,
+                )
+                continue
+            message = "Flash failed: winIDEA could not start programming."
+            if attempt > 1:
+                message = f"Flash failed: winIDEA could not start programming in {attempt} tries."
+            raise FlashError(message, hint=POWER_CYCLE_HINT) from exc
+
+    def _begin_program(self, ic, cmgr, progress: ProgressCallback, timeout_s: int, label: str) -> float:
+        """One begin_program call with the estimated progress; returns how long it took."""
         done = threading.Event()
         started = time.monotonic()
 
@@ -385,7 +428,7 @@ class RealWinIDEAAdapter:
                     log.warning("Programming has taken over %d s; it cannot be stopped safely, still waiting", timeout_s)
                 percent = min(MAX_ESTIMATED_PERCENT, int(elapsed * 100 / EXPECTED_PROGRAM_S))
                 try:
-                    progress(percent, "Programming external flash (estimated)")
+                    progress(percent, label)
                 except CancelledError:
                     pass  # WorkerContext.progress raises once cancelled; programming cannot stop
                 except Exception:
@@ -396,7 +439,7 @@ class RealWinIDEAAdapter:
         calls_log.debug("CSessionCtrl.begin_program")
         try:
             ic.CSessionCtrl(cmgr).begin_program()
-        except Exception as exc:
+        except Exception as exc:  # never retried: only the silent failure below is known to be harmless
             log.error("begin_program failed: %s", exc)
             if MONITOR_ERROR_TEXT in str(exc).lower():
                 raise FlashError("Flash failed: winIDEA could not start programming.", hint=POWER_CYCLE_HINT) from exc
@@ -407,11 +450,12 @@ class RealWinIDEAAdapter:
         finally:
             done.set()
             reporter.join()
-        log.info("begin_program returned after %.1f s", time.monotonic() - started)
-        self._confirm_programmed(ic, cmgr)
-        log.info("Programming finished in %.1f s", time.monotonic() - started)
+        elapsed = time.monotonic() - started
+        log.info("begin_program returned after %.1f s", elapsed)
+        return elapsed
 
-    def _confirm_programmed(self, ic, cmgr) -> None:
+    def _read_back(self, ic, cmgr) -> tuple[str, Exception] | None:
+        """Read the flash once; None when it worked, else (error text, exception). The text goes to the log."""
         try:
             log.info("Target after programming: stopped=%s", ic.CDebugFacade(cmgr).getCPUStatus().isStopped())
         except Exception as exc:
@@ -423,11 +467,8 @@ class RealWinIDEAAdapter:
         except Exception as exc:
             detail = f"{exc}; {umi.getLastError()}"
             log.error("Programming could not be confirmed: %s", detail)
-            if MONITOR_ERROR_TEXT in detail.lower():
-                raise FlashError("Flash failed: winIDEA could not start programming.", hint=POWER_CYCLE_HINT) from exc
-            raise FlashError(
-                "The flash could not be confirmed.", hint="Check the Output view in winIDEA, then flash again."
-            ) from exc
+            return detail, exc
+        return None
 
     def _reset_before_programming(self, ic, cmgr) -> None:
         """Asked for by the user; winIDEA also suggests it. begin_program resets too, so a failure only warns."""
@@ -455,19 +496,24 @@ class RealWinIDEAAdapter:
             states.append((name, int(core.status()), core.status_string()))
         return states
 
-    def _prepare_cores(self, ic, cmgr) -> None:
+    def _prepare_cores(self, ic, cmgr, resets_left: int) -> int:
         """Reset, read every core, and reset again while one is NOT ACCESSIBLE (user decision).
 
-        begin_program fails silently in that state. After MAX_CORE_RESETS resets in all it gives up and
-        raises, so download() fails before programming and the workflow restores the paths.
+        begin_program fails silently in that state. `resets_left` is what is left of the
+        MAX_CORE_RESETS for this press of Flash; returns what is left after this preparation.
+        When they are used up it raises, so download() fails before programming and the
+        workflow restores the paths. The caller never passes 0.
         """
-        for resets in range(1, MAX_CORE_RESETS + 1):
+        bad, summary = [], ""
+        while resets_left > 0:
             self._reset_before_programming(ic, cmgr)
+            resets_left -= 1
             bad, summary = self._inaccessible_cores(ic, cmgr)
             if not bad:
-                return
-            if resets < MAX_CORE_RESETS:
-                log.warning("Cores not accessible (%s) after reset %d of %d; resetting again", summary, resets, MAX_CORE_RESETS)
+                return resets_left
+            used = MAX_CORE_RESETS - resets_left
+            if resets_left > 0:
+                log.warning("Cores not accessible (%s) after reset %d of %d; resetting again", summary, used, MAX_CORE_RESETS)
         log.error("Not programming, cores not accessible after %d resets: %s", MAX_CORE_RESETS, summary)
         raise inaccessible_cores_error(bad)
 

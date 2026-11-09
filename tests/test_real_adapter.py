@@ -463,13 +463,75 @@ def _silent_monitor_failure(world):
     world.umi_last_error = MONITOR_ERROR
 
 
-def test_download_reports_a_program_that_failed_silently(connected, world, caplog):
+def test_download_reports_a_program_that_failed_silently_in_every_try(connected, world, caplog):
+    _silent_monitor_failure(world)
+    with caplog.at_level(logging.INFO), pytest.raises(FlashError) as err:
+        connected.download(lambda p, m: None, CancelToken(), 600)
+    assert str(err.value) == "Flash failed: winIDEA could not start programming in 3 tries."
+    assert err.value.hint == "Turn the ECU power off and on, then flash again."
+    assert any("Error loading monitor" in r.getMessage() for r in caplog.records)
+    assert world.calls.count("begin_program") == winidea_adapter.MAX_PROGRAM_ATTEMPTS == 3
+    assert world.calls.count("reset") == 3  # one reset before each try
+    assert sum("trying again" in r.getMessage() for r in caplog.records) == 2
+
+
+def test_download_tries_again_after_a_quick_silent_failure_and_succeeds(connected, world, caplog):
+    _silent_monitor_failure(world)
+
+    def heal_on_second_try():
+        if world.calls.count("begin_program") == 2:
+            world.read_error = None
+
+    world.begin_program_hook = heal_on_second_try
+    with caplog.at_level(logging.INFO):
+        connected.download(lambda p, m: None, CancelToken(), 600)
+    order = [c for c in world.calls if c in ("reset", "begin_program")]
+    assert order == ["reset", "begin_program", "reset", "begin_program"]  # each try starts with a reset
+    assert any("trying again, 2 of 3" in r.getMessage() for r in caplog.records)
+    assert any("try 2 of 3" in r.getMessage() for r in caplog.records)  # "Programming finished … (try 2 of 3)"
+
+
+def test_download_does_not_try_again_after_a_slow_failure(connected, world, monkeypatch, caplog):
+    monkeypatch.setattr(winidea_adapter, "QUICK_FAIL_S", 0.0)  # every failure counts as slow
     _silent_monitor_failure(world)
     with caplog.at_level(logging.ERROR), pytest.raises(FlashError) as err:
         connected.download(lambda p, m: None, CancelToken(), 600)
     assert str(err.value) == "Flash failed: winIDEA could not start programming."
-    assert err.value.hint == "Turn the ECU power off and on, then flash again."
-    assert any("Error loading monitor" in r.getMessage() for r in caplog.records)
+    assert world.calls.count("begin_program") == 1
+    assert any("may be erased" in r.getMessage() for r in caplog.records)
+
+
+def test_download_does_not_try_again_when_the_resets_are_used_up(connected, world, monkeypatch, caplog):
+    monkeypatch.setattr(winidea_adapter, "CORE_WAIT_S", 0.02)
+    monkeypatch.setattr(winidea_adapter, "HALT_POLL_S", 0.01)
+    world.cores_after_reset = [INACCESSIBLE] * 9 + [list(World().cores)]  # the 10th reset clears it
+    _silent_monitor_failure(world)
+    with caplog.at_level(logging.ERROR), pytest.raises(FlashError):
+        connected.download(lambda p, m: None, CancelToken(), 600)
+    assert world.calls.count("reset") == 10 and world.calls.count("begin_program") == 1
+    assert any("resets for this flash are used up" in r.getMessage() for r in caplog.records)
+
+
+def test_download_resets_share_one_budget_across_tries(connected, world, monkeypatch):
+    monkeypatch.setattr(winidea_adapter, "CORE_WAIT_S", 0.02)
+    monkeypatch.setattr(winidea_adapter, "HALT_POLL_S", 0.01)
+    good = list(World().cores)
+    # First try: 7 resets inaccessible, the 8th clears it; second try: both remaining resets inaccessible.
+    world.cores_after_reset = [INACCESSIBLE] * 7 + [good, INACCESSIBLE, INACCESSIBLE]
+    _silent_monitor_failure(world)
+    with pytest.raises(FlashError) as err:
+        connected.download(lambda p, m: None, CancelToken(), 600)
+    assert str(err.value) == "Flash not started: A53, BBE32EP still not accessible after 10 resets."
+    assert world.calls.count("reset") == 10 and world.calls.count("begin_program") == 1
+
+
+def test_download_does_not_try_again_after_another_read_failure(connected, world):
+    world.read_error = OSError("probe lost")
+    world.umi_last_error = "001 - Operation failed!"
+    with pytest.raises(FlashError) as err:
+        connected.download(lambda p, m: None, CancelToken(), 600)
+    assert str(err.value) == "The flash could not be confirmed."
+    assert world.calls.count("begin_program") == 1
 
 
 def test_workflow_restores_the_paths_and_does_not_finish_after_a_silent_failure(adapter, world, tmp_path):
