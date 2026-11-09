@@ -1501,3 +1501,15 @@ Người dùng đổi giới hạn: mỗi lần bấm Flash có tối đa 10 l�
 ### Đã kiểm tra
 
 - Toàn bộ test, `-k thread`, stress test (kết quả ở commit). Chưa chạy trên phần cứng.
+
+## Phase 3.18: Vòng 10 đạt: reset lại làm hết NOT ACCESSIBLE
+
+Người dùng chạy nhánh `feat/core-check` trên ECU thật. Cả hai lần bấm Flash, lúc bắt đầu A53 và BBE32EP đều NOT ACCESSIBLE. Lần 1 cần 4 lần reset, lần 2 cần 2 lần, rồi các core trở lại (A53, BBE32EP ở trạng thái RUN). Sau đó `begin_program` chạy khoảng 100 giây, lần đọc kiểm tra đạt, và bước Done hoàn tất. Không phải tắt bật nguồn. Như vậy chính `CDebugFacade.reset()` làm hết trạng thái đó, chỉ là đôi khi phải reset vài lần. Ở Vòng 9, mỗi lần bấm Flash chỉ reset một lần nên mới có 34 lần hỏng. Không cần thử `CSessionCtrl.begin_reset()`.
+
+### Thay đổi
+
+- **`docs/winidea_api_notes.md`**: kết quả Round 10 và bảng số lần reset. **`docs/windows_test_guide.md`**: kết quả Vòng 10.
+
+### Đã kiểm tra
+
+- Debug bundle `wflash_debug_20261109_112331`: 2 lần flash Done, `errors.txt` rỗng, không có cảnh báo nào ngoài các dòng reset lại và cảnh báo lệch phiên bản isystem.connect đã biết. Hai file Output winIDEA gửi kèm bị trống, nên số dòng `ERASING` không kiểm tra được. Chỉ đổi tài liệu.
