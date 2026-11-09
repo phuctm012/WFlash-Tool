@@ -12,7 +12,6 @@ import re
 
 from _common import Report, base_args, connect, try_call
 
-SOC = "/IDE/System.Debug.SoCs[0]"
 GETTER = re.compile(r"^(get|is|has|status|name|num|count|size|core|soc|state|id|index)", re.IGNORECASE)
 FORBIDDEN = re.compile(r"begin|end|program|reset|run|stop|set|write|erase|flush|download|load|attach|detach|connect|"
                        r"exec|step|halt|init|close|open|save|delete|remove|add|apply|wait", re.IGNORECASE)
@@ -31,7 +30,7 @@ def safe_getters(obj):
     return names
 
 
-def dump_object(report, obj, label, depth=0):
+def dump_object(report, obj, label, depth=0, max_depth=3):
     """Print every getter of a status object, one level into returned objects and vectors."""
     report.line(f"{label}: type={type(obj).__name__} members={public(obj)}")
     for name in safe_getters(obj):
@@ -43,7 +42,7 @@ def dump_object(report, obj, label, depth=0):
             report.line(f"  {label}.{name}() !! {exc}")
             continue
         report.line(f"  {label}.{name}() -> {value!r}")
-        if depth == 0 and value is not None and not isinstance(value, (str, int, float, bool)):
+        if depth < max_depth and value is not None and not isinstance(value, (str, int, float, bool)):
             items = None
             try:
                 items = list(value)
@@ -51,9 +50,9 @@ def dump_object(report, obj, label, depth=0):
                 pass
             if items is not None:
                 for i, item in enumerate(items[:16]):
-                    dump_object(report, item, f"{label}.{name}()[{i}]", depth + 1)
+                    dump_object(report, item, f"{label}.{name}()[{i}]", depth + 1, max_depth)
             else:
-                dump_object(report, value, f"{label}.{name}()", depth + 1)
+                dump_object(report, value, f"{label}.{name}()", depth + 1, max_depth)
 
 
 def main() -> None:
@@ -65,11 +64,9 @@ def main() -> None:
         ic, cmgr = connect(report, args.instance)
         report.line(f"label: {args.label!r}")
 
-        report.section("cores in the workspace (scalar options)")
-        ide = ic.CIDEController(cmgr)
-        count = try_call(report, "Cores size", lambda: ide.getDynamicOptionSize(f"{SOC}.Cores"))
-        for i in range(count or 0):
-            try_call(report, f"Cores[{i}].Name", lambda i=i: ide.getOptionStr(f"{SOC}.Cores[{i}].Name"))
+        report.section("status enums")
+        for name in sorted(n for n in dir(ic) if n.startswith(("EStatus_Core_", "EStatus_SoC_"))):
+            report.line(f"{name} = {getattr(ic, name)!r}")
 
         report.section("CSessionCtrl.get_status")
         session = ic.CSessionCtrl(cmgr)
@@ -79,6 +76,14 @@ def main() -> None:
                 dump_object(report, status, "status")
             except Exception:
                 report.exc("dump status")
+
+        report.section("CSessionCtrl.get_topology (core names)")
+        topology = try_call(report, "get_topology", lambda: session.get_topology())
+        if topology is not None:
+            try:
+                dump_object(report, topology, "topology")
+            except Exception:
+                report.exc("dump topology")
 
         report.section("CDebugFacade default core")
         cpu = try_call(report, "getCPUStatus", lambda: ic.CDebugFacade(cmgr).getCPUStatus())
