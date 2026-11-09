@@ -429,12 +429,15 @@ def test_other_verify_read_failure_still_says_the_flash_finished(connected, worl
     assert "power off and on" not in err.value.hint
 
 
-def test_download_resets_the_cpu_before_programming(connected, world):
+def test_download_programs_without_a_reset_when_every_core_is_accessible(connected, world):
+    # User decision (2026-11-09): check the cores first, reset only when one is NOT ACCESSIBLE.
     connected.download(lambda p, m: None, CancelToken(), 600)
-    assert world.calls.index("reset") < world.calls.index("begin_program")
+    assert "reset" not in world.calls
+    assert world.calls.index("get_status") < world.calls.index("begin_program")
 
 
 def test_download_still_programs_when_the_reset_before_it_fails(connected, world, caplog):
+    world.core_status_error = OSError("get_status not supported")  # unknown states: reset once first
     world.reset_error = OSError("reset refused")
     with caplog.at_level(logging.WARNING):
         connected.download(lambda p, m: None, CancelToken(), 600)
@@ -445,6 +448,7 @@ def test_download_still_programs_when_the_reset_before_it_fails(connected, world
 def test_download_still_programs_when_the_target_does_not_stop_after_the_reset(connected, world, monkeypatch, caplog):
     monkeypatch.setattr(winidea_adapter, "HALT_WAIT_S", 0.05)
     monkeypatch.setattr(winidea_adapter, "HALT_POLL_S", 0.01)
+    world.core_status_error = OSError("get_status not supported")  # unknown states: reset once first
     world.stopped_after_reset = False
     with caplog.at_level(logging.WARNING):
         connected.download(lambda p, m: None, CancelToken(), 600)
@@ -471,7 +475,7 @@ def test_download_reports_a_program_that_failed_silently_in_every_try(connected,
     assert err.value.hint == "Turn the ECU power off and on, then flash again."
     assert any("Error loading monitor" in r.getMessage() for r in caplog.records)
     assert world.calls.count("begin_program") == winidea_adapter.MAX_PROGRAM_ATTEMPTS == 3
-    assert world.calls.count("reset") == 3  # one reset before each try
+    assert world.calls.count("reset") == 2  # the cores look fine: no reset for the first try, one per retry
     assert sum("trying again" in r.getMessage() for r in caplog.records) == 2
 
 
@@ -486,7 +490,7 @@ def test_download_tries_again_after_a_quick_silent_failure_and_succeeds(connecte
     with caplog.at_level(logging.INFO):
         connected.download(lambda p, m: None, CancelToken(), 600)
     order = [c for c in world.calls if c in ("reset", "begin_program")]
-    assert order == ["reset", "begin_program", "reset", "begin_program"]  # each try starts with a reset
+    assert order == ["begin_program", "reset", "begin_program"]  # the retry starts with a reset
     assert any("trying again, 2 of 3" in r.getMessage() for r in caplog.records)
     assert any("try 2 of 3" in r.getMessage() for r in caplog.records)  # "Programming finished … (try 2 of 3)"
 
@@ -504,6 +508,7 @@ def test_download_does_not_try_again_after_a_slow_failure(connected, world, monk
 def test_download_does_not_try_again_when_the_resets_are_used_up(connected, world, monkeypatch, caplog):
     monkeypatch.setattr(winidea_adapter, "CORE_WAIT_S", 0.02)
     monkeypatch.setattr(winidea_adapter, "HALT_POLL_S", 0.01)
+    world.cores = INACCESSIBLE
     world.cores_after_reset = [INACCESSIBLE] * 9 + [list(World().cores)]  # the 10th reset clears it
     _silent_monitor_failure(world)
     with caplog.at_level(logging.ERROR), pytest.raises(FlashError):
@@ -516,7 +521,9 @@ def test_download_resets_share_one_budget_across_tries(connected, world, monkeyp
     monkeypatch.setattr(winidea_adapter, "CORE_WAIT_S", 0.02)
     monkeypatch.setattr(winidea_adapter, "HALT_POLL_S", 0.01)
     good = list(World().cores)
-    # First try: 7 resets inaccessible, the 8th clears it; second try: both remaining resets inaccessible.
+    # First try: the cores start inaccessible, 7 resets keep them so, the 8th clears it;
+    # the retry resets first, and both remaining resets leave them inaccessible.
+    world.cores = INACCESSIBLE
     world.cores_after_reset = [INACCESSIBLE] * 7 + [good, INACCESSIBLE, INACCESSIBLE]
     _silent_monitor_failure(world)
     with pytest.raises(FlashError) as err:
@@ -612,26 +619,31 @@ INACCESSIBLE = [("M7_0", 2, "STOP"), ("M7_RFE", 3, "RUN"), ("A53", 1, "NOT ACCES
 def test_download_logs_the_core_states_and_programs_when_none_is_inaccessible(connected, world, caplog):
     with caplog.at_level(logging.INFO):
         connected.download(lambda p, m: None, CancelToken(), 600)
-    assert world.calls.index("reset") < world.calls.index("get_status") < world.calls.index("begin_program")
+    assert "reset" not in world.calls
+    assert world.calls.index("get_status") < world.calls.index("begin_program")
     assert any("M7_0 STOP" in r.getMessage() and "BBE32EP RUN" in r.getMessage() for r in caplog.records)
 
 
 def test_download_resets_again_until_no_core_is_inaccessible(connected, world, monkeypatch, caplog):
     monkeypatch.setattr(winidea_adapter, "CORE_WAIT_S", 0.02)
     monkeypatch.setattr(winidea_adapter, "HALT_POLL_S", 0.01)
-    world.cores_after_reset = [INACCESSIBLE, INACCESSIBLE, list(World().cores)]  # the third reset clears it
+    world.cores = INACCESSIBLE  # seen by the first check: reset
+    world.cores_after_reset = [INACCESSIBLE, list(World().cores)]  # the second reset clears it
     with caplog.at_level(logging.INFO):
         connected.download(lambda p, m: None, CancelToken(), 600)
-    assert world.calls.count("reset") == 3
-    assert world.calls.count("begin_program") == 1
+    order = [c for c in world.calls if c in ("get_status", "reset", "begin_program")]
+    assert order[0] == "get_status"  # checked before any reset
+    assert world.calls.count("reset") == 2 and world.calls.count("begin_program") == 1
     assert world.calls.index("begin_program") > max(i for i, c in enumerate(world.calls) if c == "reset")
-    assert sum("resetting again" in r.getMessage() for r in caplog.records) == 2  # after resets 1 and 2
+    assert sum("; resetting" in r.getMessage() and "again" not in r.getMessage() for r in caplog.records) == 1
+    assert sum("resetting again" in r.getMessage() for r in caplog.records) == 1  # after reset 1
     assert any("Cores before programming: M7_0 STOP" in r.getMessage() for r in caplog.records)
 
 
 def test_download_gives_up_after_the_maximum_resets(connected, world, monkeypatch, caplog):
     monkeypatch.setattr(winidea_adapter, "CORE_WAIT_S", 0.02)
     monkeypatch.setattr(winidea_adapter, "HALT_POLL_S", 0.01)
+    world.cores = INACCESSIBLE
     world.cores_after_reset = [INACCESSIBLE]
     with caplog.at_level(logging.ERROR), pytest.raises(FlashError) as err:
         connected.download(lambda p, m: None, CancelToken(), 600)
@@ -645,9 +657,10 @@ def test_download_gives_up_after_the_maximum_resets(connected, world, monkeypatc
 def test_download_programs_when_the_cores_become_accessible_within_the_grace(connected, world, monkeypatch):
     monkeypatch.setattr(winidea_adapter, "CORE_WAIT_S", 5.0)
     monkeypatch.setattr(winidea_adapter, "HALT_POLL_S", 0.01)
+    world.cores = INACCESSIBLE
     world.cores_after_reset = [INACCESSIBLE]
 
-    def recover_on_third_read():
+    def recover_on_third_read():  # read 1: the check before any reset; reads 2-3: after the reset
         if world.calls.count("get_status") == 3:
             world.cores = [("M7_0", 2, "STOP"), ("A53", 2, "STOP")]
 
@@ -661,5 +674,8 @@ def test_download_programs_anyway_when_the_core_states_cannot_be_read(connected,
     world.core_status_error = OSError("get_status not supported")
     with caplog.at_level(logging.WARNING):
         connected.download(lambda p, m: None, CancelToken(), 600)
+    assert world.calls.count("reset") == 1  # unknown states: one reset, as before the check existed
     assert world.calls.count("begin_program") == 1
     assert any("Cannot read the core states" in r.getMessage() for r in caplog.records)
+
+

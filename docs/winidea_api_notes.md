@@ -455,6 +455,8 @@ The core states before a failed and before a good run are **identical**, here an
 
 **Decision (user, 2026-11-09):** after such a quick failure WFlash tries again within the same press of Flash: reset, core check, `begin_program`. At most `MAX_PROGRAM_ATTEMPTS` = 3 tries; the resets of all tries share the one budget of `MAX_CORE_RESETS` = 10. Only a failure that took less than `QUICK_FAIL_S` = 30 s **and** whose read-back says `Error loading monitor` is retried; a slower failure or any other error is not, because the flash may already be erased. Not yet run on hardware.
 
+**Change (user, 2026-11-09, after round 11): check the cores first.** `_prepare_cores` reads the core states before any reset and programs at once when none is `NOT ACCESSIBLE`; only otherwise does it reset and read again (with the `CORE_WAIT_S` grace), within the shared budget of 10 resets. Two cases still start with a reset: a retry after a quick failure (in round 11 the cores looked fine before every failed try, so checking alone would just repeat it) and core states that cannot be read (as before the check existed). Not yet run on hardware.
+
 ## Open questions
 
 1. **Version mismatch.** `isystem.connect` 9.26.11 against winIDEA 9.21.408. Connect, read, download, reset and run all worked, but `CLAUDE.md` requires the versions to match. Is there a Python SDK package under `C:/Data/_Devtools/Winidea408/` (9.21.408)? If yes, install it and re-run 01 to confirm nothing changes.

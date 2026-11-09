@@ -383,7 +383,9 @@ class RealWinIDEAAdapter:
         ic, cmgr, _ide = self._session()
         resets_left = MAX_CORE_RESETS
         for attempt in range(1, MAX_PROGRAM_ATTEMPTS + 1):
-            resets_left = self._prepare_cores(ic, cmgr, resets_left)
+            # The first try checks the cores before any reset; a retry follows a failure whose cores
+            # looked fine (round 11), so it resets first.
+            resets_left = self._prepare_cores(ic, cmgr, resets_left, reset_first=attempt > 1)
             label = "Programming external flash (estimated)"
             if attempt > 1:
                 label = f"Programming external flash, try {attempt} of {MAX_PROGRAM_ATTEMPTS} (estimated)"
@@ -496,19 +498,27 @@ class RealWinIDEAAdapter:
             states.append((name, int(core.status()), core.status_string()))
         return states
 
-    def _prepare_cores(self, ic, cmgr, resets_left: int) -> int:
-        """Reset, read every core, and reset again while one is NOT ACCESSIBLE (user decision).
+    def _prepare_cores(self, ic, cmgr, resets_left: int, reset_first: bool) -> int:
+        """Read every core first; program at once when none is NOT ACCESSIBLE, else reset and read
+        again while one is (user decision, 2026-11-09: check first, reset only when needed).
 
-        begin_program fails silently in that state. `resets_left` is what is left of the
-        MAX_CORE_RESETS for this press of Flash; returns what is left after this preparation.
-        When they are used up it raises, so download() fails before programming and the
-        workflow restores the paths. The caller never passes 0.
+        begin_program fails silently in that state. `reset_first` (a try after a quick failure, whose
+        cores looked fine) and unreadable states start with a reset, as before. `resets_left` is
+        what is left of the MAX_CORE_RESETS for this press of Flash; returns what is left. When they
+        are used up it raises, so download() fails before programming and the workflow restores the
+        paths. The caller never passes 0.
         """
+        if not reset_first:
+            bad, summary, readable = self._inaccessible_cores(ic, cmgr, grace=False)
+            if readable and not bad:
+                return resets_left  # no reset needed
+            if bad:
+                log.warning("Cores not accessible (%s); resetting", summary)
         bad, summary = [], ""
         while resets_left > 0:
             self._reset_before_programming(ic, cmgr)
             resets_left -= 1
-            bad, summary = self._inaccessible_cores(ic, cmgr)
+            bad, summary, _readable = self._inaccessible_cores(ic, cmgr)
             if not bad:
                 return resets_left
             used = MAX_CORE_RESETS - resets_left
@@ -517,26 +527,27 @@ class RealWinIDEAAdapter:
         log.error("Not programming, cores not accessible after %d resets: %s", MAX_CORE_RESETS, summary)
         raise inaccessible_cores_error(bad)
 
-    def _inaccessible_cores(self, ic, cmgr) -> tuple[list[str], str]:
-        """Names of NOT ACCESSIBLE cores, re-read for up to CORE_WAIT_S; [] when none, or when unreadable.
+    def _inaccessible_cores(self, ic, cmgr, grace: bool = True) -> tuple[list[str], str, bool]:
+        """(NOT ACCESSIBLE core names, summary, readable). After a reset (`grace`) it re-reads for up
+        to CORE_WAIT_S; the first check before any reset reads once.
 
         An unreadable state only warns: unknown is not bad, and programming worked before this check.
         """
         inaccessible = getattr(ic, "EStatus_Core_stInaccessible", CORE_INACCESSIBLE)
-        deadline = time.monotonic() + CORE_WAIT_S
+        deadline = time.monotonic() + (CORE_WAIT_S if grace else 0.0)
         while True:
             try:
                 states = self._core_states(ic, cmgr)
             except Exception as exc:
                 log.warning("Cannot read the core states before programming; programming anyway: %s", exc)
-                return [], ""
+                return [], "", False
             summary = ", ".join(f"{name} {text}" for name, _status, text in states)
             bad = [name for name, status, _text in states if status == inaccessible]
             if not bad:
                 log.info("Cores before programming: %s", summary)
-                return [], summary
+                return [], summary, True
             if time.monotonic() >= deadline:
-                return bad, summary
+                return bad, summary, True
             time.sleep(HALT_POLL_S)
 
     def reset(self, run: bool) -> None:
