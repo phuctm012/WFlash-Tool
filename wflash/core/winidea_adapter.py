@@ -112,7 +112,9 @@ POWER_CYCLE_HINT = "Turn the ECU power off and on, then flash again."
 # Spike 16 (2026-11-09): EStatus_Core_stInaccessible. Flashing failed with "Error loading monitor" whenever
 # a core showed NOT ACCESSIBLE in the Session Explorer, and worked when none did (a core in RUN was fine).
 CORE_INACCESSIBLE = 1
-CORE_WAIT_S = 2.0  # not measured: a short grace after the reset, before refusing to program
+CORE_WAIT_S = 2.0  # not measured: a short grace after each reset before the states count
+# User decision (2026-11-09): a reset from winIDEA cleared NOT ACCESSIBLE, so reset again, a bounded number of times.
+MAX_CORE_RESETS = 3
 CORE_HINT = (
     "Nothing was written to the flash. Turn the ECU power off and on until no core in winIDEA's "
     "Session Explorer shows NOT ACCESSIBLE, then flash again."
@@ -120,7 +122,10 @@ CORE_HINT = (
 
 
 def inaccessible_cores_error(names: list[str]) -> FlashError:
-    return FlashError(f"Flash not started: {', '.join(names)} not accessible.", hint=CORE_HINT)
+    return FlashError(
+        f"Flash not started: {', '.join(names)} still not accessible after {MAX_CORE_RESETS} more resets.",
+        hint=CORE_HINT,
+    )
 
 
 BITNESS_HINT = (
@@ -366,8 +371,7 @@ class RealWinIDEAAdapter:
         Output view. The next read failed at once with the same error, so one read confirms it.
         """
         ic, cmgr, _ide = self._session()
-        self._reset_before_programming(ic, cmgr)
-        self._check_cores(ic, cmgr)
+        self._prepare_cores(ic, cmgr)
         done = threading.Event()
         started = time.monotonic()
 
@@ -450,11 +454,27 @@ class RealWinIDEAAdapter:
             states.append((name, int(core.status()), core.status_string()))
         return states
 
-    def _check_cores(self, ic, cmgr) -> None:
-        """Refuse to program while a core is NOT ACCESSIBLE: begin_program then fails silently.
+    def _prepare_cores(self, ic, cmgr) -> None:
+        """Reset, read every core, and reset again while one is NOT ACCESSIBLE (user decision).
 
-        Runs after the reset and before begin_program. If the states cannot be read, it only warns:
-        an unknown state is not a bad one, and programming worked before this check existed.
+        begin_program fails silently in that state. After MAX_CORE_RESETS more resets it gives up and
+        raises, so download() fails before programming and the workflow restores the paths.
+        """
+        self._reset_before_programming(ic, cmgr)
+        for attempt in range(1, MAX_CORE_RESETS + 2):
+            bad, summary = self._inaccessible_cores(ic, cmgr)
+            if not bad:
+                return
+            if attempt > MAX_CORE_RESETS:
+                log.error("Not programming, cores not accessible after %d more resets: %s", MAX_CORE_RESETS, summary)
+                raise inaccessible_cores_error(bad)
+            log.warning("Cores not accessible (%s); resetting again (%d of %d)", summary, attempt, MAX_CORE_RESETS)
+            self._reset_before_programming(ic, cmgr)
+
+    def _inaccessible_cores(self, ic, cmgr) -> tuple[list[str], str]:
+        """Names of NOT ACCESSIBLE cores, re-read for up to CORE_WAIT_S; [] when none, or when unreadable.
+
+        An unreadable state only warns: unknown is not bad, and programming worked before this check.
         """
         inaccessible = getattr(ic, "EStatus_Core_stInaccessible", CORE_INACCESSIBLE)
         deadline = time.monotonic() + CORE_WAIT_S
@@ -463,15 +483,14 @@ class RealWinIDEAAdapter:
                 states = self._core_states(ic, cmgr)
             except Exception as exc:
                 log.warning("Cannot read the core states before programming; programming anyway: %s", exc)
-                return
+                return [], ""
             summary = ", ".join(f"{name} {text}" for name, _status, text in states)
             bad = [name for name, status, _text in states if status == inaccessible]
             if not bad:
                 log.info("Cores before programming: %s", summary)
-                return
+                return [], summary
             if time.monotonic() >= deadline:
-                log.error("Not programming, cores not accessible: %s", summary)
-                raise inaccessible_cores_error(bad)
+                return bad, summary
             time.sleep(HALT_POLL_S)
 
     def reset(self, run: bool) -> None:

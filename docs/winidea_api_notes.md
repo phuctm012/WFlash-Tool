@@ -429,7 +429,9 @@ session.get_topology().SoCs()[0].cores()[i].name()         # 'M7_0', same order 
 
 In both states `CDebugFacade.getCPUStatus()` said `isStopped: 1`, so the old check could not tell them apart. `/IDE/System.Debug.SoCs[0].Cores` does not resolve (`E_INVALIDARG`).
 
-**Decision (user, 2026-11-09):** reset, then check the cores; program only when none is `NOT ACCESSIBLE` (RUN, STOP and IDLE are fine). `RealWinIDEAAdapter._check_cores` does this between the reset and `begin_program`, re-reading for up to `CORE_WAIT_S` (2 s, not measured); otherwise it raises `FlashError` and the workflow restores the paths. If the states cannot be read it only warns. Not yet run on hardware.
+**Decision (user, 2026-11-09):** set paths → reset → read every core → if one is `NOT ACCESSIBLE`, reset again; otherwise program. RUN, STOP and IDLE are fine. The user found that a reset from winIDEA clears `NOT ACCESSIBLE`. `RealWinIDEAAdapter._prepare_cores` re-reads for up to `CORE_WAIT_S` (2 s, not measured) after each reset, resets at most `MAX_CORE_RESETS` (3) more times, then raises `FlashError` and the workflow restores the paths. If the states cannot be read it only warns. Not yet run on hardware.
+
+Open: the retry uses `CDebugFacade.reset()`, the call WFlash already made before each of the 34 failed attempts, without clearing the state. If it does not clear it on the ECU, the reset the user did by hand may be a different one; `CSessionCtrl.begin_reset()` ("resets and halts without programming", docstring only, never called) is the next candidate.
 
 ## Open questions
 
@@ -438,4 +440,4 @@ In both states `CDebugFacade.getCPUStatus()` said `isStopped: 1`, so the old che
 3. **Writing paths**: re-run 03 with `--url "/IDE/System.Debug.Applications[0].SymbolFiles.File[1].Path"`, and with the external-flash URL once 06 finds it. Confirm the read-back, the restore, and whether the change shows in the dialogs **without saving the workspace**.
 4. **Does `CLoaderController.download()` program the Winbond device?** Compare with *Hardware → Winbond W25Q64JW SPI → Program* (time it; check the winIDEA Output/Progress view during the spike download).
 5. **Selecting one of several winIDEA instances** when `getInstanceId()` is empty.
-6. ~~Per-core state~~ read with `CSessionCtrl.get_status()` (spike 16). Still open: does a second reset ever clear `NOT ACCESSIBLE`, or only a power cycle?
+6. ~~Per-core state~~ read with `CSessionCtrl.get_status()` (spike 16). A reset from winIDEA cleared `NOT ACCESSIBLE` for the user; whether `CDebugFacade.reset()` does too is open (Vòng 10).

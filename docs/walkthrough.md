@@ -1463,7 +1463,7 @@ Vòng 9 đạt: ba lần flash qua luồng developer đều có một `ERASING`,
 ### Thay đổi
 
 - **`spike/16_core_status.py`**, **`spike/README.md`**: spike chỉ đọc, in trạng thái từng core, topology và các hằng `EStatus_*`.
-- **`wflash/core/winidea_adapter.py`**: `_core_states`, `_check_cores` (đọc lại trong `CORE_WAIT_S` = 2 s, con số chưa đo), `inaccessible_cores_error`, `CORE_HINT`; gọi giữa reset và `begin_program`.
+- **`wflash/core/winidea_adapter.py`**: `_core_states`, kiểm tra core (đọc lại trong `CORE_WAIT_S` = 2 s, con số chưa đo), `inaccessible_cores_error`, `CORE_HINT`; gọi giữa reset và `begin_program`.
 - **`wflash/core/fake_adapter.py`**: chế độ lỗi `core_inaccessible`.
 - **`tests/fake_isystem.py`**: `CSessionCtrl.get_status/get_topology`, các core theo kết quả spike 16, `cores_after_reset`, `core_status_error`, `get_status_hook`.
 - **`tests/test_real_adapter.py`**, **`tests/test_flash_workflow.py`**: bị chặn khi core NOT ACCESSIBLE (không gọi `begin_program`, trả đường dẫn về như cũ), core hồi lại trong khoảng chờ, không đọc được trạng thái thì vẫn flash, có ghi log trạng thái.
@@ -1473,3 +1473,18 @@ Vòng 9 đạt: ba lần flash qua luồng developer đều có một `ERASING`,
 
 - Spike 16 trên ECU thật, hai trạng thái (mọi core STOP, và có core NOT ACCESSIBLE), kết quả như bảng trong `winidea_api_notes.md`.
 - Toàn bộ test, `-k thread`, stress test (kết quả ở commit). Kiểm tra trong adapter thật **chưa chạy trên phần cứng**: chờ Vòng 10. Chưa biết reset thêm lần nữa có làm hết NOT ACCESSIBLE không: 34 lần hỏng ở Vòng 9 đều đã reset một lần trước đó.
+
+## Phase 3.16: Reset lại khi có core NOT ACCESSIBLE
+
+Người dùng thử reset bằng winIDEA thì các core hết NOT ACCESSIBLE. Theo đó, người dùng chốt thứ tự: đặt đường dẫn, reset, đọc trạng thái mọi core; nếu có core NOT ACCESSIBLE thì reset lại, nếu không thì bắt đầu flash. Số lần reset thêm có giới hạn, `MAX_CORE_RESETS` = 3, để WFlash không lặp mãi. Hết số lần đó mà vẫn còn core NOT ACCESSIBLE thì WFlash dừng và trả đường dẫn về như cũ, như Phase 3.15. Mỗi lần reset lại đều ghi cảnh báo vào log, có trạng thái từng core.
+
+### Thay đổi
+
+- **`wflash/core/winidea_adapter.py`**: `_prepare_cores` (reset, đọc trạng thái, reset lại tối đa 3 lần) thay cho `_check_cores`; `_inaccessible_cores` đọc lại trạng thái trong `CORE_WAIT_S` sau mỗi lần reset. Lời nhắn lỗi nêu số lần đã reset.
+- **`tests/fake_isystem.py`**: `cores_after_reset` là danh sách, mỗi lần reset lấy phần tử tiếp theo.
+- **`tests/test_real_adapter.py`**: lần reset thứ ba làm hết NOT ACCESSIBLE thì flash; hết 3 lần thì dừng, không gọi `begin_program`; core tự hồi trong khoảng chờ thì không reset thêm.
+- **`docs/winidea_api_notes.md`**, **`docs/windows_test_guide.md`** (Vòng 10), **`CLAUDE.md`**.
+
+### Đã kiểm tra
+
+- Toàn bộ test, `-k thread`, stress test (kết quả ở commit). Chưa chạy trên phần cứng. Lệnh reset dùng ở đây là `CDebugFacade.reset()`, chính lệnh đã chạy trước 34 lần hỏng ở Vòng 9. Có thể nó không giống thao tác reset bạn bấm tay trong winIDEA. Vòng 10 sẽ cho biết. Nếu nó không làm hết NOT ACCESSIBLE thì lệnh nên thử tiếp là `CSessionCtrl.begin_reset()`.

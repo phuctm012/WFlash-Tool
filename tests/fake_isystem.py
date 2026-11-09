@@ -61,7 +61,8 @@ class World:
         self.cores: list[tuple[str, int, str]] = [
             ("M7_0", 2, "STOP"), ("M7_RFE", 2, "STOP"), ("A53", 2, "STOP"), ("SPT", 5, "IDLE"), ("BBE32EP", 3, "RUN"),
         ]
-        self.cores_after_reset: list[tuple[str, int, str]] | None = None  # replaces `cores` on reset
+        # Each reset takes the next entry as `cores`; the last one stays. None leaves `cores` alone.
+        self.cores_after_reset: list[list[tuple[str, int, str]]] | None = None
         self.core_status_error: Exception | None = None
         self.get_status_hook = lambda: None
         self.calls: list[str] = []
@@ -175,8 +176,9 @@ def build_module(world: World) -> types.ModuleType:
             if world.reset_error:
                 raise world.reset_error
             world.running = not world.stopped_after_reset
-            if world.cores_after_reset is not None:
-                world.cores = world.cores_after_reset
+            if world.cores_after_reset:
+                world.cores = world.cores_after_reset.pop(0) if len(world.cores_after_reset) > 1 \
+                    else world.cores_after_reset[0]
 
         def run(self):
             world.calls.append("run")
