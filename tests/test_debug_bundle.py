@@ -91,3 +91,17 @@ def test_bundle_source_is_empty_object_when_nothing_loaded(tmp_path):
     path = create_debug_bundle(DebugContext(), tmp_path, None)
     with zipfile.ZipFile(path) as zf:
         assert json.loads(zf.read("source.json")) == {}
+
+
+def test_bundle_carries_the_flash_history(tmp_path, monkeypatch):
+    import zipfile as _zip
+
+    from wflash.core import debug_bundle as _db
+    from wflash.core.flash_history import append_flash
+
+    history = tmp_path / "flash_history.csv"
+    append_flash({"profile": "SUZ05", "result": "Done"}, history)
+    monkeypatch.setattr(_db, "history_path", lambda: history)
+    path = _db.create_debug_bundle(_db.DebugContext(), tmp_path / "out", None)
+    with _zip.ZipFile(path) as zf:
+        assert "SUZ05" in zf.read("flash_history.csv").decode("utf-8")

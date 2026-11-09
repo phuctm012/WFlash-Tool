@@ -679,3 +679,32 @@ def test_download_programs_anyway_when_the_core_states_cannot_be_read(connected,
     assert any("Cannot read the core states" in r.getMessage() for r in caplog.records)
 
 
+
+
+def test_core_states_reads_the_session_status_only(connected, world):
+    assert connected.core_states()[0] == ("M7_0", "STOP")
+    assert "reset" not in world.calls and "begin_program" not in world.calls
+
+
+def test_core_states_failure_is_a_short_winidea_error(connected, world):
+    world.core_status_error = OSError("ICONNECT_E_ROUTING: can not access winIDEA")
+    with pytest.raises(WinIDEAError) as err:
+        connected.core_states()
+    assert str(err.value) == "Connection to winIDEA lost while reading the core states."
+
+
+def test_program_stats_count_resets_tries_and_seconds(connected, world, monkeypatch):
+    monkeypatch.setattr(winidea_adapter, "CORE_WAIT_S", 0.02)
+    monkeypatch.setattr(winidea_adapter, "HALT_POLL_S", 0.01)
+    world.cores = INACCESSIBLE
+    world.cores_after_reset = [INACCESSIBLE, list(World().cores)]
+    _silent_monitor_failure(world)
+
+    def heal_on_second_try():
+        if world.calls.count("begin_program") == 2:
+            world.read_error = None
+
+    world.begin_program_hook = heal_on_second_try
+    connected.download(lambda p, m: None, CancelToken(), 600)
+    stats = connected.program_stats
+    assert stats["resets"] == 3 and stats["tries"] == 2 and stats["program_s"] >= 0

@@ -127,3 +127,13 @@ def test_verify_flash_passes_and_can_fail():
     failing.connect(INSTANCE_ID)
     with pytest.raises(FlashError):
         failing.verify_flash(lambda p, m: None)
+
+
+def test_core_states_and_program_stats():
+    adapter = connected()
+    assert ("M7_0", "STOP") in adapter.core_states()
+    adapter.download_seconds = 0.01
+    adapter.download(lambda p, m: None, CancelToken(), 60)
+    assert adapter.program_stats == {"resets": 0, "tries": 1, "program_s": 0.0}
+    with pytest.raises(WinIDEAError):
+        connected(fail_on={"core_states"}).core_states()

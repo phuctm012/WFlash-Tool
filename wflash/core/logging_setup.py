@@ -101,5 +101,7 @@ def setup_logging(log_dir: Path | None = None, keep: int = 20, verbose: bool = F
     handler.setFormatter(RedactingFormatter(LOG_FORMAT, DATE_FORMAT))
     logger.addHandler(handler)
     _file_handler = handler
-    set_verbose(verbose)
+    # Every winIDEA call is logged, always (user decision 2026-11-09): the debug bundle needs it.
+    # `verbose` stays for older callers and the --verbose flag.
+    set_verbose(True)
     return path
