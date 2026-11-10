@@ -13,7 +13,7 @@ from pathlib import Path
 from PySide6.QtCore import QByteArray, QEvent, QThreadPool
 from PySide6.QtWidgets import QApplication, QFileDialog, QLabel, QMainWindow, QMessageBox
 
-from wflash import APP_AUTHOR, __version__
+from wflash import APP_AUTHOR, DISPLAY_VERSION
 from wflash.core.debug_bundle import DebugContext
 from wflash.core.errors import CancelledError, ProfileError, WFlashError
 from wflash.core.logging_setup import get_logger, redact, register_secret
@@ -50,7 +50,7 @@ class MainWindow(GitlabTabMixin, MappingTableMixin, FlashMixin, LogPanelMixin, M
         super().__init__()
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
-        self.setWindowTitle(f"WFlash v{__version__}")  # the version only exists at runtime
+        self.setWindowTitle(f"WFlash v{DISPLAY_VERSION}")  # the version only exists at runtime
         self.settings = settings
         self.adapter = adapter
         self.log_file = log_file
@@ -85,7 +85,7 @@ class MainWindow(GitlabTabMixin, MappingTableMixin, FlashMixin, LogPanelMixin, M
 
     def _init_status_bar(self) -> None:
         # Designer cannot put widgets into a status bar; these two are fixed text.
-        self.label_version = QLabel(f"Version: v{__version__}")
+        self.label_version = QLabel(f"Version: v{DISPLAY_VERSION}")
         self.label_author = QLabel(f"Author: {APP_AUTHOR}")
         self.statusBar().addWidget(self.label_version)
         self.statusBar().addPermanentWidget(self.label_author)

@@ -18,7 +18,7 @@ from tests.gui_stubs import (
     patch_keyring,
     write_profiles,
 )
-from wflash import APP_AUTHOR, __version__
+from wflash import APP_AUTHOR, DISPLAY_VERSION
 from wflash.core.errors import GitLabError, WinIDEAError
 from wflash.core.fake_adapter import FakeWinIDEAAdapter
 from wflash.core.firmware_source import FirmwareSource
@@ -75,8 +75,8 @@ def test_gui_profile_loaded_on_start(env):
 
 def test_gui_title_and_status_bar_show_version_and_author(env):
     w = env.window
-    assert w.windowTitle() == f"WFlash v{__version__}"
-    assert w.label_version.text() == f"Version: v{__version__}"
+    assert w.windowTitle() == f"WFlash v{DISPLAY_VERSION}" == "WFlash v1.0"
+    assert w.label_version.text() == f"Version: v{DISPLAY_VERSION}"
     assert w.label_author.text() == f"Author: {APP_AUTHOR}"
 
 
