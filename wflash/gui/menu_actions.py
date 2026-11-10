@@ -23,7 +23,7 @@ from PySide6.QtCore import QUrl
 from PySide6.QtGui import QAction, QDesktopServices
 from PySide6.QtWidgets import QApplication, QMessageBox, QSystemTrayIcon
 
-from wflash import APP_AUTHOR, __version__
+from wflash import APP_AUTHOR, DISPLAY_VERSION
 from wflash.core.debug_bundle import collect_env_info
 from wflash.core.errors import GitLabError
 from wflash.core.flash_history import history_path
@@ -165,7 +165,7 @@ class MenuActionsMixin:
         winidea = info.adapter_info.get("winidea_version", "-") if info is not None else "-"
         QMessageBox.about(
             self, "About WFlash",
-            f"<b>WFlash v{__version__}</b><br>Flashes SAF85xx firmware from GitLab CI through winIDEA.<br><br>"
+            f"<b>WFlash v{DISPLAY_VERSION}</b><br>Flashes SAF85xx firmware from GitLab CI through winIDEA.<br><br>"
             f"isystem.connect: {env.get('isystem.connect', '-')}<br>winIDEA: {winidea}<br>"
             f"Python: {sys.version.split()[0]}<br>PySide6: {env.get('PySide6', '-')}<br><br>Author: {APP_AUTHOR}",
         )

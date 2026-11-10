@@ -1807,3 +1807,16 @@ Người dùng chốt phiên bản 1.0 sau khi luồng đầy đủ đã chạy 
 ### Đã kiểm tra
 
 - Toàn bộ test, `-k thread`, stress test đầy đủ, fuzz và app mở được với `--adapter fake` (tiêu đề "WFlash v1.0.0"): kết quả ở commit. `WFlash.exe` của 1.0.0 chưa được build; adapter thật chỉ kiểm chứng trên Windows như trước.
+
+## Phase 4.0.1: Hiển thị "v1.0" thay vì "v1.0.0"
+
+Người dùng muốn màn hình chỉ hiện "v1.0". Số phiên bản đầy đủ `1.0.0` vẫn giữ nguyên trong `__version__`, metadata gói và debug bundle, để khớp tag `v1.0.0` đã push. Chỉ phần hiển thị (tiêu đề cửa sổ, thanh trạng thái, hộp About) dùng `DISPLAY_VERSION`, bỏ số patch khi nó bằng 0. Bản sửa lỗi sau này (`1.0.1`) vẫn hiện đầy đủ, để người dùng phân biệt được.
+
+### Thay đổi
+
+- **`wflash/__init__.py`**: `display_version()`, `DISPLAY_VERSION`. **`wflash/gui/main_window.py`**, **`menu_actions.py`** dùng `DISPLAY_VERSION`.
+- **`tests/test_version.py`** (mới).
+
+### Đã kiểm tra
+
+- Toàn bộ test, `-k thread`, stress test, fuzz và app mở được (tiêu đề "WFlash v1.0", thanh trạng thái "Version: v1.0"): kết quả ở commit.
