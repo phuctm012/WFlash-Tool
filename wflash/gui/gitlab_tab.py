@@ -192,10 +192,16 @@ class GitlabTabMixin:
         self.take_part_firmware(part, role, path, source)
 
     def take_part_firmware(self, part: PartController, role: str, path: Path, source: FirmwareSource) -> None:
-        self._role_rows[role] = build_mapping_for_role(self.profile, {role}, path)
-        self._role_sources[role] = source
+        self.take_part_firmwares(part, [(role, path, source)])
+
+    def take_part_firmwares(self, part: PartController, items) -> None:
+        """Every role of one load at once: the commit check sees FFI and ELF of the same load,
+        never the new FFI beside the previous ELF (user report, 2026-11-10)."""
+        for role, path, source in items:
+            self._role_rows[role] = build_mapping_for_role(self.profile, {role}, path)
+            self._role_sources[role] = source
+            log.info("%s loaded: %s (%s) from %s", role.upper(), source.title, source.cache_note, path)
         self.ctx.source = {key: src.to_dict() for key, src in self._role_sources.items()}
-        log.info("%s loaded: %s (%s) from %s", role.upper(), source.title, source.cache_note, path)
         self.rebuild_developer_rows()
         self._update_developer_warning()
         self.render_summary()

@@ -457,7 +457,7 @@ class PartController(QObject):
         self._stop_waiting()
         for role, path, source in results:
             log.info("%s loaded from its commit: %s (%s) from %s", role.upper(), source.title, source.cache_note, path)
-            self.host.take_part_firmware(self, role, path, source)
+        self.host.take_part_firmwares(self, results)
         self._show_status()
         if waited:  # the user may be elsewhere while the pipeline ran (spec 4.9)
             commit = self.repo_state.commit[:SHORT] if self.repo_state else ""
@@ -529,14 +529,17 @@ class PartController(QObject):
         except ValueError:
             stored = {}
         missing = False
+        restored = []
         for role, entry in stored.items():
             path = Path(entry.get("path", ""))
             if role in self.roles and (path / MARKER).is_file():
                 source = FirmwareSource(**entry["source"])
                 self.loaded[role] = (path, source)
-                self.host.take_part_firmware(self, role, path, source)
+                restored.append((role, path, source))
             elif role in self.roles:
                 missing = True
+        if restored:
+            self.host.take_part_firmwares(self, restored)
         if self.loaded:
             self._show_status()
         elif missing:
