@@ -832,7 +832,9 @@ class Stress:
         self.check(self.wait_flash_idle(window), "menu: flash worker released")
         self.check(adapter.calls.count("core_states") >= cores_before, "menu: no stray cores read")
         ui.action_openHistory.trigger()
-        self.check(self.opened[-1] == os.environ["WFLASH_HISTORY_FILE"], "menu: flash history opened")
+        # Path, not str: Qt gives C:/… while the variable holds C:\… on Windows (failed there, 2026-11-10).
+        self.check(Path(self.opened[-1]) == Path(os.environ["WFLASH_HISTORY_FILE"]),
+                   f"menu: flash history opened: {self.opened[-1]}")
         self.close_window(window, "menu")
 
         # Closed while a Tools request is in flight.

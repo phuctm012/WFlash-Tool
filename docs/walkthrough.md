@@ -1860,3 +1860,15 @@ Sửa: script chạy `tools\check_build_env.py` trước. Script này kiểm tra
 ### Đã kiểm tra
 
 - `check_build_env.py` chạy trên macOS (env dev: đủ, exit 0). File `.bat` không chạy được trên macOS: cách dùng `if errorlevel` được đọc lại bằng mắt, chưa chạy thật; người dùng chạy lại build trên Windows. Toàn bộ test, `-k thread`, stress test: kết quả ở commit.
+
+## Phase 4.0.4: Stress test fail trên Windows ở "menu: flash history opened"
+
+Lần build đầu trên Windows: 505 test, 44 test threading đều pass, `check_build_env.py` báo không cần pip, `isystem.connect` được tìm thấy. Stress test có 566/567 checkpoint pass, fail đúng một: `menu: flash history opened`. Do đó script dừng trước PyInstaller. Lỗi nằm ở stress test, không phải app. Checkpoint so sánh chuỗi `url.toLocalFile()` (Qt trả `C:/Users/…/flash_history.csv`) với biến `WFLASH_HISTORY_FILE` (`C:\Users\…\flash_history.csv`): cùng một file nhưng khác dấu gạch. Trên macOS hai chuỗi trùng nhau nên check này chưa từng fail. Giờ so sánh bằng `Path`, trên Windows nó coi `/` và `\` là một.
+
+### Thay đổi
+
+- **`tools/stress_test.py`**: checkpoint so sánh `Path`, và in ra đường dẫn đã mở khi fail.
+
+### Đã kiểm tra
+
+- `PureWindowsPath('C:/…') == PureWindowsPath('C:\\…')` là `True`. Toàn bộ test, `-k thread`, stress test trên macOS: kết quả ở commit. Người dùng chạy lại build trên Windows.
