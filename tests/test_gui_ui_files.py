@@ -138,3 +138,17 @@ def test_gui_generated_modules_import(qapp):
     assert gitlab_ui.tabWidget_source.count() == 1
     window.deleteLater()
     gitlab.deleteLater()
+
+
+def test_every_tab_scroll_area_is_transparent_in_both_themes():
+    """A scroll area left out of the stylesheet paints Qt's own grey (user report: GitLab tab)."""
+    import re
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1]
+    names = re.findall(r'class="QScrollArea" name="(\w+)"', (root / "wflash/gui/main_window.ui").read_text())
+    assert names
+    for qss in ("style.qss", "style_dark.qss"):
+        text = (root / "wflash/resources" / qss).read_text()
+        for name in names:
+            contents = name.replace("scrollArea_", "scrollAreaWidgetContents_")
+            assert f"QScrollArea#{name}" in text and f"QWidget#{contents}" in text, (qss, name)

@@ -1695,3 +1695,17 @@ Sửa: `take_part_firmwares(part, items)` nhận mọi role của một lần t�
 ### Đã kiểm tra
 
 - Toàn bộ test, `-k thread`, stress test và app mở được với `--adapter fake`: kết quả ở commit. Không đụng adapter thật hay flash.
+
+## Phase 3.29: Màu nền tab GitLab và nhãn "From commit"
+
+Người dùng báo hai lỗi màu trên Windows. (1) Tab GitLab có nền khác hai tab còn lại. Nguyên nhân: QSS đặt nền trong suốt cho vùng cuộn của tab Flash và Setting (`scrollArea_*`, `scrollAreaWidgetContents_*`), nhưng sót vùng cuộn của tab GitLab khi tab này được thêm ở Phase 3.24, nên nó vẽ nền mặc định của Qt. (2) Nhãn "From commit"/"Manual" trên card Firmware to flash có nền trắng (`surface`) đặt trên card xanh nhạt. Rich text của Qt không bo góc được, nên trông như một ô trắng lỗi. Giờ nhãn chỉ còn là chữ nhỏ màu `head` (cùng màu tiêu đề card) sau dấu "·", đọc rõ ở cả theme sáng lẫn tối.
+
+### Thay đổi
+
+- **`wflash/resources/style.qss`**, **`style_dark.qss`**: thêm `scrollArea_gitlab` / `scrollAreaWidgetContents_gitlab` vào quy tắc nền trong suốt.
+- **`wflash/gui/gitlab_tab.py`**: nhãn chế độ trong `_part_summary` không còn nền.
+- **`tests/test_gui_ui_files.py`**: mọi `QScrollArea` trong `main_window.ui` phải có trong quy tắc của cả hai file QSS, để tab sau này không bị sót. Test này fail trước khi sửa. **`tests/test_gui_gitlab_tab.py`**: card tóm tắt không có `background`.
+
+### Đã kiểm tra
+
+- Chụp màn hình offscreen ba tab ở cả hai theme: nền tab GitLab giống tab Flash và Setting, nhãn "· From commit" không còn ô trắng. Toàn bộ test, `-k thread`, stress test và app mở được với `--adapter fake`: kết quả ở commit. Chỉ trên macOS; giao diện Windows có thể khác chút về font.

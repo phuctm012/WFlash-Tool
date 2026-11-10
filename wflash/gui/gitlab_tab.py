@@ -379,6 +379,6 @@ class GitlabTabMixin:
             f"<tr><td style='color:{t['muted']};padding-right:10px'>{html.escape(k)}</td>"
             f"<td>{html.escape(str(v))}</td></tr>" for k, v in rows
         )
-        pill = (f"<span style='background:{t['surface']};color:{t['primary']};font-size:small'>"
-                f"&nbsp;{html.escape(mode)}&nbsp;</span>")
+        # Plain coloured text: Qt rich text has no rounded corners, so a background reads as a box.
+        pill = f"<span style='color:{t['head']};font-size:small'>&nbsp;·&nbsp;{html.escape(mode)}</span>"
         return f"<b>{html.escape(part.label)}</b> {pill}<table cellspacing='0' cellpadding='1'>{cells}</table>"
