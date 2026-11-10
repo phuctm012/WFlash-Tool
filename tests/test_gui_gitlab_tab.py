@@ -133,6 +133,7 @@ def test_gui_app_from_the_checked_out_commit_loads_ffi_and_elf_and_flashes(env, 
     assert app.status_text().splitlines()[0] == f"FFI: create_ffi_stingray_3p5mb_no_HTSM · main · {commit} · Downloaded"
     assert [r.role for r in w.mapping_rows()] == ["ffi", "cal", "elf"] and w.mapping_complete()
     assert "From commit" in w.ui.label_summaryApp.text() and commit in w.ui.label_summaryApp.text()
+    assert "background" not in w.ui.label_summaryApp.text()  # no white box on the card (user report)
     qtbot.waitUntil(w.ui.pushButton_flash.isEnabled, timeout=3000)
     w.start_flash()
     qtbot.waitUntil(lambda: w.current_step() == Step.DONE.value, timeout=8000)

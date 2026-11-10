@@ -255,6 +255,7 @@ QLabel#label_applicationHeader, QCheckBox#checkBox_advancedDebug, QLabel#label_p
     font-weight: 600;
 }
 QScrollArea#scrollArea_setting, QWidget#scrollAreaWidgetContents_setting,
-QScrollArea#scrollArea_flashPanel, QWidget#scrollAreaWidgetContents_flashPanel {
+QScrollArea#scrollArea_flashPanel, QWidget#scrollAreaWidgetContents_flashPanel,
+QScrollArea#scrollArea_gitlab, QWidget#scrollAreaWidgetContents_gitlab {
     background: transparent;
 }
