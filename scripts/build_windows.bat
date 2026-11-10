@@ -17,8 +17,18 @@ if not exist "%VENV%\Scripts\python.exe" py -3 -m venv "%VENV%" || exit /b 1
 set PY=%VENV%\Scripts\python.exe
 echo Using venv: %PY%
 :have_python
-"%PY%" -m pip install --upgrade pip || exit /b 1
-"%PY%" -m pip install -e ".[dev]" || exit /b 1
+rem pip only when something is missing: build PCs often cannot reach pypi.org (user report, 2026-11-10).
+"%PY%" tools\check_build_env.py
+if errorlevel 3 exit /b 1
+if not errorlevel 2 goto deps_ready
+"%PY%" -m pip install -e ".[dev]"
+if errorlevel 1 (
+    echo ERROR: pip could not install the missing modules listed above ^(no access to pypi.org?^).
+    echo        Behind a proxy: set PIP_PROXY=http://^<user^>:^<password^>@^<proxy^>:^<port^> in this window, then build again.
+    echo        Never write the proxy password into this script: it would be committed.
+    exit /b 1
+)
+:deps_ready
 rem isystem.connect is NOT on PyPI: install it from the winIDEA 9.21 installation (spike\README.md).
 "%PY%" -c "import isystem.connect as ic; print('isystem.connect:', ic.__file__)" || echo WARNING: isystem.connect is not installed - the build will only support --adapter fake.
 set QT_QPA_PLATFORM=offscreen

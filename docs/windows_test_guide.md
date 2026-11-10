@@ -642,6 +642,8 @@ git pull
 git describe --tags
 ```
 
+Nếu bạn tải code dạng zip từ GitHub (thư mục tên `WFlash-Tool-main`) thay vì `git clone`, chỉ cần tải lại zip mới nhất của `main` và giải nén; bỏ qua các lệnh git ở trên. Máy vẫn cần lệnh `git` trên PATH, vì một số test và stress test tạo repo git tạm.
+
 Dòng cuối là `v1.0.0`, hoặc `v1.0.0-<n>-g<commit>` nếu `main` có thêm vài commit sau tag (như hướng dẫn này và một sửa nhỏ trong `wflash.spec`); code của app vẫn là bản 1.0. Build từ `main`. (`--force` cần vì tag `v1.0.0` đã được dời sang commit hiển thị "v1.0".)
 
 ### 2. Mở đúng env Python
@@ -656,7 +658,16 @@ python -c "import PyInstaller; print(PyInstaller.__version__)"
 - Env phải là env bạn vẫn dùng để chạy `python main.py` với winIDEA (theo `docs/winidea_api_notes.md` là env `pyside6`, có `isystem.connect` 9.26.11). **Không** dùng `base`: script sẽ dừng.
 - Dòng 1 phải là **64 bit**, giống winIDEA.
 - Dòng 2 phải in ra version, không lỗi. Nếu lỗi, exe sẽ chỉ chạy được `--adapter fake`. Cài lại `isystem.connect` theo Phần 1 trước khi build.
-- Dòng 3 lỗi thì chạy `python -m pip install -e ".[dev]"` (script cũng tự làm việc này).
+- Dòng 3 lỗi nghĩa là env thiếu PyInstaller. Máy không vào được pypi.org thì cài từ mirror/kênh conda của công ty (`conda install pyinstaller` nếu kênh có).
+- Script build chạy `tools\check_build_env.py` trước: nếu env đã có đủ thư viện thì **không gọi pip** (máy công ty thường không vào được pypi.org). Chỉ khi thiếu, nó mới thử `pip install` và in ra tên những gói còn thiếu.
+- Nếu cần pip đi qua proxy công ty, đặt proxy **trong cửa sổ cmd đang dùng**, không ghi vào script hay file nào trong repo (mật khẩu sẽ bị commit lên GitHub):
+
+  ```bat
+  set PIP_PROXY=http://<user>:<mật khẩu>@<proxy>:<port>
+  scripts\build_windows.bat > build.txt 2>&1
+  ```
+
+  Ký tự `@` trong mật khẩu viết thành `%40`. Gõ trực tiếp vào cửa sổ cmd thì giữ nguyên `%40`; chỉ khi đặt lệnh trong một file `.bat` mới phải viết `%%40`. Biến này mất khi đóng cửa sổ.
 
 ### 3. Build
 
