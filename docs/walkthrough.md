@@ -1844,3 +1844,19 @@ Khi viết, phát hiện hộp About và debug bundle đọc version `isystem.co
 ### Đã kiểm tra
 
 - Không build được exe Windows trên macOS. Chỉ kiểm tra `wflash.spec` còn là Python hợp lệ. Toàn bộ test, `-k thread`, stress test: kết quả ở commit. Việc đóng gói `isystem.connect` chưa được kiểm chứng cho tới khi người dùng chạy Vòng 14.
+
+## Phase 4.0.3: Build exe trên máy không vào được pypi.org
+
+Người dùng chạy `scripts\build_windows.bat` trên máy Windows của công ty và build dừng ngay. Script luôn chạy `pip install --upgrade pip` và `pip install -e ".[dev]"`, mà máy không phân giải được `pypi.org`. `pip install -e` còn cần tải `setuptools>=68` cho môi trường build riêng, nên lỗi ngay cả khi env `pyside6` đã có đủ mọi thư viện (người dùng vẫn chạy `python main.py` và test hằng ngày).
+
+Sửa: script chạy `tools\check_build_env.py` trước. Script này kiểm tra hai điều. (1) Env có đủ các module build cần (PySide6, requests, pydantic, PyYAML, keyring, truststore, pytest, pytest-qt, responses, PyInstaller) không; đủ thì không gọi pip. (2) `wflash` được import từ đúng thư mục đang build. Nếu env còn một bản `pip install -e` trỏ tới thư mục cũ, exe có thể chứa code cũ; khi đó script dừng và hướng dẫn `pip uninstall wflash`, lệnh chạy được khi không có mạng. Chỉ khi thiếu module, script mới gọi pip; pip lỗi thì in ra tên gói thiếu và gợi ý dùng mirror hoặc kênh conda của công ty. Bỏ hẳn bước `pip install --upgrade pip`. Người dùng đưa một proxy có kèm mật khẩu để thêm vào script. Không ghi vào script: mật khẩu sẽ bị commit lên GitHub. pip tự đọc biến môi trường `PIP_PROXY`, nên hướng dẫn chỉ cách đặt biến này trong cửa sổ cmd, và thông báo lỗi của script nhắc tới nó.
+
+### Thay đổi
+
+- **`tools/check_build_env.py`** (mới), **`scripts/build_windows.bat`**.
+- **`tests/test_check_build_env.py`** (mới): env dev đủ thì báo không cần pip; module thiếu được nêu tên.
+- **`docs/windows_test_guide.md`** (Vòng 14): code tải dạng zip, PyInstaller khi không có mạng, script không gọi pip khi đủ.
+
+### Đã kiểm tra
+
+- `check_build_env.py` chạy trên macOS (env dev: đủ, exit 0). File `.bat` không chạy được trên macOS: cách dùng `if errorlevel` được đọc lại bằng mắt, chưa chạy thật; người dùng chạy lại build trên Windows. Toàn bộ test, `-k thread`, stress test: kết quả ở commit.
