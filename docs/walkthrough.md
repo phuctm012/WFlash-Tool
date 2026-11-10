@@ -1760,3 +1760,22 @@ Người dùng chỉ dùng SUZ05, nên không cần `saf85xx_example.yaml` trong
 ### Đã kiểm tra
 
 - Toàn bộ test, `-k thread`, stress test, fuzz và app mở được với `--adapter fake`: kết quả ở commit.
+
+## Phase 3.33: Cập nhật User Guide (F1) theo các thay đổi hôm nay
+
+Người dùng yêu cầu rà lại hướng dẫn. User Guide (`wflash/resources/help/user_guide.html`, mở bằng F1) còn năm chỗ cũ so với Phase 3.26–3.32:
+- **"App" → "Application"**: phần "Before you start", ô trong hình cửa sổ, khung trên tab GitLab, chú thích hình, card Firmware to flash.
+- **Build mặc định**: lần đầu là `stingray_3p5mb_no_HTSM`, sau đó app nhớ lựa chọn. Build không có job đã chạy xong (vd. `manual`) thì Flash tắt và dải đỏ nói lý do.
+- **Pull changes**: bước mới, Checkout → Fetch → `origin/<branch>` và commit trên cùng; app từ chối khi branch đã tách nhánh.
+- **Branch trên card là branch của pipeline**: có thể khác branch đang checkout khi cùng commit được build trên branch khác trước (câu hỏi của người dùng sáng nay); firmware vẫn giống vì cùng commit.
+- **Nhãn "From commit"**: hình minh họa không còn nền trắng, giống app (Phase 3.29).
+
+Thêm hai dòng vào bảng "When something goes wrong": firmware của commit cũ (repo đã sang commit mới), và firmware không khớp Build vừa chọn.
+
+### Thay đổi
+
+- **`wflash/resources/help/user_guide.html`**.
+
+### Đã kiểm tra
+
+- HTML đóng mở thẻ đầy đủ (kiểm bằng `html.parser`); chụp bằng Chrome headless và xem các phần đã sửa. Toàn bộ test, `-k thread`, stress test: kết quả ở commit.
