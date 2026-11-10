@@ -457,6 +457,18 @@ The core states before a failed and before a good run are **identical**, here an
 
 **Change (user, 2026-11-09, after round 11): check the cores first.** `_prepare_cores` reads the core states before any reset and programs at once when none is `NOT ACCESSIBLE`; only otherwise does it reset and read again (with the `CORE_WAIT_S` grace), within the shared budget of 10 resets. Two cases still start with a reset: a retry after a quick failure (in round 11 the cores looked fine before every failed try, so checking alone would just repeat it) and core states that cannot be read (as before the check existed). Not yet run on hardware.
 
+## Round 14: WFlash.exe 1.0, every core NOT OBSERVED (2026-11-10 11:55)
+
+First run of the PyInstaller build (`dist\WFlash\WFlash.exe`, `isystem.connect` 9.26.11 bundled with `collect_all("isystem")`). Instance listed, then **Tools → Check winIDEA cores** (`core_states()`: connect, `get_topology`, `get_status`, disconnect) returned:
+
+```
+M7_0 NOT OBSERVED, M7_RFE NOT OBSERVED, A53 NOT OBSERVED, SPT NOT OBSERVED, BBE32EP NOT OBSERVED
+```
+
+So the bundled module loads and connects. `NOT OBSERVED` is a `status_string()` never seen before; its `status()` integer was not logged. Guess, **not verified**: `EStatus_Core_stDetached = 0`, i.e. the session was not attached to the target (ECU off, probe not connected, or workspace opened without a debug session). What winIDEA's Session Explorer showed at that moment is not known yet.
+
+Consequence for the flash path: `_prepare_cores` treats only `NOT ACCESSIBLE` as bad, so with every core `NOT OBSERVED` it would program at once without a reset. `begin_program()` from a detached session has never been observed (round 9 started attached). Until it is, the user is asked not to flash in this state but to attach first and check the cores again.
+
 ## Open questions
 
 1. **Version mismatch.** `isystem.connect` 9.26.11 against winIDEA 9.21.408. Connect, read, download, reset and run all worked, but `CLAUDE.md` requires the versions to match. Is there a Python SDK package under `C:/Data/_Devtools/Winidea408/` (9.21.408)? If yes, install it and re-run 01 to confirm nothing changes.

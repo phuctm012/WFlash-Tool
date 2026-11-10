@@ -1872,3 +1872,15 @@ Lần build đầu trên Windows: 505 test, 44 test threading đều pass, `chec
 ### Đã kiểm tra
 
 - `PureWindowsPath('C:/…') == PureWindowsPath('C:\\…')` là `True`. Toàn bộ test, `-k thread`, stress test trên macOS: kết quả ở commit. Người dùng chạy lại build trên Windows.
+
+## Phase 4.0.5: WFlash.exe chạy với winIDEA thật; core NOT OBSERVED
+
+Build trên Windows thành công: `check_build_env.py` báo không cần pip, 505 test, 44 test threading, stress 567/567. Exe mở với tiêu đề "WFlash v1.0", nạp profile từ `_internal\profiles\suz05.yaml`, thấy 1 instance winIDEA, lấy firmware từ cache. **Check winIDEA cores** chạy được, tức là `isystem.connect` đóng gói trong exe nạp và kết nối được. Nhưng cả 5 core báo `NOT OBSERVED`, trạng thái chưa từng gặp. Đoán (chưa kiểm chứng): phiên debug chưa gắn vào target. `_prepare_cores` chỉ coi `NOT ACCESSIBLE` là xấu, nên ở trạng thái này nó sẽ lập trình ngay mà không reset, mà `begin_program()` từ một phiên chưa gắn thì chưa từng được quan sát. Vì vậy người dùng được dặn chưa flash: attach trước rồi kiểm tra lại core. Ghi vào `docs/winidea_api_notes.md` (Round 14). Không sửa code flash khi chưa có quan sát.
+
+### Thay đổi
+
+- **`docs/winidea_api_notes.md`**: Round 14.
+
+### Đã kiểm tra
+
+- Kết quả do người dùng chạy trên Windows (ảnh và log). Chỉ sửa tài liệu.
