@@ -1648,3 +1648,18 @@ Một lỗi của chính stress test, gây hậu quả thật: ô Repository c�
 ### Đã kiểm tra
 
 - Kết quả chạy toàn bộ test, `-k thread`, stress test và fuzz ghi ở commit. Chỉ trên macOS với fake adapter; các thay đổi chỉ nằm ở GUI, không đụng adapter thật.
+
+## Phase 3.26: Lấy commit mới nhất của branch hiện tại trong popup Checkout
+
+Người dùng chọn `origin/Release_DD_05_03_01` trong popup Checkout để lấy commit mới (`3a8d0782`), nhưng repo vẫn đứng ở `aadadd86`. Nguyên nhân: khi đã có branch local cùng tên, `checkout_branch` chỉ checkout branch local, không đưa nó lên commit của origin. Như vậy popup hiện danh sách commit của origin nhưng không có cách nào tới được commit mới nhất, trừ khi chọn từng commit (detached HEAD) hoặc tự `git pull` ngoài app. Giờ chọn `origin/<branch>` nghĩa là "commit mới nhất của origin": app checkout branch local rồi fast-forward (`git merge --ff-only origin/<branch>`). App kiểm tra trước khi di chuyển bất cứ thứ gì (`rev-list --count` hai chiều). Nếu branch local có commit chưa push mà origin cũng đã đi tiếp (diverged), app từ chối và giữ nguyên branch đang đứng. Nếu local chỉ đi trước origin, app giữ commit local. Chọn tên branch local (không có `origin/`) vẫn checkout nguyên trạng như cũ. Vẫn không stash, reset, clean hay force; checkout vẫn bị từ chối khi repo có thay đổi chưa commit.
+
+### Thay đổi
+
+- **`wflash/core/source_repo.py`**: `checkout_branch` fast-forward khi chọn tên remote của một branch đã có ở local; từ chối khi diverged.
+- **`wflash/gui/checkout_dialog.ui`** (regenerate `ui_checkout_dialog.py`): dòng ghi chú hướng dẫn Fetch rồi chọn `origin/<branch>`.
+- **`tests/test_source_repo.py`**: lên commit mới nhất (kể cả khi đang ở branch khác), chọn tên local thì không đổi, giữ commit chưa push, từ chối khi diverged mà không di chuyển gì.
+- **`README.md`**, **`CLAUDE.md`**.
+
+### Đã kiểm tra
+
+- Test `source_repo` chạy với repo git thật trong thư mục tạm (clone làm origin). Toàn bộ test, `-k thread`, stress test và app mở được với `--adapter fake`: kết quả ở commit. Phần này không đụng adapter thật hay flash.
