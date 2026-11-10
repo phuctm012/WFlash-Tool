@@ -30,7 +30,9 @@ from wflash.core.source_repo import (
     checkout_branch,
     checkout_commit,
     fetch,
+    is_remote_of_local,
     list_branches,
+    list_local_branches,
     list_commits,
     read_state,
 )
@@ -45,6 +47,7 @@ COMMIT_LIMIT = 50
 PIPELINE_LOOKUPS = 15  # one GitLab request per commit: only the newest ones
 SHORT = 8
 COMMIT_COLUMN, DATE_COLUMN, MESSAGE_COLUMN, PIPELINE_COLUMN = range(4)
+CHECKOUT_TEXT, PULL_TEXT = "Checkout", "Pull changes"
 PIPELINE_TEXT = {"success": "Passed", "failed": "Failed", "canceled": "Canceled", "running": "Running"}
 
 
@@ -62,6 +65,7 @@ class CheckoutDialog(QDialog):
         self._generation = 0  # bumped before every cancel (threading rule 4)
         self._keys: dict[str, int] = {}  # running worker key -> generation at start
         self._commits: list[CommitInfo] = []
+        self._local_branches: set[str] = set()
         self._accept_when_idle = False
         header = self.ui.tableWidget_commits.horizontalHeader()
         for column in range(self.ui.tableWidget_commits.columnCount()):
@@ -92,6 +96,7 @@ class CheckoutDialog(QDialog):
         self._path = Path(repo_path)
         self._project = project
         self._commits = []
+        self._local_branches = set()
         self._accept_when_idle = False
         self.ui.comboBox_branch.blockSignals(True)
         self.ui.comboBox_branch.clear()
@@ -143,6 +148,12 @@ class CheckoutDialog(QDialog):
         self.ui.comboBox_branch.setEnabled(idle and self.ui.comboBox_branch.count() > 0)
         self.ui.pushButton_fetch.setEnabled(idle and self._path is not None)
         self.ui.pushButton_checkout.setEnabled(idle and self._selected_row() is not None and bool(self._chosen_branch()))
+        # The text, not the layout, depends on the selection: Designer holds "Checkout".
+        self.ui.pushButton_checkout.setText(PULL_TEXT if self._is_pull() else CHECKOUT_TEXT)
+
+    def _is_pull(self) -> bool:
+        """Newest commit of origin/<name> while a local <name> exists: source_repo fast-forwards it."""
+        return self._selected_row() == 0 and is_remote_of_local(self._chosen_branch(), self._local_branches)
 
     def _selected_row(self) -> int | None:
         rows = self.ui.tableWidget_commits.selectionModel().selectedRows()
@@ -179,7 +190,8 @@ class CheckoutDialog(QDialog):
     def _on_branches_read(self, key: str, result) -> None:
         if self._stale(key):
             return
-        state, branches = result
+        state, branches, local = result
+        self._local_branches = set(local)
         self._show_state(state)
         combo = self.ui.comboBox_branch
         wanted = self._chosen_branch() or state.branch
@@ -268,7 +280,8 @@ class CheckoutDialog(QDialog):
             job, what = partial(_checkout, checkout_branch, self._path, branch), branch
         else:
             job, what = partial(_checkout, checkout_commit, self._path, commit), commit[:SHORT]
-        self._start("do", job, self._on_checked_out, f"Checking out {what}…")
+        doing = f"Pulling {branch}…" if self._is_pull() else f"Checking out {what}…"
+        self._start("do", job, self._on_checked_out, doing)
 
     def _on_checked_out(self, key: str, state: RepoState) -> None:
         if self._stale(key):
@@ -281,7 +294,7 @@ class CheckoutDialog(QDialog):
 
 # -- worker functions (pool thread: no Qt) -------------------------------------------------
 def _read_branches(path: Path, ctx: WorkerContext):
-    return read_state(path), list_branches(path)
+    return read_state(path), list_branches(path), list_local_branches(path)
 
 
 def _fetch_and_read(path: Path, ctx: WorkerContext):

@@ -1663,3 +1663,19 @@ Người dùng chọn `origin/Release_DD_05_03_01` trong popup Checkout để l�
 ### Đã kiểm tra
 
 - Test `source_repo` chạy với repo git thật trong thư mục tạm (clone làm origin). Toàn bộ test, `-k thread`, stress test và app mở được với `--adapter fake`: kết quả ở commit. Phần này không đụng adapter thật hay flash.
+
+## Phase 3.27: Nút "Pull changes" trong popup Checkout
+
+Người dùng muốn nút Checkout đổi chữ thành **Pull changes** khi thao tác thực chất là pull (Phase 3.26), để biết trước app sẽ làm gì. Nút đổi chữ khi chọn `origin/<branch>` mà máy đã có branch local `<branch>`, và chọn commit trên cùng: đó đúng là trường hợp `checkout_branch` fast-forward. Mọi trường hợp khác vẫn là **Checkout**: tên branch local, commit cũ hơn (detached), branch chỉ có trên origin (tạo branch local mới). Chữ trên nút phụ thuộc lựa chọn nên đặt trong Python. File `.ui` vẫn giữ "Checkout" làm mặc định, và dòng hướng dẫn trong `.ui` nhắc tới Pull changes. Dòng trạng thái ghi "Pulling <branch>…".
+
+### Thay đổi
+
+- **`wflash/core/source_repo.py`**: `list_local_branches()`, `is_remote_of_local()`, dùng chung cho `checkout_branch` và popup.
+- **`wflash/gui/checkout_dialog.py`**: `_read_branches` trả thêm danh sách branch local; `_is_pull()`; `_update_controls` đặt chữ trên nút.
+- **`wflash/gui/checkout_dialog.ui`** (regenerate `ui_checkout_dialog.py`): dòng hướng dẫn.
+- **`tests/test_gui_checkout_dialog.py`**: chữ trên nút trong cả bốn trường hợp, và bấm Pull changes thì branch local lên commit mới nhất của origin.
+- **`README.md`**.
+
+### Đã kiểm tra
+
+- Toàn bộ test, `-k thread`, stress test và app mở được với `--adapter fake`: kết quả ở commit. Không đụng adapter thật hay flash.
