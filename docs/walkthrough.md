@@ -1709,3 +1709,38 @@ Người dùng báo hai lỗi màu trên Windows. (1) Tab GitLab có nền khác
 ### Đã kiểm tra
 
 - Chụp màn hình offscreen ba tab ở cả hai theme: nền tab GitLab giống tab Flash và Setting, nhãn "· From commit" không còn ô trắng. Toàn bộ test, `-k thread`, stress test và app mở được với `--adapter fake`: kết quả ở commit. Chỉ trên macOS; giao diện Windows có thể khác chút về font.
+
+## Phase 3.30: Đổi Build sang build có job manual: nói rõ lý do
+
+Người dùng đổi Build từ `stingray_3p5mb_no_HTSM` sang `stingray_3p5mb` ở commit `3a8d0782`. Trên pipeline, job `create_ffi_stingray_3p5mb` của commit này đang ở trạng thái manual (chưa chạy). App khóa Flash là đúng (Phase 3.25: không flash firmware không khớp lựa chọn). Nhưng màn hình gây hiểu nhầm ở bốn chỗ:
+- Dải đỏ chỉ ghi "does not fit the selected build or project yet".
+- Card Firmware to flash ghi Build `stingray_3p5mb` (build đang chọn) với Status "Downloaded", trong khi firmware đang giữ là của `no_HTSM`.
+- Dòng dưới bảng vẫn ghi "Flash enabled" dù Flash đang tắt.
+- Log có một dòng ERROR từ `wflash.worker` cho một trạng thái pipeline bình thường.
+
+### Thay đổi
+
+- **`wflash/gui/part_controller.py`**: `_mismatch_reason()`. Dải đỏ nói firmware đang giữ là của job nào, build đang chọn cần job nào, và lý do chưa có: đang tải, hoặc lỗi của lần tải (job manual, failed, không có trong pipeline…) kèm gợi ý.
+- **`wflash/gui/gitlab_tab.py`**: card ghi build của FFI đang giữ (`_held_build`), Status "Out of date" khi firmware không khớp lựa chọn; dòng dưới bảng được cập nhật khi các phần xong việc.
+- **`wflash/gui/mapping_table.py`**: `HINT_MAPPED` khi mọi dòng đã map nhưng Flash bị khóa.
+- **`wflash/gui/workers.py`**: `PipelineNotReady` chỉ ghi DEBUG ở worker; phần GitLab đã báo WARNING một lần.
+- **`tests/gui_stubs.py`**: pipeline giả có job `create_ffi_stingray_3p5mb` ở trạng thái manual, giống pipeline thật. **`tests/test_gui_gitlab_tab.py`**: test tình huống của người dùng (fail trước khi sửa, với đúng câu "does not fit the selected build or project yet").
+
+### Đã kiểm tra
+
+- Toàn bộ test, `-k thread`, stress test, fuzz và app mở được với `--adapter fake`: kết quả ở commit. Không đụng adapter thật hay flash.
+
+## Phase 3.31: Build mặc định stingray_3p5mb_no_HTSM, "App" thành "Application"
+
+Theo yêu cầu người dùng: build mặc định là `stingray_3p5mb_no_HTSM`, và phần App được gọi là "Application". Build mặc định là build đầu tiên trong `builds` của profile, chỉ dùng khi chưa có build đã lưu cho profile đó. Máy đã lưu build khác (vd. `stingray_3p5mb`) thì vẫn giữ lựa chọn đã lưu cho tới khi người dùng chọn lại. Tên "Application" áp dụng cho khung trên tab GitLab, card Firmware to flash, tiêu đề popup Checkout và các thông báo của phần này.
+
+### Thay đổi
+
+- **`profiles/suz05.yaml`**: `stingray_3p5mb_no_HTSM` lên đầu danh sách `builds`.
+- **`wflash/gui/main_window.ui`** (regenerate `ui_main_window.py`): tiêu đề `groupBox_app` là "Application". **`wflash/gui/part_controller.py`**: `LABELS["app"]`.
+- **`wflash/gui/mapping_table.py`**: host không có `flash_block_reason` (bảng mapping dùng riêng trong test) không bị khóa; sửa lỗi Phase 3.30 làm hỏng 3 test.
+- **`tests/test_profile.py`**: build đầu tiên của SUZ05; **`tests/test_gui_gitlab_tab.py`**: tiêu đề popup Checkout.
+
+### Đã kiểm tra
+
+- Toàn bộ test, `-k thread`, stress test, fuzz và app mở được với `--adapter fake`: kết quả ở commit.

@@ -298,7 +298,7 @@ def test_gui_checkout_of_a_part_switches_its_branch(env, qtbot, repo):
     wait_loaded(qtbot, w.parts["app"], ("ffi", "elf"))
     w.ui.pushButton_appCheckout.click()
     dialog = w._checkout_dialog
-    assert dialog.windowTitle().endswith("App")
+    assert dialog.windowTitle().endswith("Application")
     qtbot.waitUntil(lambda: dialog.isVisible() and not dialog.busy() and dialog.ui.comboBox_branch.count() == 2, timeout=5000)
     dialog.ui.comboBox_branch.setCurrentIndex(dialog.ui.comboBox_branch.findText("feature"))
     qtbot.waitUntil(lambda: not dialog.busy() and dialog.ui.tableWidget_commits.rowCount() == 1, timeout=5000)
@@ -415,3 +415,22 @@ def test_gui_new_commit_loads_ffi_and_elf_together_without_a_mismatch_warning(en
     qtbot.waitUntil(lambda: app.loaded["elf"][1].commit.startswith(new) and not app.loading(), timeout=8000)
     assert not any("different commits" in r.getMessage() for r in caplog.records)
     assert not w.ui.label_commitWarning.isVisibleTo(w)
+
+
+def test_gui_build_whose_job_is_manual_says_why_and_shows_the_held_build(env, qtbot, repo, caplog):
+    """User report: Build changed to one whose FFI job is manual. Flash stays off (right), but the
+    red line, the summary card and the mapping hint must say what is held and why."""
+    w = env.window
+    set_repo(qtbot, w, "app", repo)
+    app = w.parts["app"]
+    wait_loaded(qtbot, app, ("ffi", "elf"))
+    caplog.clear()
+    w.ui.comboBox_appBuild.setCurrentText("stingray_3p5mb")
+    qtbot.waitUntil(lambda: "is manual" in app.status_text() and not app.busy(), timeout=5000)
+    reason = w.flash_block_reason()
+    assert "create_ffi_stingray_3p5mb_no_HTSM" in reason and "is manual" in reason
+    assert w.ui.label_flashBlocked.text() == reason and not w.ui.pushButton_flash.isEnabled()
+    summary = w.ui.label_summaryApp.text()
+    assert "stingray_3p5mb_no_HTSM" in summary and "Out of date" in summary
+    assert "Flash enabled" not in w.ui.label_mappingHint.text()
+    assert not [r for r in caplog.records if r.levelname == "ERROR"]  # a manual job is a state, not an error

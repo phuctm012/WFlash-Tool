@@ -8,9 +8,9 @@ gitlab:
   # GitLab URL with the group of the three projects; project names are short.
   url: https://gitlab.hella.com/alm/projects_group/e-ad_group/e-ad_radar_cust_suz05_group
   project: SUZ05_APP_Application_Software-Impl
-builds:
-  - {name: stingray_3p5mb,         ffi_job: create_ffi_stingray_3p5mb,         elf_job: build,                             bm_job: build_STINGRAY_3P5MB}
+builds:  # the first one is the default (user decision: stingray_3p5mb_no_HTSM)
   - {name: stingray_3p5mb_no_HTSM, ffi_job: create_ffi_stingray_3p5mb_no_HTSM, elf_job: build,                             bm_job: build_STINGRAY_3P5MB}
+  - {name: stingray_3p5mb,         ffi_job: create_ffi_stingray_3p5mb,         elf_job: build,                             bm_job: build_STINGRAY_3P5MB}
   - {name: stingray_uds27_bypass,  ffi_job: create_ffi_stingray_uds27_bypass,  elf_job: build_STINGRAY_3P5MB_UDS27_BYPASS, bm_job: build_STINGRAY_3P5MB}
   - {name: strx_3p5mb_no_HTSM,     ffi_job: create_ffi_strx_3p5mb_no_HTSM,     elf_job: build_STRX_3P5MB,                  bm_job: build_STRX_3P5MB}
 programs:

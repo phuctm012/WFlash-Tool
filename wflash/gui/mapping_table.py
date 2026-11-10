@@ -40,6 +40,7 @@ NO_FIRMWARE_TITLE = "No firmware loaded — use Load from GitLab…"
 HINT_NO_FIRMWARE = "Load firmware to fill the mapping."
 HINT_INCOMPLETE = "Red rows need a file before Flash is enabled."
 HINT_COMPLETE = "All rows mapped — Flash enabled."
+HINT_MAPPED = "All rows mapped. Flash stays off for the reason in the red line."
 SOURCE_NOT_LOADED = "Not loaded"
 SHORT_COMMIT = 8
 
@@ -286,7 +287,8 @@ class MappingTableMixin:
         if not self._mapping_rows:
             text = HINT_NO_FIRMWARE
         elif self.mapping_complete():
-            text = HINT_COMPLETE
+            blocked = getattr(self, "flash_block_reason", None)  # a host without developer parts never blocks
+            text = HINT_MAPPED if callable(blocked) and blocked() else HINT_COMPLETE
         else:
             text = HINT_INCOMPLETE
         self.ui.label_mappingHint.setText(text)
