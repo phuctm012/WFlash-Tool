@@ -344,3 +344,15 @@ def test_gui_source_buttons_are_disabled_while_flashing(env, qtbot):
 def test_gui_error_popup_shows_only_the_message_and_the_hint(env):
     env.window.show_error(WinIDEAError("Short message.", hint="Do this."))
     assert env.shown[-1][1] == "Short message.\n\nDo this."
+
+
+def test_gui_profile_row_shows_only_when_there_is_a_choice(qtbot, tmp_path):
+    """One bundled profile (SUZ05): nothing to choose, so the row is hidden (user decision, 2026-11-10)."""
+    profiles = write_profiles(tmp_path / "profiles")
+    w = MainWindow(AppSettings(profiles_dir=str(profiles)), FakeWinIDEAAdapter(), settings_path=tmp_path / "s.json")
+    qtbot.addWidget(w)
+    row = (w.ui.label_profile, w.ui.comboBox_profile, w.ui.pushButton_reloadProfiles)
+    assert w.profile is not None and all(widget.isHidden() for widget in row)  # the Setting tab may be in the back
+    (profiles / "two.yaml").write_text((profiles / "saf.yaml").read_text(encoding="utf-8"), encoding="utf-8")
+    w.reload_profiles()
+    assert not any(widget.isHidden() for widget in row)

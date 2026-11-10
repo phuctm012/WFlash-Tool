@@ -227,6 +227,9 @@ class MainWindow(GitlabTabMixin, MappingTableMixin, FlashMixin, LogPanelMixin, M
             index = next((i for i, p in enumerate(paths) if p.name == self.settings.last_profile), 0)
             combo.setCurrentIndex(index)
         combo.blockSignals(False)
+        # One profile (SUZ05 today): nothing to choose, so the row is hidden; it comes back with a second one.
+        for widget in (self.ui.label_profile, combo, self.ui.pushButton_reloadProfiles):
+            widget.setVisible(len(paths) != 1)
         if not paths:
             log.warning("No profiles found in %s", directory)
         self._on_profile_selected()

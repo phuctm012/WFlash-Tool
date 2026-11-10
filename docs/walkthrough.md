@@ -1779,3 +1779,18 @@ Thêm hai dòng vào bảng "When something goes wrong": firmware của commit c
 ### Đã kiểm tra
 
 - HTML đóng mở thẻ đầy đủ (kiểm bằng `html.parser`); chụp bằng Chrome headless và xem các phần đã sửa. Toàn bộ test, `-k thread`, stress test: kết quả ở commit.
+
+## Phase 3.34: Ẩn dòng chọn Profile khi chỉ có một profile
+
+Người dùng chỉ dùng SUZ05, nên ô chọn Profile và nút Reload trên tab Setting không còn tác dụng. Dòng này không bị xóa khỏi `.ui`, mà ẩn khi thư mục profile có đúng một file: nó vẫn là đường app nạp profile (`reload_profiles` → `_on_profile_selected`), test và stress test vẫn dùng nhiều profile, và nếu sau này có profile thứ hai thì dòng tự hiện lại. Khi không có profile nào, dòng vẫn hiện, để người dùng thấy ô trống cùng lỗi trong log. Nhóm "Profile" đổi tên thành "General", vì với một profile nó chỉ còn Download folder.
+
+### Thay đổi
+
+- **`wflash/gui/main_window.py`**: `reload_profiles` ẩn `label_profile`, `comboBox_profile`, `pushButton_reloadProfiles` khi có đúng một profile.
+- **`wflash/gui/main_window.ui`** (regenerate `ui_main_window.py`): tiêu đề `groupBox_profile` là "General".
+- **`tests/test_gui_main_window.py`**: một profile thì ẩn, thêm profile thứ hai và Reload thì hiện (fail trước khi sửa).
+- **`wflash/resources/help/user_guide.html`**: hình tab Setting và bước 1 của First-time setup. **`README.md`**.
+
+### Đã kiểm tra
+
+- Toàn bộ test, `-k thread`, stress test, fuzz và app mở được với `--adapter fake`: kết quả ở commit.

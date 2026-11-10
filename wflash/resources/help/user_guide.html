@@ -192,11 +192,10 @@ figcaption { color: var(--muted); font-size: 13px; margin-top: 8px; text-align: 
   <h2>3. First-time setup</h2>
   <p>Open the <span class="ui">Setting</span> tab. WFlash saves every change at once and restores it next time.</p>
   <figure>
-    <div class="win" role="img" aria-label="Setting tab with Profile, GitLab connection and winIDEA groups">
+    <div class="win" role="img" aria-label="Setting tab with General, GitLab connection and winIDEA groups">
       <div class="tabs" style="padding-top:8px"><span>Flash</span><span>GitLab</span><span class="on">Setting</span></div>
       <div class="pane">
-        <div class="grp"><b class="t">Profile</b>
-          <div class="row"><span>Profile</span><span class="fld">SUZ05</span><span class="btn">Reload</span></div>
+        <div class="grp"><b class="t">General</b>
           <div class="row"><span>Download folder</span><span class="fld mut">Default: %LOCALAPPDATA%\WFlash\cache</span><span class="btn">Browse…</span></div>
         </div>
         <div class="grp"><b class="t">GitLab connection</b>
@@ -212,7 +211,7 @@ figcaption { color: var(--muted); font-size: 13px; margin-top: 8px; text-align: 
     <figcaption>Setting tab</figcaption>
   </figure>
   <ol class="steps">
-    <li>Select your <span class="ui">Profile</span> (for example <strong>SUZ05</strong>). The GitLab URL and the projects are filled in from the profile.</li>
+    <li>Check the <span class="ui">GitLab URL</span>: it comes from the SUZ05 profile built into WFlash, with the projects of each part. Change it only if your projects live elsewhere.</li>
     <li>Paste your <span class="ui">Access token</span>. It is stored in Windows Credential Manager, never in a file.</li>
     <li>Choose <span class="ui">Tools → Test GitLab connection</span>. The Information panel should say the connection works.</li>
     <li>Under <span class="ui">winIDEA</span>, pick your workspace in <span class="ui">Instance</span> (<span class="ui">Refresh</span> if winIDEA was started later).</li>

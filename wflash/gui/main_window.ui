@@ -1208,7 +1208,7 @@
             <item>
              <widget class="QGroupBox" name="groupBox_profile">
               <property name="title">
-               <string>Profile</string>
+               <string>General</string>
               </property>
               <layout class="QGridLayout" name="gridLayout_profile" columnstretch="0,1,0">
                <property name="horizontalSpacing">
