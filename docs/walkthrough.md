@@ -1744,3 +1744,19 @@ Theo yêu cầu người dùng: build mặc định là `stingray_3p5mb_no_HTSM`
 ### Đã kiểm tra
 
 - Toàn bộ test, `-k thread`, stress test, fuzz và app mở được với `--adapter fake`: kết quả ở commit.
+
+## Phase 3.32: Chỉ dùng profile đi kèm app, bỏ saf85xx_example.yaml và ô Profiles folder
+
+Người dùng chỉ dùng SUZ05, nên không cần `saf85xx_example.yaml` trong danh sách profile, cũng không cần cấu hình thư mục profile. File ví dụ chuyển sang `tests/fixtures/`: test vẫn cần một profile không có `builds` để kiểm tra luồng tải artifact CI thường (Load from GitLab, nhiều nguồn, rollback). Thư mục `profiles/` giờ chỉ có `suz05.yaml`. Ô Profiles folder (và nút Browse) bị bỏ khỏi tab Setting. `profiles_dir` không còn được đọc từ hay ghi vào `settings.json`. Lý do: máy nào từng chọn một thư mục riêng sẽ lặng lẽ tiếp tục đọc bản `suz05.yaml` cũ ở đó, và không thấy thay đổi của profile đi kèm (vd. build mặc định ở Phase 3.31). Trường này vẫn còn trong `AppSettings`, chỉ để test và stress test trỏ vào profile tạm của chúng.
+
+### Thay đổi
+
+- **`profiles/saf85xx_example.yaml`** → **`tests/fixtures/saf85xx_example.yaml`**; đường dẫn trong `tests/gui_stubs.py`, `test_profile.py`, `test_file_matcher.py`, `test_flash_workflow.py`, `test_settings.py`.
+- **`wflash/gui/main_window.ui`** (regenerate `ui_main_window.py`): bỏ `label_profilesDir`, `lineEdit_profilesDir`, `pushButton_browseProfilesDir`, dồn các dòng sau lên. **`wflash/gui/main_window.py`**: bỏ code của ô này.
+- **`wflash/core/settings.py`**: `NOT_LOADED = {"profiles_dir"}`, bỏ qua khi `load()` và `save()`.
+- **`tests/test_settings.py`**: thư mục đã lưu bị bỏ qua và không bao giờ được ghi. **`tests/test_gui_gitlab_tab.py`**: test khởi động lại tự trỏ lại thư mục profile của nó.
+- **`README.md`**.
+
+### Đã kiểm tra
+
+- Toàn bộ test, `-k thread`, stress test, fuzz và app mở được với `--adapter fake`: kết quả ở commit.

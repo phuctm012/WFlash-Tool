@@ -37,7 +37,7 @@ def test_resolved_dirs(tmp_path):
     assert AppSettings().resolved_cache_dir() == st.default_cache_dir()
     bundled = AppSettings().resolved_profiles_dir()
     assert bundled == st.bundled_profiles_dir()
-    assert (bundled / "saf85xx_example.yaml").is_file()
+    assert (bundled / "suz05.yaml").is_file()
 
 
 def test_token_roundtrip_via_keyring(monkeypatch):
@@ -186,3 +186,16 @@ def test_new_fields_round_trip(tmp_path):
     AppSettings(part_modes={"suz05.yaml#bm": "manual"}, advanced_debug=True, last_tab=2, verify_samples=True).save(path)
     s = AppSettings.load(path)
     assert s.part_modes == {"suz05.yaml#bm": "manual"} and s.advanced_debug and s.last_tab == 2 and s.verify_samples
+
+
+def test_a_saved_profiles_folder_is_ignored_and_never_written(tmp_path):
+    """The Profiles folder left the Setting tab (user decision, 2026-11-10): the bundled profiles
+    are always used, so a folder saved by an older version must not bring back an old copy."""
+    import json
+    path = tmp_path / "settings.json"
+    path.write_text(json.dumps({"profiles_dir": str(tmp_path), "last_profile": "suz05.yaml"}), encoding="utf-8")
+    loaded = AppSettings.load(path)
+    assert loaded.profiles_dir == "" and loaded.last_profile == "suz05.yaml"
+    assert loaded.resolved_profiles_dir() == st.bundled_profiles_dir()
+    AppSettings(profiles_dir=str(tmp_path)).save(path)
+    assert "profiles_dir" not in json.loads(path.read_text(encoding="utf-8"))

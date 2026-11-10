@@ -3,7 +3,7 @@ from pathlib import Path
 from wflash.core.file_matcher import build_mapping, build_mapping_for_source, candidates_for_kind, match_pattern, pending_rows
 from wflash.core.profile import load_profile
 
-EXAMPLE = Path(__file__).resolve().parents[1] / "profiles" / "saf85xx_example.yaml"
+EXAMPLE = Path(__file__).resolve().parent / "fixtures" / "saf85xx_example.yaml"
 
 
 def make_tree(root: Path, files: list[str]) -> None:

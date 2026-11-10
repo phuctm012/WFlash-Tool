@@ -758,41 +758,26 @@ class Ui_MainWindow(object):
 
         self.gridLayout_profile.addWidget(self.pushButton_reloadProfiles, 0, 2, 1, 1)
 
-        self.label_profilesDir = QLabel(self.groupBox_profile)
-        self.label_profilesDir.setObjectName(u"label_profilesDir")
-
-        self.gridLayout_profile.addWidget(self.label_profilesDir, 1, 0, 1, 1)
-
-        self.lineEdit_profilesDir = QLineEdit(self.groupBox_profile)
-        self.lineEdit_profilesDir.setObjectName(u"lineEdit_profilesDir")
-
-        self.gridLayout_profile.addWidget(self.lineEdit_profilesDir, 1, 1, 1, 1)
-
-        self.pushButton_browseProfilesDir = QPushButton(self.groupBox_profile)
-        self.pushButton_browseProfilesDir.setObjectName(u"pushButton_browseProfilesDir")
-
-        self.gridLayout_profile.addWidget(self.pushButton_browseProfilesDir, 1, 2, 1, 1)
-
         self.label_downloadDir = QLabel(self.groupBox_profile)
         self.label_downloadDir.setObjectName(u"label_downloadDir")
 
-        self.gridLayout_profile.addWidget(self.label_downloadDir, 2, 0, 1, 1)
+        self.gridLayout_profile.addWidget(self.label_downloadDir, 1, 0, 1, 1)
 
         self.lineEdit_downloadDir = QLineEdit(self.groupBox_profile)
         self.lineEdit_downloadDir.setObjectName(u"lineEdit_downloadDir")
 
-        self.gridLayout_profile.addWidget(self.lineEdit_downloadDir, 2, 1, 1, 1)
+        self.gridLayout_profile.addWidget(self.lineEdit_downloadDir, 1, 1, 1, 1)
 
         self.pushButton_browseDownloadDir = QPushButton(self.groupBox_profile)
         self.pushButton_browseDownloadDir.setObjectName(u"pushButton_browseDownloadDir")
 
-        self.gridLayout_profile.addWidget(self.pushButton_browseDownloadDir, 2, 2, 1, 1)
+        self.gridLayout_profile.addWidget(self.pushButton_browseDownloadDir, 1, 2, 1, 1)
 
         self.label_settingError = QLabel(self.groupBox_profile)
         self.label_settingError.setObjectName(u"label_settingError")
         self.label_settingError.setWordWrap(True)
 
-        self.gridLayout_profile.addWidget(self.label_settingError, 3, 1, 1, 2)
+        self.gridLayout_profile.addWidget(self.label_settingError, 2, 1, 1, 2)
 
         self.gridLayout_profile.setColumnStretch(1, 1)
 
@@ -1132,8 +1117,6 @@ class Ui_MainWindow(object):
         self.groupBox_profile.setTitle(QCoreApplication.translate("MainWindow", u"Profile", None))
         self.label_profile.setText(QCoreApplication.translate("MainWindow", u"Profile", None))
         self.pushButton_reloadProfiles.setText(QCoreApplication.translate("MainWindow", u"Reload", None))
-        self.label_profilesDir.setText(QCoreApplication.translate("MainWindow", u"Profiles folder", None))
-        self.pushButton_browseProfilesDir.setText(QCoreApplication.translate("MainWindow", u"Browse\u2026", None))
         self.label_downloadDir.setText(QCoreApplication.translate("MainWindow", u"Download folder", None))
         self.pushButton_browseDownloadDir.setText(QCoreApplication.translate("MainWindow", u"Browse\u2026", None))
         self.label_settingError.setText("")

@@ -6,7 +6,7 @@ from wflash.core.errors import ProfileError
 from wflash.core.profile import list_profiles, load_profile
 
 ROOT = Path(__file__).resolve().parents[1]
-EXAMPLE = ROOT / "profiles" / "saf85xx_example.yaml"
+EXAMPLE = ROOT / "tests" / "fixtures" / "saf85xx_example.yaml"
 
 MINIMAL = """
 name: P

@@ -126,7 +126,7 @@ def test_gui_generated_modules_import(qapp):
     for tab, names in (
         (ui.tab_flash, ("frame_firmwareSummary", "frame_gitlabSource", "tableWidget_programFiles", "tableWidget_symbolFiles")),
         (ui.tab_gitlab, ("groupBox_app", "checkBox_advancedDebug", "groupBox_bm", "groupBox_fbl")),
-        (ui.tab_setting, ("comboBox_profile", "lineEdit_profilesDir", "lineEdit_downloadDir", "lineEdit_gitlabUrl",
+        (ui.tab_setting, ("comboBox_profile", "lineEdit_downloadDir", "lineEdit_gitlabUrl",
                           "lineEdit_token", "comboBox_instance", "checkBox_reset", "checkBox_verifyFlash")),
     ):
         for name in names:

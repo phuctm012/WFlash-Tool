@@ -18,7 +18,7 @@ from wflash.core.debug_bundle import DebugContext
 from wflash.core.errors import CancelledError, ProfileError, WFlashError
 from wflash.core.logging_setup import get_logger, redact, register_secret
 from wflash.core.profile import Profile, list_profiles, load_profile
-from wflash.core.settings import AppSettings, bundled_profiles_dir, default_cache_dir, get_token, set_token
+from wflash.core.settings import AppSettings, default_cache_dir, get_token, set_token
 from wflash.core.winidea_adapter import WinIDEAAdapter
 from wflash.gui.flash_mixin import FlashMixin
 from wflash.gui.gitlab_dialog import WORKER_PREFIX, ClientFactory, GitlabDialog, default_client_factory
@@ -117,14 +117,10 @@ class MainWindow(GitlabTabMixin, MappingTableMixin, FlashMixin, LogPanelMixin, M
         """Every field saves when it is left (no OK button); the checkboxes save on toggle."""
         ui = self.ui
         s = self.settings
-        ui.lineEdit_profilesDir.setText(s.profiles_dir)
-        ui.lineEdit_profilesDir.setPlaceholderText(f"Default: {bundled_profiles_dir()}")
         ui.lineEdit_downloadDir.setText(s.cache_dir)
         ui.lineEdit_downloadDir.setPlaceholderText(f"Default: {default_cache_dir()}")
         ui.label_settingError.setVisible(False)
-        ui.lineEdit_profilesDir.editingFinished.connect(self._on_profiles_dir_edited)
         ui.lineEdit_downloadDir.editingFinished.connect(self._on_download_dir_edited)
-        ui.pushButton_browseProfilesDir.clicked.connect(self._browse_profiles_dir)
         ui.pushButton_browseDownloadDir.clicked.connect(self._browse_download_dir)
         ui.lineEdit_gitlabUrl.editingFinished.connect(self._on_gitlab_url_edited)
         ui.lineEdit_token.editingFinished.connect(self._on_token_edited)
@@ -137,17 +133,6 @@ class MainWindow(GitlabTabMixin, MappingTableMixin, FlashMixin, LogPanelMixin, M
         self.ui.label_settingError.setText(text)
         self.ui.label_settingError.setVisible(bool(text))
 
-    def _on_profiles_dir_edited(self, *_args) -> None:
-        text = self.ui.lineEdit_profilesDir.text().strip()
-        if text and not Path(text).is_dir():
-            self._setting_error(f"Profiles folder not found: {text}")
-            return
-        self._setting_error("")
-        if text != self.settings.profiles_dir:
-            self.settings.profiles_dir = text
-            self._save_settings()
-            self.reload_profiles()
-
     def _on_download_dir_edited(self, *_args) -> None:
         text = self.ui.lineEdit_downloadDir.text().strip()
         if text and not Path(text).is_dir():
@@ -158,12 +143,6 @@ class MainWindow(GitlabTabMixin, MappingTableMixin, FlashMixin, LogPanelMixin, M
             self.settings.cache_dir = text
             self._save_settings()
             log.info("Download folder: %s", self.settings.resolved_cache_dir())
-
-    def _browse_profiles_dir(self, *_args) -> None:
-        folder = QFileDialog.getExistingDirectory(self, "Profiles folder", str(self.settings.resolved_profiles_dir()))
-        if folder:
-            self.ui.lineEdit_profilesDir.setText(folder)
-            self._on_profiles_dir_edited()
 
     def _browse_download_dir(self, *_args) -> None:
         folder = QFileDialog.getExistingDirectory(self, "Download folder", str(self.settings.resolved_cache_dir()))
