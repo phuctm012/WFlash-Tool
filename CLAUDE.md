@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-WFlash (v0.1) — a PySide6 desktop app that flashes **NXP SAF85xx** firmware into external QSPI NOR flash (Winbond) through **iSYSTEM winIDEA 9.21.x**, driven by the `isystem.connect` Python API. It fetches the firmware from a self-hosted GitLab (branch/tag → pipeline → job artifact, one artifact per source in the profile), maps the `.s3` and `.elf` files onto download/symbol entries that **already exist** in the user's open winIDEA workspace, programs the flash, then resets and halts the target.
+WFlash (v1.0) — a PySide6 desktop app that flashes **NXP SAF85xx** firmware into external QSPI NOR flash (Winbond) through **iSYSTEM winIDEA 9.21.x**, driven by the `isystem.connect` Python API. It fetches the firmware from a self-hosted GitLab (branch/tag → pipeline → job artifact, one artifact per source in the profile), maps the `.s3` and `.elf` files onto download/symbol entries that **already exist** in the user's open winIDEA workspace, programs the flash, then resets and halts the target.
 
 The approved design spec is `docs/superpowers/specs/2026-10-04-wflash-tool-design.md` and it is the authority for scope and decisions. Read it before planning anything. This file holds the standing engineering rules; where the two ever disagree, the spec wins on *what* is built and this file wins on *how* it is built — except for the amendments recorded in this file (GUI, program call, Cancel, several sources), which the user decided after the spec was written.
 

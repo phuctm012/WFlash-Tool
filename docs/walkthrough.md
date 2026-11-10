@@ -1794,3 +1794,16 @@ Người dùng chỉ dùng SUZ05, nên ô chọn Profile và nút Reload trên t
 ### Đã kiểm tra
 
 - Toàn bộ test, `-k thread`, stress test, fuzz và app mở được với `--adapter fake`: kết quả ở commit.
+
+## Phase 4.0: Phiên bản 1.0.0
+
+Người dùng chốt phiên bản 1.0 sau khi luồng đầy đủ đã chạy trên máy Windows với ECU thật và artifact GitLab thật (Vòng 7 và các vòng sau), cùng tab GitLab/Setting và các sửa lỗi của Phase 3.24–3.34. Số phiên bản theo dạng `MAJOR.MINOR.PATCH`: `1.0.0`, tag git `v1.0.0`. Tiêu đề cửa sổ, thanh trạng thái, hộp About và debug bundle đều lấy từ `wflash.__version__`, nên chỉ cần đổi một chỗ trong code.
+
+### Thay đổi
+
+- **`wflash/__init__.py`**: `__version__ = "1.0.0"`. **`pyproject.toml`**: `version = "1.0.0"`. **`CLAUDE.md`**: v1.0.
+- Tag `v1.0.0` (annotated) trên commit merge vào `main`.
+
+### Đã kiểm tra
+
+- Toàn bộ test, `-k thread`, stress test đầy đủ, fuzz và app mở được với `--adapter fake` (tiêu đề "WFlash v1.0.0"): kết quả ở commit. `WFlash.exe` của 1.0.0 chưa được build; adapter thật chỉ kiểm chứng trên Windows như trước.
