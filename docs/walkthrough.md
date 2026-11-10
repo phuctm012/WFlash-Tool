@@ -1820,3 +1820,27 @@ Người dùng muốn màn hình chỉ hiện "v1.0". Số phiên bản đầy �
 ### Đã kiểm tra
 
 - Toàn bộ test, `-k thread`, stress test, fuzz và app mở được (tiêu đề "WFlash v1.0", thanh trạng thái "Version: v1.0"): kết quả ở commit.
+
+## Phase 4.0.2: Hướng dẫn build WFlash.exe bản 1.0 (Vòng 14)
+
+Người dùng hỏi cách build exe. `docs/windows_test_guide.md` có thêm **Vòng 14**, gồm các bước:
+1. Lấy code đúng tag `v1.0.0` (`git fetch --tags --force`, vì tag đã được dời).
+2. Mở đúng env conda có `isystem.connect`, kiểm tra 64-bit.
+3. Chạy `scripts\build_windows.bat`; script tự chạy test, test threading và stress test trước PyInstaller.
+4. Thử exe với fake adapter (`--smoke`, tiêu đề v1.0).
+5. Thử với winIDEA thật chỉ đọc (About, Instance, Check winIDEA cores).
+6. Một lần flash có ghi bằng chứng, rủi ro và cách khôi phục.
+7. Cách copy và chia sẻ cả thư mục `dist\WFlash`.
+
+Phần 6 cũ còn câu "adapter thật là Plan 2", nay trỏ sang Vòng 14.
+
+Khi viết, phát hiện hộp About và debug bundle đọc version `isystem.connect` bằng `importlib.metadata`. Trong exe, metadata này chỉ có nếu được đóng gói, nên About có thể ghi `not installed` dù module chạy tốt. `wflash.spec` giờ thêm `copy_metadata("isystem.connect")`, có `try` vì tên distribution chưa được kiểm chứng trên Windows. Hướng dẫn lấy **Check winIDEA cores** làm bằng chứng chính rằng module trong gói hoạt động.
+
+### Thay đổi
+
+- **`docs/windows_test_guide.md`**: Vòng 14; sửa ghi chú cuối Phần 6.
+- **`wflash.spec`**: `copy_metadata("isystem.connect")` khi có `isystem`.
+
+### Đã kiểm tra
+
+- Không build được exe Windows trên macOS. Chỉ kiểm tra `wflash.spec` còn là Python hợp lệ. Toàn bộ test, `-k thread`, stress test: kết quả ở commit. Việc đóng gói `isystem.connect` chưa được kiểm chứng cho tới khi người dùng chạy Vòng 14.

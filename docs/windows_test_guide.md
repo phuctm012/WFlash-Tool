@@ -285,7 +285,7 @@ dist\WFlash\WFlash.exe --adapter fake
 
 Kiểm tra app mở được, theme đúng (sáng và tối), Load from GitLab hoạt động. Nếu build lỗi, file `build.txt` là đủ.
 
-> Lưu ý: chạy `WFlash.exe` **không có** `--adapter fake` hiện sẽ báo "real winIDEA adapter is not available": đúng như mong đợi, adapter thật là Plan 2.
+> Lưu ý: ghi chú này có từ trước Plan 2. Hướng dẫn build `WFlash.exe` có adapter thật (bản 1.0) nằm ở **Vòng 14**.
 
 ---
 
@@ -625,3 +625,91 @@ python main.py
 8. **Lịch sử flash.** **File → Open flash history**: mở `flash_history.csv` (Excel). Dòng mới nhất có profile SUZ05, app (job · commit), app_mode From commit, resets, tries, program_s, result Done.
 9. **Menu.** View → Dark mode; Ctrl+1/2/3 đổi tab; F5 làm mới instance; F1 mở User Guide trong trình duyệt; Help → About hiện version `isystem.connect` (version winIDEA chỉ có sau lần flash đầu trong phiên).
 10. Gửi ảnh ba tab (sáng và tối), ảnh khung Firmware to flash, file `flash_history.csv` và debug bundle (File → Export debug bundle, Ctrl+E).
+
+## Vòng 14: build `WFlash.exe` bản 1.0
+
+Đóng gói WFlash thành một thư mục chạy được mà không cần Python, có kèm adapter winIDEA thật. Từ bước 1 tới bước 5 **không đụng tới ECU**. Bước 6 flash một lần từ exe.
+
+**Thời gian:** khoảng 10 phút. Script build tự chạy lại toàn bộ test, test threading và stress test trước PyInstaller (vài phút); chỉ khi tất cả pass mới đóng gói.
+
+### 1. Lấy đúng code bản 1.0
+
+```bat
+cd <thư mục repo WFlash-Tool>
+git fetch --tags --force
+git checkout main
+git pull
+git describe --tags
+```
+
+Dòng cuối là `v1.0.0`, hoặc `v1.0.0-<n>-g<commit>` nếu `main` có thêm vài commit sau tag (như hướng dẫn này và một sửa nhỏ trong `wflash.spec`); code của app vẫn là bản 1.0. Build từ `main`. (`--force` cần vì tag `v1.0.0` đã được dời sang commit hiển thị "v1.0".)
+
+### 2. Mở đúng env Python
+
+```bat
+conda activate <env có isystem.connect>
+python -c "import struct, sys; print(sys.version, struct.calcsize('P') * 8, 'bit')"
+python -c "import isystem.connect as ic; print(ic.getModuleVersion(), ic.__file__)"
+python -c "import PyInstaller; print(PyInstaller.__version__)"
+```
+
+- Env phải là env bạn vẫn dùng để chạy `python main.py` với winIDEA (theo `docs/winidea_api_notes.md` là env `pyside6`, có `isystem.connect` 9.26.11). **Không** dùng `base`: script sẽ dừng.
+- Dòng 1 phải là **64 bit**, giống winIDEA.
+- Dòng 2 phải in ra version, không lỗi. Nếu lỗi, exe sẽ chỉ chạy được `--adapter fake`. Cài lại `isystem.connect` theo Phần 1 trước khi build.
+- Dòng 3 lỗi thì chạy `python -m pip install -e ".[dev]"` (script cũng tự làm việc này).
+
+### 3. Build
+
+Đóng mọi cửa sổ WFlash đang chạy (exe cũ đang chạy sẽ khóa thư mục `dist`), rồi:
+
+```bat
+rmdir /s /q build dist
+scripts\build_windows.bat > build.txt 2>&1
+type build.txt | findstr /i "isystem.connect WARNING STRESS_RESULT passed failed Built"
+```
+
+Mong đợi trong `build.txt`:
+- `isystem.connect: C:\...\isystem\connect.py`: module được tìm thấy và sẽ được đóng gói. Nếu thấy `WARNING: isystem.connect is not installed` hoặc `building without real winIDEA support` thì dừng lại, quay về bước 2.
+- `... passed` hai lần (toàn bộ test và `-k thread`), `STRESS_RESULT=PASS`.
+- Dòng cuối `Built: dist\WFlash\WFlash.exe`.
+
+Nếu script dừng giữa chừng, gửi mình `build.txt`. Lỗi `PermissionError` / `Access is denied` ở `dist` thường do WFlash.exe đang chạy hoặc OneDrive đang đồng bộ thư mục: đóng app, hoặc tạm dừng OneDrive, hoặc clone repo ra một thư mục ngoài OneDrive (vd. `C:\Data\WFlash-Tool`) rồi build ở đó.
+
+### 4. Thử exe với fake adapter (không cần winIDEA)
+
+```bat
+start /wait dist\WFlash\WFlash.exe --adapter fake --smoke
+echo %errorlevel%
+dist\WFlash\WFlash.exe --adapter fake
+```
+
+- Lệnh đầu mở cửa sổ khoảng 1,5 giây rồi tự đóng; `echo` in `0`.
+- Lệnh thứ ba mở app: tiêu đề **WFlash v1.0**, góc dưới trái **Version: v1.0**, biểu tượng chip xanh trên taskbar. Tab Setting không có dòng Profile (chỉ có SUZ05). View → Dark mode đổi theme. F1 mở User Guide trong trình duyệt.
+
+### 5. Thử exe với winIDEA thật (chỉ đọc)
+
+Mở winIDEA với workspace SUZ05 như mọi khi, rồi chạy `dist\WFlash\WFlash.exe` (không tham số: adapter thật là mặc định).
+
+1. **Help → About**: dòng `isystem.connect` nên có version (vd. `9.26.11.2…`). Nếu ghi `not installed` mà bước 3 vẫn chạy được thì module vẫn nạp tốt, chỉ thiếu metadata trong gói: gửi mình ảnh để sửa `wflash.spec`. Nếu log có lỗi khi kết nối, gửi ảnh và log (File → Open log folder).
+2. Tab **Setting → winIDEA → Instance**: có workspace của bạn (vd. `SUZ_7G5_M7.xjrf (5315)`). Không có thì bấm Refresh (F5).
+3. **Tools → Check winIDEA cores**: chỉ đọc (kết nối, đọc trạng thái core, ngắt; không reset, không ghi). Log có `winIDEA cores: M7_0 …`. Đây là bằng chứng chính rằng `isystem.connect` trong gói hoạt động; không có dòng này thì đừng làm bước 6.
+4. Tab GitLab: Application tải được firmware (From checked-out commit, hoặc Manual → Choose Job). Token và các cài đặt dùng chung với bản `python main.py` (lưu ở `%APPDATA%\WFlash` và Windows Credential Manager), nên không phải nhập lại.
+
+### 6. (FLASH) Flash một lần từ exe
+
+- **Bằng chứng an toàn:** code flash trong exe giống hệt `python main.py` đã flash thành công ở các vòng trước; PyInstaller chỉ đóng gói lại. Chỗ duy nhất có thể khác là việc nạp `isystem.connect` từ trong gói. Nếu nạp lỗi thì lỗi xảy ra ngay lúc kết nối, trước khi ghi gì vào workspace hay flash. Bước 5 đã kiểm tra chỗ này.
+- **Rủi ro:** như Vòng 12–13: một lần lập trình thật vào flash ngoài.
+- **Khôi phục:** Debug → Download bấm tay trong winIDEA; tắt bật nguồn ECU nếu cần.
+
+Flash với Application From commit, Advanced Debug tắt. Mong đợi: Done, dòng mới trong File → Open flash history.
+
+### 7. Dùng và chia sẻ
+
+- Copy **cả thư mục** `dist\WFlash` (không chỉ file exe), vd. thành `C:\Tools\WFlash`, rồi tạo shortcut tới `WFlash.exe`. Thư mục `_internal` bên trong là bắt buộc.
+- Máy khác dùng được nếu có winIDEA 9.21 64-bit. Mỗi người tự nhập Access token của mình; cài đặt, log và lịch sử flash nằm trong `%APPDATA%\WFlash` và `%LOCALAPPDATA%\WFlash` của từng người.
+- `isystem.connect` trong gói là bản của env đã build (9.26.11). WFlash ghi cảnh báo khi version này khác winIDEA (9.21.408) nhưng không chặn, như khi chạy bằng Python.
+- Khi có bản mới: pull, build lại, và thay cả thư mục.
+
+### Gửi lại
+
+`build.txt`, ảnh cửa sổ exe (tiêu đề v1.0), ảnh hộp About, dòng log của Check winIDEA cores, và kết quả bước 6 nếu có làm. Đây là lần đầu `WFlash.exe` chạy với adapter thật: việc đóng gói `isystem.connect` bằng PyInstaller (`collect_all("isystem")` trong `wflash.spec`) chưa được kiểm chứng trên Windows.

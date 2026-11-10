@@ -1,7 +1,7 @@
 # PyInstaller spec (onedir). Build from the repo root: pyinstaller --noconfirm wflash.spec
 import importlib.util
 
-from PyInstaller.utils.hooks import collect_all
+from PyInstaller.utils.hooks import collect_all, copy_metadata
 
 # wflash/resources holds the Teal stylesheets and the window icons; wflash/gui/style.py finds
 # them next to the package (__file__-relative), so they keep the same relative place inside the bundle.
@@ -16,6 +16,10 @@ if importlib.util.find_spec("isystem") is not None:
     datas += _datas
     binaries += _binaries
     hiddenimports += _hidden
+    try:  # About and the debug bundle read the version from the dist metadata (importlib.metadata)
+        datas += copy_metadata("isystem.connect")
+    except Exception as exc:  # UNVERIFIED on Windows: the distribution name may differ
+        print(f"WARNING: no metadata for isystem.connect ({exc}); About will not show its version")
 else:
     print("WARNING: isystem.connect not installed; building without real winIDEA support")
 
