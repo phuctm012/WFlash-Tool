@@ -1679,3 +1679,19 @@ Người dùng muốn nút Checkout đổi chữ thành **Pull changes** khi tha
 ### Đã kiểm tra
 
 - Toàn bộ test, `-k thread`, stress test và app mở được với `--adapter fake`: kết quả ở commit. Không đụng adapter thật hay flash.
+
+## Phase 3.28: Cảnh báo "FFI and ELF come from different commits" sai khi đổi commit
+
+Người dùng thấy log ghi `FFI and ELF come from different commits (FFI: aadadd86, ELF: 10cca12a)` ngay sau khi checkout `aadadd86`. Thực tế ELF của `aadadd86` đã tải xong cùng lúc với FFI: log ghi "ELF loaded" ngay dòng sau. Nguyên nhân: khi một lần tải theo commit xong, `PartController._on_loaded` giao từng role cho cửa sổ (`take_part_firmware`), và mỗi lần giao lại chạy kiểm tra commit. Lúc giao FFI mới, cửa sổ vẫn đang giữ ELF của commit trước (`10cca12a`), nên kiểm tra thấy hai commit khác nhau và ghi cảnh báo. Lần giao ELF ngay sau đó thì nhãn cảnh báo đã ẩn, nhưng dòng log thì đã ghi rồi. Firmware và Flash không bị ảnh hưởng: chỉ cảnh báo là sai.
+
+Sửa: `take_part_firmwares(part, items)` nhận mọi role của một lần tải cùng lúc rồi mới kiểm tra commit một lần. `take_part_firmware` chỉ còn là trường hợp một role (popup Choose Job). Khôi phục job Manual đã nhớ cũng giao một lần.
+
+### Thay đổi
+
+- **`wflash/gui/gitlab_tab.py`**: `take_part_firmwares()`.
+- **`wflash/gui/part_controller.py`**: `_on_loaded` và `_restore_manual` giao mọi role cùng lúc.
+- **`tests/test_gui_gitlab_tab.py`**: repo sang commit mới, FFI và ELF tải lại thì không có cảnh báo commit nào, cả trong log lẫn trên nhãn. Test này fail trước khi sửa.
+
+### Đã kiểm tra
+
+- Toàn bộ test, `-k thread`, stress test và app mở được với `--adapter fake`: kết quả ở commit. Không đụng adapter thật hay flash.

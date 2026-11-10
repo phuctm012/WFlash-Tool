@@ -396,3 +396,21 @@ def test_gui_manual_firmware_is_not_blocked_by_the_repository_commit(env, qtbot,
     w.parts["app"].refresh_repo()
     qtbot.waitUntil(lambda: not w.parts["app"].busy(), timeout=5000)
     assert w.parts["app"].stale_reason() == ""
+
+
+def test_gui_new_commit_loads_ffi_and_elf_together_without_a_mismatch_warning(env, qtbot, repo, caplog):
+    """A load hands FFI and ELF over one at a time: the check must wait for both (user report:
+    a warning named the new FFI commit and the old ELF commit while the ELF was already loaded)."""
+    w = env.window
+    set_repo(qtbot, w, "app", repo)
+    app = w.parts["app"]
+    wait_loaded(qtbot, app, ("ffi", "elf"))
+    (repo / "b.c").write_text("2")
+    git(repo, "add", ".")
+    git(repo, "commit", "-q", "-m", "second")
+    new = read_state(repo).commit[:8]
+    caplog.clear()
+    app.reload()
+    qtbot.waitUntil(lambda: app.loaded["elf"][1].commit.startswith(new) and not app.loading(), timeout=8000)
+    assert not any("different commits" in r.getMessage() for r in caplog.records)
+    assert not w.ui.label_commitWarning.isVisibleTo(w)
