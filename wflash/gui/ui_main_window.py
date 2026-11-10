@@ -1114,7 +1114,7 @@ class Ui_MainWindow(object):
         self.pushButton_fblChooseJob.setText(QCoreApplication.translate("MainWindow", u"Choose Job", None))
         self.label_fblStatus.setText("")
         self.tabWidget_main.setTabText(self.tabWidget_main.indexOf(self.tab_gitlab), QCoreApplication.translate("MainWindow", u"GitLab", None))
-        self.groupBox_profile.setTitle(QCoreApplication.translate("MainWindow", u"Profile", None))
+        self.groupBox_profile.setTitle(QCoreApplication.translate("MainWindow", u"General", None))
         self.label_profile.setText(QCoreApplication.translate("MainWindow", u"Profile", None))
         self.pushButton_reloadProfiles.setText(QCoreApplication.translate("MainWindow", u"Reload", None))
         self.label_downloadDir.setText(QCoreApplication.translate("MainWindow", u"Download folder", None))
