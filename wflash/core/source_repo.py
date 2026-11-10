@@ -70,6 +70,16 @@ def list_branches(path: Path) -> list[str]:
     return sorted(n for n in names if not n.endswith("/HEAD"))
 
 
+def list_local_branches(path: Path) -> list[str]:
+    return sorted(_git(path, "for-each-ref", "--format=%(refname:short)", "refs/heads").split())
+
+
+def is_remote_of_local(branch: str, local_branches: list[str] | set[str]) -> bool:
+    """`origin/<name>` while a local `<name>` exists: checking it out fast-forwards (a pull)."""
+    remote, _, name = branch.partition("/")
+    return branch not in local_branches and bool(remote) and name in local_branches
+
+
 def list_commits(path: Path, ref: str, limit: int = 50) -> list[CommitInfo]:
     lines = _git(path, "log", f"-{limit}", "--format=%H%x09%cs%x09%s", ref, "--").splitlines()
     return [CommitInfo(*line.split("\t", 2)) for line in lines]
@@ -91,7 +101,7 @@ def _refuse_changes(path: Path) -> None:
 
 def checkout_branch(path: Path, branch: str) -> None:
     _refuse_changes(path)
-    local_branches = _git(path, "for-each-ref", "--format=%(refname:short)", "refs/heads").split()
+    local_branches = list_local_branches(path)
     if branch in local_branches:
         _git(path, "checkout", branch)
         return

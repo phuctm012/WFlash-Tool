@@ -162,3 +162,37 @@ def test_gui_checkout_typed_text_that_names_no_branch_turns_checkout_off(qtbot, 
     assert read_state(repo).branch == "main"
     choose_branch(qtbot, dialog, "other", 2)
     assert dialog.ui.label_checkoutError.text() == ""
+
+
+@pytest.fixture
+def clone(repo, tmp_path_factory):
+    """A clone whose origin is `repo`: local main exists, other is only on origin."""
+    path = tmp_path_factory.mktemp("clone") / "src"
+    subprocess.run(["git", "clone", "-q", str(repo), str(path)], check=True, capture_output=True)
+    return path
+
+
+def test_gui_checkout_newest_commit_of_origin_of_a_local_branch_is_pull_changes(qtbot, host, repo, clone):
+    (repo / "a.txt").write_text("3")
+    git(repo, "commit", "-q", "-am", "third")
+    newest = git(repo, "rev-parse", "HEAD").strip()
+    git(clone, "fetch", "-q")
+    dialog = open_dialog(qtbot, host, clone)
+    button = dialog.ui.pushButton_checkout
+    choose_branch(qtbot, dialog, "origin/main", 3)
+    dialog.ui.tableWidget_commits.selectRow(0)
+    assert button.text() == "Pull changes" and button.isEnabled()
+    dialog.ui.tableWidget_commits.selectRow(1)  # an older commit: a detached checkout, not a pull
+    assert button.text() == "Checkout"
+    choose_branch(qtbot, dialog, "main", 2)  # the local name: checkout as it is
+    dialog.ui.tableWidget_commits.selectRow(0)
+    assert button.text() == "Checkout"
+    choose_branch(qtbot, dialog, "origin/other", 2)  # only on origin: a new local branch, not a pull
+    dialog.ui.tableWidget_commits.selectRow(0)
+    assert button.text() == "Checkout"
+    choose_branch(qtbot, dialog, "origin/main", 3)
+    dialog.ui.tableWidget_commits.selectRow(0)
+    with qtbot.waitSignal(dialog.checkedOut, timeout=5000):
+        button.click()
+    state = read_state(clone)
+    assert state.branch == "main" and state.commit == newest

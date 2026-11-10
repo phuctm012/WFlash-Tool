@@ -120,7 +120,7 @@
    <item>
     <widget class="QLabel" name="label_checkoutNote">
      <property name="text">
-      <string>To get the newest commits of a branch, press Fetch, then choose its origin/ name: your local branch moves forward to it (only when you have no unpushed commits on it). Checkout is refused while the repo has local changes. Commit or stash them yourself first; WFlash never discards or stashes your work.</string>
+      <string>To get the newest commits of a branch, press Fetch, choose its origin/ name and press Pull changes: your local branch moves forward to the newest commit (only when you have no unpushed commits on it). Checkout is refused while the repo has local changes. Commit or stash them yourself first; WFlash never discards or stashes your work.</string>
      </property>
      <property name="wordWrap">
       <bool>true</bool>
