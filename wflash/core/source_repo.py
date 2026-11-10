@@ -1,4 +1,8 @@
-"""The developer's source repo, through the git command line. Never stashes, resets or forces."""
+"""The developer's source repo, through the git command line. Never stashes, resets or forces.
+
+The only way it moves a branch is a fast-forward (`merge --ff-only`) to its remote, when the
+developer checks out the remote name of a branch they already have locally.
+"""
 from __future__ import annotations
 
 import os
@@ -94,7 +98,18 @@ def checkout_branch(path: Path, branch: str) -> None:
     remotes = _git(path, "remote").split()
     remote, _, name = branch.partition("/")
     if remote in remotes and name in local_branches:
+        # The remote name means "the remote's newest": fast-forward only, decided before moving anything.
+        ahead = int(_git(path, "rev-list", "--count", f"{branch}..{name}").strip())
+        behind = int(_git(path, "rev-list", "--count", f"{name}..{branch}").strip())
+        if ahead and behind:
+            raise SourceRepoError(
+                f"Checkout refused: local branch {name} and {branch} have both moved on.",
+                hint=f"Select {name} to check out your local branch as it is, or merge {branch} into it yourself.",
+            )
         _git(path, "checkout", name)
+        if behind:
+            _git(path, "merge", "--ff-only", branch)
+            log.info("Brought %s up to %s (%d new commit(s))", name, branch, behind)
     else:
         _git(path, "checkout", "--track", branch)  # a branch only on the remote
 

@@ -150,7 +150,7 @@ class Ui_CheckoutDialog(object):
         ___qtablewidgetitem3 = self.tableWidget_commits.horizontalHeaderItem(3)
         ___qtablewidgetitem3.setText(QCoreApplication.translate("CheckoutDialog", u"Pipeline", None))
         self.label_checkoutError.setText("")
-        self.label_checkoutNote.setText(QCoreApplication.translate("CheckoutDialog", u"Checkout is refused while the repo has local changes. Commit or stash them yourself first; WFlash never discards or stashes your work.", None))
+        self.label_checkoutNote.setText(QCoreApplication.translate("CheckoutDialog", u"To get the newest commits of a branch, press Fetch, then choose its origin/ name: your local branch moves forward to it (only when you have no unpushed commits on it). Checkout is refused while the repo has local changes. Commit or stash them yourself first; WFlash never discards or stashes your work.", None))
         self.label_checkoutStatus.setText("")
         self.pushButton_cancelCheckout.setText(QCoreApplication.translate("CheckoutDialog", u"Cancel", None))
         self.pushButton_checkout.setText(QCoreApplication.translate("CheckoutDialog", u"Checkout", None))
