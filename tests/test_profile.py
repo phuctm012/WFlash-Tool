@@ -187,3 +187,9 @@ def test_suz05_profile_has_the_gitlab_url_with_its_group_and_short_project_names
     assert profile.gitlab.project == "SUZ05_APP_Application_Software-Impl"
     assert profile.debug_sources["bm"].project == "SUZ05_BM_Boot_Manager-Impl"
     assert profile.debug_sources["fbl"].job == "build"
+
+
+def test_suz05_default_build_is_stingray_3p5mb_no_htsm():
+    """The first build is selected when none was saved (user decision, 2026-11-10)."""
+    profile = load_profile(Path(__file__).resolve().parents[1] / "profiles" / "suz05.yaml")
+    assert profile.builds[0].name == "stingray_3p5mb_no_HTSM"

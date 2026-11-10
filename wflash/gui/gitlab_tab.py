@@ -277,6 +277,7 @@ class GitlabTabMixin:
             self.clear_side_progress()
         self.render_summary()
         self._show_block_reason()
+        self._update_mapping_hint()
         self._update_flash_controls()
 
     # -- rows -------------------------------------------------------------------------------
@@ -358,19 +359,31 @@ class GitlabTabMixin:
                 label.setText(self._part_summary(self.parts[name]))
         ui.label_summaryAdvanced.setText(f"Advanced Debug: {'on' if self.advanced_debug() else 'off'}")
 
+    def _held_build(self, part: PartController) -> str:
+        """The build of the FFI held, which is not always the one selected (user report)."""
+        held = part.loaded.get("ffi")
+        if held is not None and self.profile is not None:
+            for build in self.profile.builds:
+                if build.ffi_job == held[1].job_name:
+                    return build.name
+        return self.ui.comboBox_appBuild.currentText()
+
     def _part_summary(self, part: PartController) -> str:
         t = current_theme()
         source = next((src for _p, src in part.loaded.values()), None)
+        stale = part.stale_reason()
         if part.loading():
             status = "Loading…"
         elif part.waiting():
             status = "Waiting for pipeline…"
+        elif source is not None and stale:
+            status = "Out of date"
         elif source is not None:
             status = source.cache_note.split(" · ")[0]
         else:
             status = NOT_LOADED
         mode = "From commit" if part.mode == COMMIT else "Manual"
-        first = ("Build", self.ui.comboBox_appBuild.currentText()) if part.name == "app" else (
+        first = ("Build", self._held_build(part)) if part.name == "app" else (
             "Job", source.job_name if source else (part.jobs() or ["-"])[0])
         ref = source.detail.split(" · ")[1] if source is not None and source.detail.count(" · ") >= 1 else "-"
         rows = [first, ("Branch", ref), ("Commit", source.commit[:SHORT] if source and source.commit else "-"),

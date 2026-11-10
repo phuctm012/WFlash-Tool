@@ -30,7 +30,7 @@ from typing import Any, Callable
 from PySide6.QtCore import QCoreApplication, QEventLoop, QObject, QRunnable, QThread, QThreadPool, Signal
 
 from wflash.core.cancel import CancelToken
-from wflash.core.errors import CancelledError, WFlashError
+from wflash.core.errors import CancelledError, PipelineNotReady, WFlashError
 from wflash.core.logging_setup import get_logger
 
 log = get_logger("worker")
@@ -90,6 +90,9 @@ class Worker(QRunnable):
                 result = self._fn(ctx)
             except CancelledError as exc:
                 log.warning("%s cancelled", self.key)
+                self.signals.failed.emit(self.key, exc)
+            except PipelineNotReady as exc:  # a pipeline state, reported by its caller: not an error
+                log.debug("%s: pipeline not ready: %s", self.key, exc)
                 self.signals.failed.emit(self.key, exc)
             except WFlashError as exc:
                 log.error("%s failed: %s%s", self.key, exc, f" (hint: {exc.hint})" if exc.hint else "")

@@ -1066,7 +1066,7 @@ class Ui_MainWindow(object):
         ___qtablewidgetitem6.setText(QCoreApplication.translate("MainWindow", u"File", None))
         self.label_mappingHint.setText(QCoreApplication.translate("MainWindow", u"Load firmware to fill the mapping.", None))
         self.tabWidget_main.setTabText(self.tabWidget_main.indexOf(self.tab_flash), QCoreApplication.translate("MainWindow", u"Flash", None))
-        self.groupBox_app.setTitle(QCoreApplication.translate("MainWindow", u"App", None))
+        self.groupBox_app.setTitle(QCoreApplication.translate("MainWindow", u"Application", None))
         self.label_appProjectCaption.setText(QCoreApplication.translate("MainWindow", u"Project", None))
         self.label_appRepositoryCaption.setText(QCoreApplication.translate("MainWindow", u"Repository", None))
         self.pushButton_appBrowse.setText(QCoreApplication.translate("MainWindow", u"Browse", None))

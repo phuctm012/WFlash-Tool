@@ -37,7 +37,7 @@ SHORT = 8
 POLL_S = 30
 WAIT_LIMIT_S = 60 * 60
 COMMIT, MANUAL = "commit", "manual"
-LABELS = {"app": "App", "bm": "Boot Manager", "fbl": "Flash Bootloader"}
+LABELS = {"app": "Application", "bm": "Boot Manager", "fbl": "Flash Bootloader"}
 ROLES = {"app": ("ffi", "elf"), "bm": ("bm",), "fbl": ("fbl",)}
 NO_REPO = "-"
 
@@ -337,7 +337,26 @@ class PartController(QObject):
         if self._loaded_for is not None and self._loaded_for[0] != self.repo_state.commit:
             return (f"{self.label} firmware is for commit {held}, but the repository is at "
                     f"{self.repo_state.commit[:SHORT]}. Wait for its pipeline, or select Manual.")
-        return f"{self.label} firmware does not fit the selected build or project yet."
+        return self._mismatch_reason(key)
+
+    def _mismatch_reason(self, key: tuple | None) -> str:
+        """Same commit, but the build (its jobs) or the project changed: say what is held, what is
+        wanted, and why the wanted one is not there (user report: a manual job, 2026-11-10)."""
+        held, wanted = self._loaded_for, key
+        if held is None or wanted is None:
+            what = "the selected build"
+        elif held[2] != wanted[2]:
+            what = f"project {wanted[2]} (it is from {held[2]})"
+        else:
+            pairs = [(h, w) for h, w in zip(held[1], wanted[1]) if h != w] or [(", ".join(held[1]), ", ".join(wanted[1]))]
+            what = f"{pairs[0][1]} (it is from {pairs[0][0]})"
+        if self.loading() or self.waiting():
+            why = "Loading it…"
+        elif self._failed and self._load_for == wanted:
+            why = self.status_text()
+        else:
+            why = "Click Reload."
+        return f"{self.label} firmware is not from {what}. {why}"
 
     def status_text(self) -> str:
         return self.w_status.text()

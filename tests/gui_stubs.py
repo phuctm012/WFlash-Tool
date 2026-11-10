@@ -204,6 +204,8 @@ class FakeGitLabSession:
                  "finished_at": "2026-11-08T10:04:00Z", "artifacts": archive},
                 {"id": 33, "name": "create_ffi_strx_3p5mb_no_HTSM", "stage": "release", "status": "skipped",
                  "artifacts": []},
+                {"id": 34, "name": "create_ffi_stingray_3p5mb", "stage": "release", "status": "manual",
+                 "artifacts": []},  # as on the real pipeline: only some builds run by themselves
             ])
         if path == f"/projects/{PROJECT_ID}/jobs/{DEV_FFI_JOB}/artifacts":
             return self._stream(url, zip_of({"out/FFI/RAD_SUZ05_FFI.s3": b"S0"}))
