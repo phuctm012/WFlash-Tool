@@ -28,7 +28,7 @@ from wflash.gui.ui_main_window import Ui_MainWindow
 from wflash.gui.workers import WorkerRegistry
 
 REPO = Path(__file__).resolve().parents[1]
-EXAMPLE_PROFILE = REPO / "profiles" / "saf85xx_example.yaml"
+EXAMPLE_PROFILE = REPO / "tests" / "fixtures" / "saf85xx_example.yaml"
 GITLAB_URL = "https://gitlab.example.com"
 # Realistic PAT shape (glpat- + 20 chars) so the redaction is tested on the real thing.
 # Built by concatenation so push-protection secret scanners do not flag a fake token.

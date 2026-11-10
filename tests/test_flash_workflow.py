@@ -10,7 +10,7 @@ from wflash.core.file_matcher import build_mapping
 from wflash.core.flash_workflow import FlashRequest, FlashWorkflow, Step
 from wflash.core.profile import load_profile
 
-EXAMPLE = Path(__file__).resolve().parents[1] / "profiles" / "saf85xx_example.yaml"
+EXAMPLE = Path(__file__).resolve().parent / "fixtures" / "saf85xx_example.yaml"
 OLD_APP = r"C:\fake\old\App.s3"
 
 

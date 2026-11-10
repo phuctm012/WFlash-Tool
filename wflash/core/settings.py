@@ -59,12 +59,17 @@ def _type_name(default: object) -> str:
     return "dict[str, str]" if isinstance(default, dict) else type(default).__name__
 
 
+NOT_LOADED = {"profiles_dir"}  # an old file may still hold a folder chosen before it left the Setting tab
+
+
 @dataclass
 class AppSettings:
     gitlab_url: str = ""
     ca_bundle: str = ""  # no longer used (2026-11-09): the system certificate store is; kept so old files load
     cache_dir: str = ""
     max_cached_jobs: int = 10
+    # Not saved or loaded: the app always uses its bundled profiles (user decision, 2026-11-10).
+    # Only tests and the stress test set it, to point at profiles of their own.
     profiles_dir: str = ""
     last_profile: str = ""
     verbose: bool = False
@@ -126,7 +131,7 @@ class AppSettings:
         defaults = cls()
         values = {}
         for f in fields(cls):
-            if f.name not in data:
+            if f.name not in data or f.name in NOT_LOADED:
                 continue
             value, default = data[f.name], getattr(defaults, f.name)
             if _same_type(value, default):
@@ -140,7 +145,8 @@ class AppSettings:
     def save(self, path: Path | None = None) -> None:
         path = path or settings_path()
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(asdict(self), indent=2), encoding="utf-8")
+        data = {key: value for key, value in asdict(self).items() if key not in NOT_LOADED}
+        path.write_text(json.dumps(data, indent=2), encoding="utf-8")
 
 
 def get_token(gitlab_url: str) -> str | None:

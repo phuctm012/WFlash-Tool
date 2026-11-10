@@ -317,6 +317,7 @@ def test_gui_settings_of_each_part_survive_a_restart(env, qtbot, repo, tmp_path)
     w.ui.tabWidget_main.setCurrentIndex(1)
     w.close()
     settings = AppSettings.load(tmp_path / "settings.json")
+    settings.profiles_dir = w.settings.profiles_dir  # never saved: the test points at its own profiles again
     assert settings.part_repos["suz05.yaml#app"] == str(repo)
     assert settings.advanced_debug is True and settings.last_tab == 1 and settings.window_geometry
     again = MainWindow(settings, FakeWinIDEAAdapter(download_seconds=0.05, rows=suz05_rows(),
