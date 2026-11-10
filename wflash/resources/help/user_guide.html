@@ -95,7 +95,8 @@ figcaption { color: var(--muted); font-size: 13px; margin-top: 8px; text-align: 
 .split { display: grid; grid-template-columns: 300px 1fr; gap: 10px; }
 .card { background: var(--tint); border-radius: 8px; padding: 10px 12px; }
 .kv { display: grid; grid-template-columns: 60px 1fr; gap: 1px 8px; padding-left: 8px; font-size: 12px; margin-bottom: 8px; }
-.pill { font-size: 10.5px; padding: 0 6px; border-radius: 8px; background: var(--surface); color: var(--primary); margin-left: 6px; }
+.pill { font-size: 10.5px; color: var(--primary); margin-left: 4px; }
+.pill::before { content: "· "; }
 .tbl { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; margin-bottom: 8px; }
 .tbl b { display: block; padding: 5px 10px; color: var(--primary); }
 .tbl div { display: grid; grid-template-columns: 26px 56px 1fr 66px; gap: 6px; padding: 4px 10px; border-top: 1px solid var(--line); font-size: 12px; }
@@ -152,7 +153,7 @@ figcaption { color: var(--muted); font-size: 13px; margin-top: 8px; text-align: 
     <li>The ECU is powered and the debug probe is connected.</li>
     <li>The <strong>CAL file</strong> (<code>*_CAL_T008_*.sre</code>) is in the same folder as the workspace <code>.xjrf</code>.</li>
     <li>You have a <strong>GitLab Personal Access Token</strong> with the <code>read_api</code> scope (GitLab → Preferences → Access Tokens).</li>
-    <li>For debugging: your <strong>App</strong> source repository is cloned on this PC. Boot Manager and Flash Bootloader repositories are optional.</li>
+    <li>For debugging: your <strong>Application</strong> source repository is cloned on this PC. Boot Manager and Flash Bootloader repositories are optional.</li>
   </ol>
 </section>
 
@@ -171,7 +172,7 @@ figcaption { color: var(--muted); font-size: 13px; margin-top: 8px; text-align: 
       <div class="tabs"><span class="on">Flash</span><span>GitLab</span><span>Setting</span><span class="call">3</span></div>
       <div class="pane">
         <div class="split">
-          <div class="card"><b style="color:var(--primary)">Firmware to flash</b><div class="mut" style="margin-top:6px">App, Boot Manager, Flash Bootloader…</div></div>
+          <div class="card"><b style="color:var(--primary)">Firmware to flash</b><div class="mut" style="margin-top:6px">Application, Boot Manager, Flash Bootloader…</div></div>
           <div class="tbl"><b>Program Files</b><div><span>1</span><span class="tag">FFI</span><span class="mono">RAD_SUZ05_FFI.s3</span><span class="mono">0x0</span></div></div>
         </div>
       </div>
@@ -221,12 +222,12 @@ figcaption { color: var(--muted); font-size: 13px; margin-top: 8px; text-align: 
 
 <section id="firmware">
   <h2>4. Choose the firmware</h2>
-  <p>Open the <span class="ui">GitLab</span> tab. Each part (App, and with Advanced Debug, Boot Manager and Flash Bootloader) has the same panel.</p>
+  <p>Open the <span class="ui">GitLab</span> tab. Each part (Application, and with Advanced Debug, Boot Manager and Flash Bootloader) has the same panel.</p>
   <figure>
-    <div class="win" role="img" aria-label="GitLab tab with the App panel and the Advanced Debug switch">
+    <div class="win" role="img" aria-label="GitLab tab with the Application panel and the Advanced Debug switch">
       <div class="tabs" style="padding-top:8px"><span>Flash</span><span class="on">GitLab</span><span>Setting</span></div>
       <div class="pane">
-        <div class="grp"><b class="t">App</b>
+        <div class="grp"><b class="t">Application</b>
           <div class="row"><span>Project</span><span class="fld">SUZ05_APP_Application_Software-Impl</span><span></span></div>
           <div class="row"><span>Repository</span><span class="fld">C:\Data\git\SUZ05_APP_Application_Software-Impl</span><span class="btn">Browse</span></div>
           <div class="row"><span>Branch/Tag</span><strong>Release_DD_05_03_01</strong><span class="btn">Checkout</span></div>
@@ -238,11 +239,11 @@ figcaption { color: var(--muted); font-size: 13px; margin-top: 8px; text-align: 
         <span class="switch"><i></i>Advanced Debug</span>
       </div>
     </div>
-    <figcaption>GitLab tab: the App panel</figcaption>
+    <figcaption>GitLab tab: the Application panel</figcaption>
   </figure>
   <ol class="steps">
-    <li><span class="ui">Browse</span> to your App repository. WFlash shows its branch and commit, and warns if files have local changes.</li>
-    <li>Pick the <span class="ui">Build</span> (configuration) you want to debug.</li>
+    <li><span class="ui">Browse</span> to your Application repository. WFlash shows its branch and commit, and warns if files have local changes.</li>
+    <li>Pick the <span class="ui">Build</span> (configuration) you want to debug. The first time, it is <code>stingray_3p5mb_no_HTSM</code>; after that WFlash remembers your choice. If the Build you pick has no finished job for your commit (for example a <code>manual</code> job nobody ran), Flash stays off and the red line says why.</li>
     <li>Choose how the firmware is selected:
       <ul>
         <li><span class="ui">From checked-out commit</span>: WFlash loads the CI artifact of the commit your repository is on, by itself. If that commit's pipeline is still running, it waits and loads it when the job finishes.</li>
@@ -250,9 +251,10 @@ figcaption { color: var(--muted); font-size: 13px; margin-top: 8px; text-align: 
       </ul>
     </li>
     <li>To debug another commit, press <span class="ui">Checkout</span>, type part of a branch name to filter, pick a commit and confirm. WFlash refuses while your repository has local changes; it never stashes or discards your work.</li>
+    <li>To get the newest commits of your branch, press <span class="ui">Checkout</span>, then <span class="ui">Fetch</span>, choose <code>origin/&lt;your branch&gt;</code> and its top commit: the button reads <span class="ui">Pull changes</span>. Your local branch moves forward to that commit. If you have commits that are not pushed while others pushed too, WFlash refuses and changes nothing; merge them yourself.</li>
     <li>To flash Boot Manager and Flash Bootloader too, turn on <span class="ui">Advanced Debug</span> and set their panels the same way. Their repositories are optional: without one, use <span class="ui">Manual</span>.</li>
   </ol>
-  <div class="note tip"><strong>Tip.</strong> The status line under each panel tells you where the firmware came from: <code>Cached</code> means it was already in the download folder, <code>Downloaded</code> means it was just fetched from GitLab.</div>
+  <div class="note tip"><strong>Tip.</strong> The status line under each panel tells you where the firmware came from: <code>Cached</code> means it was already in the download folder, <code>Downloaded</code> means it was just fetched from GitLab. The branch shown there is the branch the pipeline ran on: when the same commit was built on another branch first, it can differ from your checked-out branch. The firmware is the same, because the commit is the same.</div>
 </section>
 
 <section id="flash">
@@ -270,7 +272,7 @@ figcaption { color: var(--muted); font-size: 13px; margin-top: 8px; text-align: 
       <div class="pane">
         <div class="split">
           <div class="card"><b style="color:var(--primary)">Firmware to flash</b>
-            <div style="margin-top:6px"><b>App</b><span class="pill">From commit</span></div>
+            <div style="margin-top:6px"><b>Application</b><span class="pill">From commit</span></div>
             <div class="kv"><span class="mut">Build</span><span>stingray_3p5mb_no_HTSM</span><span class="mut">Branch</span><span>Release_DD_05_03_01</span><span class="mut">Commit</span><span class="mono">8ebd595d</span><span class="mut">Status</span><span>Cached</span></div>
             <span class="mut">Advanced Debug: off</span>
           </div>
@@ -307,6 +309,8 @@ figcaption { color: var(--muted); font-size: 13px; margin-top: 8px; text-align: 
       <tr><td><code>Flash failed: winIDEA could not start programming in 3 tries.</code></td><td>Turn the ECU power off and on, then flash again.</td></tr>
       <tr><td><code>No CAL file was found next to the workspace</code></td><td>Copy the <code>*_CAL_T008_*.sre</code> file next to the <code>.xjrf</code>, then <span class="ui">Refresh</span> in Setting.</td></tr>
       <tr><td><code>No pipeline for &lt;commit&gt;</code> or job <code>manual</code> / <code>skipped</code></td><td>Push the commit, or run the job in GitLab. WFlash waits for running jobs, not for jobs nobody started.</td></tr>
+      <tr><td><code>Application firmware is for commit … but the repository is at …</code></td><td>Your repository moved to a new commit and its firmware is not loaded yet. Wait for its pipeline, or select <span class="ui">Manual</span>. WFlash never flashes the firmware of another commit.</td></tr>
+      <tr><td><code>Application firmware is not from &lt;job&gt; (it is from &lt;job&gt;) …</code></td><td>You picked another Build, and its job is not finished for this commit (the end of the line says why, e.g. <code>manual</code>). Run that job in GitLab, pick back the Build you had, or select <span class="ui">Manual</span>.</td></tr>
       <tr><td>GitLab: token wrong or expired, missing scope, certificate error</td><td>Create a new token with <code>read_api</code>; for a certificate error, ask IT to install the company certificate in Windows.</td></tr>
       <tr><td>Red banner <strong>ROLLBACK FAILED</strong></td><td>Check the Download Files and Symbol Files in winIDEA before flashing again.</td></tr>
     </tbody>
