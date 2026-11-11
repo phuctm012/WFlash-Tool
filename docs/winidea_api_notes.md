@@ -481,6 +481,20 @@ User report: *Hardware → Winbond W25Q64JW SPI → Program* by hand fails with 
 
 `spike/17_umi_cache_flush.py` tries `umi.write(index, wProgCache)` (configured rows into the cache), asks the user whether the Output showed any erase or program, then `umi.flush(index)`. It refuses when a core is `NOT ACCESSIBLE` or the default core is not stopped. Success means: one `ERASING`, the whole set programmed, the read at 0x0 works, 09 MATCH, ECU runs. Until then WFlash keeps `begin_program()`.
 
+## Round 15: cache + flush programs with one erase (2026-11-11 15:25)
+
+`spike/17_umi_cache_flush.py`, same workspace, enabled rows: FFI `.s3` (`fde378b4`, offset 0) and the CAL `.sre`. Cores before: M7_0 STOP, M7_RFE STOP, A53 STOP, SPT IDLE, BBE32EP RUN; `isStopped` True.
+
+- `umi.write(0, IConnectUMI.wProgCache)` returned `None` in **0.0-0.1 s**, `getLastError` empty. Output: only `LOADING` / `LOADED` of the 20 `.s3` chunks and the CAL, **no ERASING or PROGRAMMING**. So it loads the configured rows into the cache and does not touch the flash.
+- Every chunk, the CAL included, had `Load WARNING  Overlap detected at <its start>`. The chunks do not overlap each other, and the same files had been loaded into the cache at 15:17 (first run, stopped before flush). So the cache **keeps its content between connections**, and a load is laid over it. Whether `flush` empties it is unknown. Risk for any use in WFlash: when the next firmware does not cover a range the previous one did, the old bytes in the cache could be programmed too.
+- `umi.flush(0)` returned `None` after **99.6 s**, `getLastError` empty. Output: **one** `ERASING Winbond W25Q64JW SPI`, `PROGRAMMING Winbond W25Q64JW SPI (79 sectors)`, `Running Reading`, `Running Reset`, `EMULATION END - Without cleanup`, then the emulation restarts (`EMULATION STARTED`). Same erase count, sector count and time as the menu Program and `begin_program`. No `OK` line, unlike the GUI log of 2026-11-07.
+- `umi.read(0, 0, 16, ByteVector(16))` right after: `d1010060ffffffff00100000ffffffff`.
+- Cores after flush: as before. After `debug.reset()`: M7_0 STOP, M7_RFE RUN, **A53 NOT ACCESSIBLE**, SPT IDLE, **BBE32EP NOT ACCESSIBLE**.
+- `09_flash_compare.py` 5 minutes later: every read failed with code 39 `Error loading monitor` (the cores were still NOT ACCESSIBLE), so nothing was compared.
+- User: the ECU runs.
+
+What this shows: the cache + flush path programs every enabled row with **one** erase, like the menu. What it does not show yet: (1) that new content is written: the files were the ones already in flash; (2) a lower `Error loading monitor` rate: one run, from a good core state; (3) how the stale cache behaves. Spike 17 now has `--no-reset` so that 09 can read right after the flush. WFlash still programs with `begin_program()`.
+
 ## Open questions
 
 1. **Version mismatch.** `isystem.connect` 9.26.11 against winIDEA 9.21.408. Connect, read, download, reset and run all worked, but `CLAUDE.md` requires the versions to match. Is there a Python SDK package under `C:/Data/_Devtools/Winidea408/` (9.21.408)? If yes, install it and re-run 01 to confirm nothing changes.

@@ -82,6 +82,7 @@ def timed(report, label, fn):
 def main() -> None:
     parser = base_args(__doc__)
     parser.add_argument("--device-index", type=int, default=0, help="Chỉ số thiết bị UMI (mặc định 0)")
+    parser.add_argument("--no-reset", action="store_true", help="Không reset sau flush, để chạy 09 ngay sau đó")
     parser.add_argument("--expect-device", default="W25Q64JW", help="Model thiết bị phải khớp (mặc định W25Q64JW)")
     args = parser.parse_args()
     report = Report("17_umi_cache_flush")
@@ -152,9 +153,13 @@ def main() -> None:
         try_call(report, f"umi.read 0x0 {PROBE_BYTES} bytes",
                  lambda: (umi.read(index, 0, PROBE_BYTES, data := ic.ByteVector(PROBE_BYTES)), bytes(data).hex())[1])
         core_states(report, ic, cmgr)
-        try_call(report, "debug.reset", ic.CDebugFacade(cmgr).reset)
-        cpu_stopped(report, ic, cmgr)
-        core_states(report, ic, cmgr)
+        if args.no_reset:
+            # Round 15: after this reset A53 and BBE32EP were NOT ACCESSIBLE and 09 could not read the flash.
+            report.line("--no-reset: no reset, run 09_flash_compare.py now")
+        else:
+            try_call(report, "debug.reset", ic.CDebugFacade(cmgr).reset)
+            cpu_stopped(report, ic, cmgr)
+            core_states(report, ic, cmgr)
         report.line(f"summary: cache {cache_s:.1f}s, flush {flush_s:.1f}s, flush ok={ok}")
         report.line("Next: copy winIDEA's whole Output view into a text file (count the ERASING lines), "
                     "then run 09_flash_compare.py.")
