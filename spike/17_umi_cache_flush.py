@@ -132,9 +132,9 @@ def main() -> None:
         if not ok:
             report.line("cache write failed -> stop before flush")
             return
-        report.line("Look at winIDEA's Output view now. ERASING or PROGRAMMING lines after step 1 mean the flash was "
-                    "touched: answer NO and recover with Hardware > Winbond > Program.")
-        seen = input("Did step 1 show ERASING or PROGRAMMING in the Output? (yes/no): ").strip().lower()
+        report.line("Look at winIDEA's Output view now. If step 1 added ERASING or PROGRAMMING lines, answer 'yes': the "
+                    "script stops and you recover with Hardware > Winbond > Program. Answer 'no' only if it added none.")
+        seen = input("Did step 1 add ERASING or PROGRAMMING lines to the Output? (yes = stop / no = go on): ").strip().lower()
         report.line(f"user: Output after step 1 showed erase/program: {seen!r}")
         if seen != "no":
             report.line("step 1 may have touched the flash -> stop before flush")
