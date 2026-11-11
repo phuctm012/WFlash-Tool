@@ -1940,3 +1940,27 @@ Người dùng chạy spike 17 thêm và thấy `flush` hay lỗi. Output của 
 
 - Ảnh Output do người dùng gửi. Chỉ sửa tài liệu và docstring của spike. Đã chạy bộ test, test threading và stress test trước khi push.
 
+## Phase 4.2: Switch Debugger, tắt/bật nguồn ECU và nối/ngắt JTAG (bước 1, bấm tay)
+
+Người dùng có hộp Switch Debugger, điều khiển qua TCP (`127.11.0.1:1101`), để nối/ngắt JTAG và tắt/bật nguồn ECU. Lỗi `Error loading monitor` và core `NOT ACCESSIBLE` chỉ gỡ được bằng cách tắt/bật nguồn. Vì vậy WFlash nay gọi được hộp này từ menu Tools. Đây là bước 1: chỉ có lệnh bấm tay, luồng flash không đổi. Bước 2 (tự tắt/bật nguồn khi gặp lỗi monitor) chờ kết quả bước 1 trên bàn test.
+
+Giao thức lấy từ `switch_debugger.py` của người dùng: `SwitchDebugger6Sensor4Relay;<On|Off>;<Sensor|Relay>;<id 0-based>`. Người dùng xác nhận: Sensor là cổng JTAG (On = nối); với relay nguồn, **Off = có nguồn** và On = mất nguồn. Bàn test có hai ECU: ECU 0 dùng Port C + Relay 1, ECU 1 dùng Port D + Relay 2 (mặc định là ECU 1, giống ảnh). Thời gian chờ khởi động mặc định 4 s. Khi tắt/bật nguồn, JTAG vẫn nối. WFlash không bao giờ gửi `Off_All`, vì lệnh đó đổi cả relay của ECU kia. Khi tắt/bật nguồn, nguồn luôn được bật lại trong `finally`, kể cả khi Cancel hay đóng cửa sổ. Ba lệnh bị khoá trong lúc flash. Một lệnh Switch Debugger đang chạy thì nút Flash cũng bị khoá (worker có tiền tố `tools-`). Mockup được duyệt trước khi làm GUI (artboard 12 của canvas).
+
+### Thay đổi
+
+- **`wflash/core/bench_switch.py`** (mới): `BenchConfig`, `BenchSwitch` (`jtag`, `power`, `power_cycle`), `send_tcp` (kết nối, chờ 2 s, gửi, chờ 2 s, như script của người dùng), `ECUS`, `ecu_label`.
+- **`wflash/core/errors.py`**: `BenchSwitchError`. Gợi ý cho trường hợp bị từ chối kết nối: mở Switch Debugger và bấm Start.
+- **`wflash/core/settings.py`**: `bench_enabled` (mặc định tắt), `bench_host`, `bench_port`, `bench_ecu`, `bench_off_s`, `bench_boot_s`, `bench_config()`.
+- **`wflash/gui/main_window.ui`**: nhóm `groupBox_bench` trong tab Setting; `action_powerCycle`, `action_jtagConnect`, `action_jtagDisconnect` trong menu Tools. Các mục ECU của combo nằm trong `.ui`. `ui_main_window.py` sinh lại.
+- **`wflash/gui/main_window.py`**: nạp và lưu nhóm Switch Debugger ngay khi đổi.
+- **`wflash/gui/menu_actions.py`**: ba lệnh chạy trên worker `tools-bench`.
+- **`wflash/gui/flash_mixin.py`**: bật/tắt nhóm và ba lệnh theo ô Enable và trạng thái đang flash.
+- **`wflash/resources/help/user_guide.html`**: phần thiết lập, menu Tools, hai dòng xử lý sự cố.
+- **`docs/windows_test_guide.md`**: Vòng 16.
+- **Test**: `tests/test_bench_switch.py` (giao thức, chiều relay, hai ECU, power cycle bị Cancel vẫn bật nguồn lại, TCP thật qua socket cục bộ, cài đặt); `tests/test_gui_bench_switch.py` (mặc định tắt, lưu ngay, chỉ đổi ECU đã chọn, khoá khi flash, lỗi ghi kèm gợi ý).
+
+### Đã kiểm tra
+
+- Trên macOS: bộ test, test threading, stress test, và app mở được với fake adapter. Chưa chạy với Switch Debugger thật: đó là Vòng 16.
+- Lần đầu test GUI bị treo. Nguyên nhân thứ nhất là test thay `time.sleep` cho cả tiến trình; nguyên nhân thứ hai là test giả lập "đang flash" nên khi đóng cửa sổ, `closeEvent` mở hộp thoại hỏi rồi chờ. Cả hai đều là lỗi của test, đã sửa trong test.
+

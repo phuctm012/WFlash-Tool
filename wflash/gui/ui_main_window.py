@@ -21,8 +21,8 @@ from PySide6.QtWidgets import (QAbstractItemView, QApplication, QCheckBox, QComb
     QHeaderView, QLabel, QLineEdit, QMainWindow,
     QMenu, QMenuBar, QPlainTextEdit, QProgressBar,
     QPushButton, QRadioButton, QScrollArea, QSizePolicy,
-    QSpacerItem, QStatusBar, QTabWidget, QTableWidget,
-    QTableWidgetItem, QVBoxLayout, QWidget)
+    QSpacerItem, QSpinBox, QStatusBar, QTabWidget,
+    QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget)
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -52,6 +52,12 @@ class Ui_MainWindow(object):
         self.action_testGitlab.setObjectName(u"action_testGitlab")
         self.action_checkCores = QAction(MainWindow)
         self.action_checkCores.setObjectName(u"action_checkCores")
+        self.action_powerCycle = QAction(MainWindow)
+        self.action_powerCycle.setObjectName(u"action_powerCycle")
+        self.action_jtagConnect = QAction(MainWindow)
+        self.action_jtagConnect.setObjectName(u"action_jtagConnect")
+        self.action_jtagDisconnect = QAction(MainWindow)
+        self.action_jtagDisconnect.setObjectName(u"action_jtagDisconnect")
         self.action_refreshInstances = QAction(MainWindow)
         self.action_refreshInstances.setObjectName(u"action_refreshInstances")
         self.action_userGuide = QAction(MainWindow)
@@ -875,6 +881,96 @@ class Ui_MainWindow(object):
 
         self.verticalLayout_settingScroll.addWidget(self.groupBox_winidea)
 
+        self.groupBox_bench = QGroupBox(self.scrollAreaWidgetContents_setting)
+        self.groupBox_bench.setObjectName(u"groupBox_bench")
+        self.gridLayout_bench = QGridLayout(self.groupBox_bench)
+        self.gridLayout_bench.setObjectName(u"gridLayout_bench")
+        self.gridLayout_bench.setHorizontalSpacing(10)
+        self.gridLayout_bench.setVerticalSpacing(8)
+        self.checkBox_benchEnabled = QCheckBox(self.groupBox_bench)
+        self.checkBox_benchEnabled.setObjectName(u"checkBox_benchEnabled")
+
+        self.gridLayout_bench.addWidget(self.checkBox_benchEnabled, 0, 0, 1, 4)
+
+        self.label_benchEcu = QLabel(self.groupBox_bench)
+        self.label_benchEcu.setObjectName(u"label_benchEcu")
+
+        self.gridLayout_bench.addWidget(self.label_benchEcu, 1, 0, 1, 1)
+
+        self.comboBox_benchEcu = QComboBox(self.groupBox_bench)
+        self.comboBox_benchEcu.addItem("")
+        self.comboBox_benchEcu.addItem("")
+        self.comboBox_benchEcu.setObjectName(u"comboBox_benchEcu")
+
+        self.gridLayout_bench.addWidget(self.comboBox_benchEcu, 1, 1, 1, 1)
+
+        self.label_benchPolarity = QLabel(self.groupBox_bench)
+        self.label_benchPolarity.setObjectName(u"label_benchPolarity")
+
+        self.gridLayout_bench.addWidget(self.label_benchPolarity, 1, 2, 1, 1)
+
+        self.label_benchHost = QLabel(self.groupBox_bench)
+        self.label_benchHost.setObjectName(u"label_benchHost")
+
+        self.gridLayout_bench.addWidget(self.label_benchHost, 2, 0, 1, 1)
+
+        self.lineEdit_benchHost = QLineEdit(self.groupBox_bench)
+        self.lineEdit_benchHost.setObjectName(u"lineEdit_benchHost")
+
+        self.gridLayout_bench.addWidget(self.lineEdit_benchHost, 2, 1, 1, 1)
+
+        self.label_benchPort = QLabel(self.groupBox_bench)
+        self.label_benchPort.setObjectName(u"label_benchPort")
+        self.label_benchPort.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignVCenter)
+
+        self.gridLayout_bench.addWidget(self.label_benchPort, 2, 2, 1, 1)
+
+        self.spinBox_benchPort = QSpinBox(self.groupBox_bench)
+        self.spinBox_benchPort.setObjectName(u"spinBox_benchPort")
+        self.spinBox_benchPort.setMinimum(1)
+        self.spinBox_benchPort.setMaximum(65535)
+        self.spinBox_benchPort.setValue(1101)
+
+        self.gridLayout_bench.addWidget(self.spinBox_benchPort, 2, 3, 1, 1)
+
+        self.label_benchOff = QLabel(self.groupBox_bench)
+        self.label_benchOff.setObjectName(u"label_benchOff")
+
+        self.gridLayout_bench.addWidget(self.label_benchOff, 3, 0, 1, 1)
+
+        self.spinBox_benchOff = QSpinBox(self.groupBox_bench)
+        self.spinBox_benchOff.setObjectName(u"spinBox_benchOff")
+        self.spinBox_benchOff.setMinimum(1)
+        self.spinBox_benchOff.setMaximum(60)
+        self.spinBox_benchOff.setValue(3)
+
+        self.gridLayout_bench.addWidget(self.spinBox_benchOff, 3, 1, 1, 1)
+
+        self.label_benchBoot = QLabel(self.groupBox_bench)
+        self.label_benchBoot.setObjectName(u"label_benchBoot")
+        self.label_benchBoot.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignVCenter)
+
+        self.gridLayout_bench.addWidget(self.label_benchBoot, 3, 2, 1, 1)
+
+        self.spinBox_benchBoot = QSpinBox(self.groupBox_bench)
+        self.spinBox_benchBoot.setObjectName(u"spinBox_benchBoot")
+        self.spinBox_benchBoot.setMinimum(0)
+        self.spinBox_benchBoot.setMaximum(120)
+        self.spinBox_benchBoot.setValue(4)
+
+        self.gridLayout_bench.addWidget(self.spinBox_benchBoot, 3, 3, 1, 1)
+
+        self.label_benchHint = QLabel(self.groupBox_bench)
+        self.label_benchHint.setObjectName(u"label_benchHint")
+        self.label_benchHint.setWordWrap(True)
+
+        self.gridLayout_bench.addWidget(self.label_benchHint, 4, 0, 1, 4)
+
+        self.gridLayout_bench.setColumnStretch(1, 1)
+        self.gridLayout_bench.setColumnStretch(3, 1)
+
+        self.verticalLayout_settingScroll.addWidget(self.groupBox_bench)
+
         self.verticalSpacer_settingTab = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
 
         self.verticalLayout_settingScroll.addItem(self.verticalSpacer_settingTab)
@@ -968,6 +1064,10 @@ class Ui_MainWindow(object):
         self.menu_tools.addAction(self.action_testGitlab)
         self.menu_tools.addAction(self.action_checkCores)
         self.menu_tools.addSeparator()
+        self.menu_tools.addAction(self.action_powerCycle)
+        self.menu_tools.addAction(self.action_jtagConnect)
+        self.menu_tools.addAction(self.action_jtagDisconnect)
+        self.menu_tools.addSeparator()
         self.menu_tools.addAction(self.action_refreshInstances)
         self.menu_help.addAction(self.action_userGuide)
         self.menu_help.addAction(self.action_about)
@@ -1009,6 +1109,12 @@ class Ui_MainWindow(object):
 #endif // QT_CONFIG(shortcut)
         self.action_testGitlab.setText(QCoreApplication.translate("MainWindow", u"Test GitLab connection", None))
         self.action_checkCores.setText(QCoreApplication.translate("MainWindow", u"Check winIDEA cores", None))
+        self.action_powerCycle.setText(QCoreApplication.translate("MainWindow", u"Power-cycle ECU", None))
+#if QT_CONFIG(tooltip)
+        self.action_powerCycle.setToolTip(QCoreApplication.translate("MainWindow", u"Switch the ECU's power off and on through Switch Debugger (Setting tab). JTAG stays connected.", None))
+#endif // QT_CONFIG(tooltip)
+        self.action_jtagConnect.setText(QCoreApplication.translate("MainWindow", u"Connect JTAG", None))
+        self.action_jtagDisconnect.setText(QCoreApplication.translate("MainWindow", u"Disconnect JTAG", None))
         self.action_refreshInstances.setText(QCoreApplication.translate("MainWindow", u"Refresh winIDEA instances", None))
 #if QT_CONFIG(shortcut)
         self.action_refreshInstances.setShortcut(QCoreApplication.translate("MainWindow", u"F5", None))
@@ -1135,6 +1241,21 @@ class Ui_MainWindow(object):
 #if QT_CONFIG(tooltip)
         self.checkBox_verifyFlash.setToolTip(QCoreApplication.translate("MainWindow", u"Read samples of the flash back and compare them with the files. Adds about 3 minutes.", None))
 #endif // QT_CONFIG(tooltip)
+        self.groupBox_bench.setTitle(QCoreApplication.translate("MainWindow", u"Bench power (Switch Debugger)", None))
+        self.checkBox_benchEnabled.setText(QCoreApplication.translate("MainWindow", u"Control JTAG and ECU power through Switch Debugger", None))
+        self.label_benchEcu.setText(QCoreApplication.translate("MainWindow", u"ECU", None))
+        self.comboBox_benchEcu.setItemText(0, QCoreApplication.translate("MainWindow", u"ECU 0 (port C, relay 1)", None))
+        self.comboBox_benchEcu.setItemText(1, QCoreApplication.translate("MainWindow", u"ECU 1 (port D, relay 2)", None))
+
+        self.label_benchPolarity.setText(QCoreApplication.translate("MainWindow", u"Relay off = power on", None))
+        self.label_benchHost.setText(QCoreApplication.translate("MainWindow", u"Address", None))
+        self.lineEdit_benchHost.setPlaceholderText(QCoreApplication.translate("MainWindow", u"127.11.0.1", None))
+        self.label_benchPort.setText(QCoreApplication.translate("MainWindow", u"Port", None))
+        self.label_benchOff.setText(QCoreApplication.translate("MainWindow", u"Power off for", None))
+        self.spinBox_benchOff.setSuffix(QCoreApplication.translate("MainWindow", u" s", None))
+        self.label_benchBoot.setText(QCoreApplication.translate("MainWindow", u"Boot wait", None))
+        self.spinBox_benchBoot.setSuffix(QCoreApplication.translate("MainWindow", u" s", None))
+        self.label_benchHint.setText(QCoreApplication.translate("MainWindow", u"Used by Tools \u203a Power-cycle ECU, Connect JTAG and Disconnect JTAG. Locked while a flash runs: cutting the power during programming leaves the flash empty. Only the port and the relay of this ECU are switched.", None))
         self.tabWidget_main.setTabText(self.tabWidget_main.indexOf(self.tab_setting), QCoreApplication.translate("MainWindow", u"Setting", None))
         self.pushButton_copyLog.setText(QCoreApplication.translate("MainWindow", u"Copy", None))
         self.pushButton_clearLog.setText(QCoreApplication.translate("MainWindow", u"Clear", None))

@@ -39,6 +39,10 @@ class WinIDEAError(WFlashError):
     default_hint = "Make sure winIDEA is running with the correct workspace."
 
 
+class BenchSwitchError(WFlashError):
+    default_hint = "Check that Switch Debugger is running and its TCP/IP service is started."
+
+
 class SourceRepoError(WFlashError):
     default_hint = "Check the source repo path, and that git is installed."
 

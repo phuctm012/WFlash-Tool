@@ -1425,6 +1425,152 @@
              </widget>
             </item>
             <item>
+             <widget class="QGroupBox" name="groupBox_bench">
+              <property name="title">
+               <string>Bench power (Switch Debugger)</string>
+              </property>
+              <layout class="QGridLayout" name="gridLayout_bench" columnstretch="0,1,0,1">
+               <property name="horizontalSpacing">
+                <number>10</number>
+               </property>
+               <property name="verticalSpacing">
+                <number>8</number>
+               </property>
+               <item row="0" column="0" colspan="4">
+                <widget class="QCheckBox" name="checkBox_benchEnabled">
+                 <property name="text">
+                  <string>Control JTAG and ECU power through Switch Debugger</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="1" column="0">
+                <widget class="QLabel" name="label_benchEcu">
+                 <property name="text">
+                  <string>ECU</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="1" column="1">
+                <widget class="QComboBox" name="comboBox_benchEcu">
+                 <item>
+                  <property name="text">
+                   <string>ECU 0 (port C, relay 1)</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>ECU 1 (port D, relay 2)</string>
+                  </property>
+                 </item>
+                </widget>
+               </item>
+               <item row="1" column="2">
+                <widget class="QLabel" name="label_benchPolarity">
+                 <property name="text">
+                  <string>Relay off = power on</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="2" column="0">
+                <widget class="QLabel" name="label_benchHost">
+                 <property name="text">
+                  <string>Address</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="2" column="1">
+                <widget class="QLineEdit" name="lineEdit_benchHost">
+                 <property name="placeholderText">
+                  <string>127.11.0.1</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="2" column="2">
+                <widget class="QLabel" name="label_benchPort">
+                 <property name="text">
+                  <string>Port</string>
+                 </property>
+                 <property name="alignment">
+                  <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignVCenter</set>
+                 </property>
+                </widget>
+               </item>
+               <item row="2" column="3">
+                <widget class="QSpinBox" name="spinBox_benchPort">
+                 <property name="minimum">
+                  <number>1</number>
+                 </property>
+                 <property name="maximum">
+                  <number>65535</number>
+                 </property>
+                 <property name="value">
+                  <number>1101</number>
+                 </property>
+                </widget>
+               </item>
+               <item row="3" column="0">
+                <widget class="QLabel" name="label_benchOff">
+                 <property name="text">
+                  <string>Power off for</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="3" column="1">
+                <widget class="QSpinBox" name="spinBox_benchOff">
+                 <property name="minimum">
+                  <number>1</number>
+                 </property>
+                 <property name="maximum">
+                  <number>60</number>
+                 </property>
+                 <property name="value">
+                  <number>3</number>
+                 </property>
+                 <property name="suffix">
+                  <string> s</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="3" column="2">
+                <widget class="QLabel" name="label_benchBoot">
+                 <property name="text">
+                  <string>Boot wait</string>
+                 </property>
+                 <property name="alignment">
+                  <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignVCenter</set>
+                 </property>
+                </widget>
+               </item>
+               <item row="3" column="3">
+                <widget class="QSpinBox" name="spinBox_benchBoot">
+                 <property name="minimum">
+                  <number>0</number>
+                 </property>
+                 <property name="maximum">
+                  <number>120</number>
+                 </property>
+                 <property name="value">
+                  <number>4</number>
+                 </property>
+                 <property name="suffix">
+                  <string> s</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="4" column="0" colspan="4">
+                <widget class="QLabel" name="label_benchHint">
+                 <property name="text">
+                  <string>Used by Tools › Power-cycle ECU, Connect JTAG and Disconnect JTAG. Locked while a flash runs: cutting the power during programming leaves the flash empty. Only the port and the relay of this ECU are switched.</string>
+                 </property>
+                 <property name="wordWrap">
+                  <bool>true</bool>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </widget>
+            </item>
+            <item>
              <spacer name="verticalSpacer_settingTab">
               <property name="orientation">
                <enum>Qt::Orientation::Vertical</enum>
@@ -1541,6 +1687,10 @@
     <addaction name="action_testGitlab" />
     <addaction name="action_checkCores" />
     <addaction name="separator" />
+    <addaction name="action_powerCycle" />
+    <addaction name="action_jtagConnect" />
+    <addaction name="action_jtagDisconnect" />
+    <addaction name="separator" />
     <addaction name="action_refreshInstances" />
    </widget>
    <widget class="QMenu" name="menu_help">
@@ -1627,6 +1777,24 @@
   <action name="action_checkCores">
    <property name="text">
     <string>Check winIDEA cores</string>
+   </property>
+  </action>
+  <action name="action_powerCycle">
+   <property name="text">
+    <string>Power-cycle ECU</string>
+   </property>
+   <property name="toolTip">
+    <string>Switch the ECU's power off and on through Switch Debugger (Setting tab). JTAG stays connected.</string>
+   </property>
+  </action>
+  <action name="action_jtagConnect">
+   <property name="text">
+    <string>Connect JTAG</string>
+   </property>
+  </action>
+  <action name="action_jtagDisconnect">
+   <property name="text">
+    <string>Disconnect JTAG</string>
    </property>
   </action>
   <action name="action_refreshInstances">
