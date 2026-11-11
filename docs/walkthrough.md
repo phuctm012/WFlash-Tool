@@ -1912,3 +1912,17 @@ Lần chạy đầu (2026-11-11 15:17): cả 5 core STOP/IDLE/RUN, `umi.write(0,
 ### Đã kiểm tra
 
 - `py_compile`; bộ test, test threading và stress test trước khi push.
+
+## Phase 4.1.2: Spike 17 đạt lần đầu: cache + flush xoá một lần
+
+Lần chạy 15:25: bước cache mất 0.0 s, Output chỉ có LOADING/LOADED, không có ERASING. `flush` mất 99.6 s, Output có **một** `ERASING` và `PROGRAMMING (79 sectors)`, giống bấm tay Program. Sau đó đọc 16 byte ở 0x0 thành công. ECU chạy. Reset của spike làm A53 và BBE32EP thành `NOT ACCESSIBLE`, nên 09 chạy sau đó không đọc được (lỗi 39). Phát hiện thêm: mỗi đoạn đều báo `Overlap detected`, tức cache giữ dữ liệu của lần nạp trước (15:17). Nếu đưa vào WFlash thì phải xử lý chuyện này, vì firmware mới có thể bị ghi kèm byte cũ. Chưa chứng minh được: ghi được firmware **khác**, và ít lỗi monitor hơn. Thêm `--no-reset` để 09 đọc được ngay sau flush. Code flash của WFlash không đổi.
+
+### Thay đổi
+
+- **`spike/17_umi_cache_flush.py`**: tuỳ chọn `--no-reset`.
+- **`docs/winidea_api_notes.md`**: "Round 15", kết quả và ba điểm chưa chứng minh.
+
+### Đã kiểm tra
+
+- Kết quả do người dùng chạy trên Windows (file 17, 09, Output). Trên macOS: `py_compile`, bộ test, test threading và stress test trước khi push.
+
