@@ -24,8 +24,9 @@ from PySide6.QtGui import QAction, QDesktopServices
 from PySide6.QtWidgets import QApplication, QMessageBox, QSystemTrayIcon
 
 from wflash import APP_AUTHOR, DISPLAY_VERSION
+from wflash.core.bench_switch import BenchSwitch, ecu_label
 from wflash.core.debug_bundle import collect_env_info
-from wflash.core.errors import GitLabError
+from wflash.core.errors import BenchSwitchError, GitLabError
 from wflash.core.flash_history import history_path
 from wflash.core.gitlab_url import project_path, split_gitlab_url
 from wflash.core.logging_setup import default_log_dir, get_logger
@@ -53,6 +54,9 @@ class MenuActionsMixin:
         ui.action_testGitlab.triggered.connect(self.test_gitlab_connection)
         ui.action_checkCores.triggered.connect(self.check_winidea_cores)
         ui.action_refreshInstances.triggered.connect(self.refresh_instances)
+        ui.action_powerCycle.triggered.connect(self.power_cycle_ecu)
+        ui.action_jtagConnect.triggered.connect(self.connect_jtag)
+        ui.action_jtagDisconnect.triggered.connect(self.disconnect_jtag)
         ui.action_userGuide.triggered.connect(self.open_user_guide)
         ui.action_about.triggered.connect(self.show_about)
         self._tray: QSystemTrayIcon | None = None
@@ -144,6 +148,38 @@ class MenuActionsMixin:
         else:
             log.info("winIDEA cores: %s", summary)
 
+    # Switch Debugger (bench power and JTAG). The worker owns the TCP calls; each takes about 4 s.
+    def power_cycle_ecu(self, *_args) -> None:
+        self._start_bench("power cycle", _power_cycle)
+
+    def connect_jtag(self, *_args) -> None:
+        self._start_bench("connect JTAG", partial(_switch_jtag, True))
+
+    def disconnect_jtag(self, *_args) -> None:
+        self._start_bench("disconnect JTAG", partial(_switch_jtag, False))
+
+    def _start_bench(self, what: str, job) -> None:
+        if self.flash_active() or self._closing or self.tools_busy():
+            return  # never while a flash runs: power off during programming empties the flash
+        if not self.settings.bench_enabled:
+            log.warning("Switch Debugger is off: turn it on in the Setting tab")
+            return
+        try:
+            switch = BenchSwitch(self.settings.bench_config())
+        except BenchSwitchError as exc:
+            self._on_tool_failed("", exc)
+            return
+        log.info("Switch Debugger: %s, %s…", what, ecu_label(self.settings.bench_ecu))
+        self._workers.start(
+            f"{TOOLS_PREFIX}bench", partial(job, switch),
+            on_succeeded=self._on_bench_done, on_failed=self._on_tool_failed, on_finished=self._on_tool_finished,
+        )
+        self._update_flash_controls()
+
+    def _on_bench_done(self, _key: str, text: str) -> None:
+        if not self._closing:
+            log.info("%s", text)
+
     def _on_tool_failed(self, _key: str, exc: BaseException) -> None:
         if self._closing:
             return
@@ -193,6 +229,19 @@ def _test_gitlab(client_factory, settings, project: str, _ctx: WorkerContext) ->
     client = client_factory(settings)
     project_id = client.get_project_id(project)
     return f"project {project} (id {project_id})"
+
+
+def _power_cycle(switch: BenchSwitch, ctx: WorkerContext) -> str:
+    """Power off, wait, power on, wait for the boot. The power always comes back on, even on cancel."""
+    switch.power_cycle(is_cancelled=lambda: ctx.cancel.cancelled)
+    if ctx.cancel.cancelled:
+        return "ECU power is on again (power cycle cut short)."
+    return "ECU power-cycled. Check winIDEA cores before flashing."
+
+
+def _switch_jtag(connected: bool, switch: BenchSwitch, _ctx: WorkerContext) -> str:
+    switch.jtag(connected)
+    return f"JTAG port {switch.config.jtag_port} {'connected' if connected else 'disconnected'}."
 
 
 def _check_cores(adapter, instance_id: str, _ctx: WorkerContext):

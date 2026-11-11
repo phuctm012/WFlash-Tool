@@ -10,7 +10,7 @@ from pathlib import Path
 import keyring
 import keyring.errors
 
-from wflash.core.bench_switch import DEFAULT_HOST, DEFAULT_PORT, BenchConfig
+from wflash.core.bench_switch import DEFAULT_ECU, DEFAULT_HOST, DEFAULT_PORT, BenchConfig
 from wflash.core.errors import GitLabError
 from wflash.core.gitlab_url import split_gitlab_url
 from wflash.core.logging_setup import get_logger
@@ -98,14 +98,12 @@ class AppSettings:
     bench_enabled: bool = False
     bench_host: str = DEFAULT_HOST
     bench_port: int = DEFAULT_PORT
-    bench_jtag_port: str = "D"
-    bench_power_relay: int = 2
+    bench_ecu: int = DEFAULT_ECU  # 0: port C + relay 1, 1: port D + relay 2
     bench_off_s: int = 3
-    bench_boot_s: int = 5
+    bench_boot_s: int = 4
 
     def bench_config(self) -> BenchConfig:
-        return BenchConfig(self.bench_host, self.bench_port, self.bench_jtag_port, self.bench_power_relay,
-                           self.bench_off_s, self.bench_boot_s)
+        return BenchConfig.for_ecu(self.bench_ecu, self.bench_host, self.bench_port, self.bench_off_s, self.bench_boot_s)
 
     def resolved_cache_dir(self) -> Path:
         return Path(self.cache_dir) if self.cache_dir else default_cache_dir()

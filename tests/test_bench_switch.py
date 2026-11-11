@@ -128,10 +128,30 @@ def test_settings_default_to_off_and_the_users_bench(tmp_path):
 
     settings = AppSettings()
     assert settings.bench_enabled is False
-    assert settings.bench_config() == BenchConfig("127.11.0.1", 1101, "D", 2, 3, 5)
-    settings.bench_enabled, settings.bench_jtag_port, settings.bench_power_relay = True, "C", 1
+    assert settings.bench_config() == BenchConfig("127.11.0.1", 1101, "D", 2, 3, 4)
+    settings.bench_enabled, settings.bench_ecu = True, 0
     path = tmp_path / "settings.json"
     settings.save(path)
     loaded = AppSettings.load(path)
     assert loaded.bench_enabled is True
     assert loaded.bench_config().jtag_port == "C" and loaded.bench_config().power_relay == 1
+
+
+@pytest.mark.parametrize("ecu, sensor, relay", [(0, 2, 0), (1, 3, 1)])
+def test_each_ecu_switches_its_own_port_and_relay(ecu, sensor, relay):
+    sent = []
+    switch = BenchSwitch(BenchConfig.for_ecu(ecu), send=lambda h, p, line: sent.append(line), sleep=lambda s: None)
+    switch.jtag(True)
+    switch.power_cycle()
+    assert sent == [f"SwitchDebugger6Sensor4Relay;On;Sensor;{sensor}\n",
+                    f"SwitchDebugger6Sensor4Relay;On;Relay;{relay}\n",   # power off
+                    f"SwitchDebugger6Sensor4Relay;Off;Relay;{relay}\n"]  # power on; JTAG stays connected
+
+
+def test_unknown_ecu_is_refused():
+    with pytest.raises(BenchSwitchError):
+        BenchConfig.for_ecu(2)
+
+
+def test_ecu_label():
+    assert bench_switch.ecu_label(0) == "ECU 0 (port C, relay 1)"

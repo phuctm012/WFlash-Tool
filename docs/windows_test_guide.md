@@ -759,3 +759,35 @@ Rồi chạy `python 09_flash_compare.py` để so mẫu, và thử ECU có ch�
 - ECU có chạy không.
 - Nếu có: số lần bạn bấm tay Program thành công / bị `Error loading monitor` gần đây, để so với Download.
 
+## Vòng 16: Switch Debugger (tắt/bật nguồn, nối/ngắt JTAG)
+
+Mục đích: kiểm chứng trên bàn test rằng WFlash điều khiển đúng relay và cổng của Switch Debugger. Vòng này **không ghi flash**. Chỉ tắt/bật nguồn ECU và nối/ngắt JTAG.
+
+> Điều duy nhất cần tránh: tắt nguồn trong lúc flash. WFlash khoá cả ba lệnh khi đang flash. Nếu ECU còn mất nguồn sau một lần lỗi, bấm Relay của ECU đó trong cửa sổ Switch Debugger để bật lại.
+
+### Chuẩn bị
+
+1. Tải zip mới của `main`, chạy `python main.py` trong env `pyside6` như mọi lần.
+2. Mở Switch Debugger, kết nối COM và bấm **Start** ở ô TCP/IP (đèn port 1101 xanh).
+3. Tab **Setting → Bench power (Switch Debugger)**: tick ô đầu, chọn **ECU 1 (port D, relay 2)** (hoặc ECU 0 nếu bạn dùng ECU đó).
+
+### Thử từng lệnh, nhìn cửa sổ Switch Debugger
+
+| Lệnh WFlash | Phải thấy trong Switch Debugger |
+|---|---|
+| Tools → Disconnect JTAG | Nút **D** hết xanh; log "Port D … OFF" |
+| Tools → Connect JTAG | Nút **D** xanh lại |
+| Tools → Power-cycle ECU | **Relay 2** xanh (mất nguồn) khoảng 3 s, rồi trắng lại (có nguồn); Relay 1, 3-6 **không đổi** |
+
+Sau Power-cycle ECU: **Tools → Check winIDEA cores**, ghi lại trạng thái các core. Nếu có core `NOT ACCESSIBLE`, tăng **Boot wait** (ví dụ 8 s) và thử lại.
+
+### Thử với lỗi thật (khi gặp)
+
+Lần tới WFlash báo `Flash failed: winIDEA could not start programming in 3 tries.`: Tools → Power-cycle ECU → Check winIDEA cores → Flash. Ghi lại có flash được ngay không.
+
+### Gửi lại
+
+- Log của WFlash (các dòng `Switch Debugger: …` và `winIDEA cores: …`).
+- Ảnh cửa sổ Switch Debugger sau mỗi lệnh nếu có gì khác bảng trên.
+- Boot wait bao nhiêu thì đủ. Kết quả này quyết định bước 2 (WFlash tự tắt/bật nguồn khi gặp lỗi monitor).
+

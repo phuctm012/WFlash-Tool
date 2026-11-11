@@ -6,8 +6,9 @@ Protocol, from the user's `switch_debugger.py` and the Switch Debugger window:
 
 - A "Sensor" is a JTAG port, A-F = 0-5. On connects the debugger to that port, Off disconnects it.
 - A "Relay" is numbered 1-6 on the box and 0-based in the protocol. For the ECU's power relay the
-  polarity is inverted: relay **Off = power ON**, relay **On = power OFF** (user's bench: Port D,
-  Relay 2; the other relays stay On).
+  polarity is inverted: relay **Off = power ON**, relay **On = power OFF** (user, 2026-11-11; the
+  other relays stay On). The user's bench has ECU 0 on Port C + Relay 1 and ECU 1 on Port D + Relay 2.
+  A power cycle keeps JTAG connected (user decision).
 
 Only the configured port and relay are ever switched. `Off_All` is never sent: "Disconnect All
 Relay" would also switch the relays of other ECUs on the same box.
@@ -34,6 +35,14 @@ SEND_DELAY_S = 2.0
 CONNECT_TIMEOUT_S = 5.0
 DEFAULT_HOST = "127.11.0.1"
 DEFAULT_PORT = 1101
+# The user's bench (2026-11-11): two ECUs, each with its JTAG port and its power relay.
+ECUS = {0: ("C", 1), 1: ("D", 2)}
+DEFAULT_ECU = 1
+
+
+def ecu_label(ecu: int) -> str:
+    port, relay = ECUS[ecu]
+    return f"ECU {ecu} (port {port}, relay {relay})"
 
 
 @dataclass(frozen=True)
@@ -43,7 +52,15 @@ class BenchConfig:
     jtag_port: str = "D"  # A-F
     power_relay: int = 2  # 1-6, as labelled on the box
     off_s: int = 3  # power off this long during a power cycle
-    boot_s: int = 5  # wait this long after power on
+    boot_s: int = 4  # wait this long after power on (user, 2026-11-11)
+
+    @classmethod
+    def for_ecu(cls, ecu: int, host: str = DEFAULT_HOST, port: int = DEFAULT_PORT, off_s: int = 3,
+                boot_s: int = 4) -> "BenchConfig":
+        if ecu not in ECUS:
+            raise BenchSwitchError(f"Unknown ECU {ecu}.", hint="Choose the ECU in the Setting tab.")
+        jtag_port, relay = ECUS[ecu]
+        return cls(host, port, jtag_port, relay, off_s, boot_s)
 
     def check(self) -> None:
         if self.jtag_port.upper() not in PORTS or len(self.jtag_port) != 1:
@@ -79,17 +96,17 @@ def send_tcp(host: str, port: int, line: str) -> None:
 class BenchSwitch:
     """Switches one ECU's JTAG port and power relay. `send` and `sleep` are injectable for tests."""
 
-    def __init__(self, config: BenchConfig, send: Callable[[str, int, str], None] = send_tcp,
+    def __init__(self, config: BenchConfig, send: Callable[[str, int, str], None] | None = None,
                  sleep: Callable[[float], None] = time.sleep) -> None:
         config.check()
         self.config = config
-        self._send = send
+        self._send = send  # None: the module's send_tcp, looked up at each call (tests patch it)
         self._sleep = sleep
 
     def _do(self, line: str, what: str) -> None:
         log.info("Switch Debugger: %s", what)
         log.debug("Switch Debugger %s:%s <- %s", self.config.host, self.config.port, line.strip())
-        self._send(self.config.host, self.config.port, line)
+        (self._send or send_tcp)(self.config.host, self.config.port, line)
 
     def jtag(self, connected: bool) -> None:
         port = self.config.jtag_port.upper()

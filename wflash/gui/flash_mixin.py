@@ -164,6 +164,14 @@ class FlashMixin:
         for button in self.source_load_buttons():
             button.setEnabled(not flashing)
         self.ui.checkBox_run.setEnabled(not flashing and self.ui.checkBox_reset.isChecked())
+        # Switch Debugger: never while a flash runs (power off during programming empties the flash).
+        bench_on = self.ui.checkBox_benchEnabled.isChecked()
+        self.ui.groupBox_bench.setEnabled(not flashing)
+        for widget in (self.ui.comboBox_benchEcu, self.ui.lineEdit_benchHost, self.ui.spinBox_benchPort,
+                       self.ui.spinBox_benchOff, self.ui.spinBox_benchBoot):
+            widget.setEnabled(bench_on)
+        for action in (self.ui.action_powerCycle, self.ui.action_jtagConnect, self.ui.action_jtagDisconnect):
+            action.setEnabled(bench_on and not flashing)
         if self._closing:
             self.lock_menus()  # a worker finishing during the close wait must not re-enable them
 
