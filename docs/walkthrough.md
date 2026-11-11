@@ -1900,3 +1900,15 @@ Người dùng thấy bấm tay *Hardware → Winbond W25Q64JW SPI → Program* 
 
 - `py_compile` của spike trên macOS. Spike chưa chạy với `isystem.connect` thật. Không chạy thử với `tests/fake_isystem.py` vì fake cố ý chặn `write` và `flush`.
 
+
+## Phase 4.1.1: Spike 17, sửa câu nhắc ngược nghĩa
+
+Lần chạy đầu (2026-11-11 15:17): cả 5 core STOP/IDLE/RUN, `umi.write(0, wProgCache)` trả về `None` sau **0.1 s**, `getLastError` rỗng. Người dùng trả lời `yes` ở câu hỏi Output, nên spike dừng trước `flush`. Câu nhắc in ra trước câu hỏi lại bảo "answer NO" khi thấy ERASING, ngược với câu hỏi, trong khi trả lời `no` sẽ chạy tiếp sang `flush`. Đã sửa câu nhắc cho khớp: thấy ERASING/PROGRAMMING thì trả lời `yes` để dừng. 0.1 s quá ngắn cho một lần xoá (một lần ghi đầy đủ mất khoảng 100 s), nên nhiều khả năng bước cache không đụng flash. Điều này chưa được xác nhận: còn chờ Output của winIDEA.
+
+### Thay đổi
+
+- **`spike/17_umi_cache_flush.py`**: câu nhắc trước câu hỏi Output.
+
+### Đã kiểm tra
+
+- `py_compile`; bộ test, test threading và stress test trước khi push.
