@@ -469,6 +469,18 @@ So the bundled module loads and connects. `NOT OBSERVED` is a `status_string()` 
 
 Consequence for the flash path: `_prepare_cores` treats only `NOT ACCESSIBLE` as bad, so with every core `NOT OBSERVED` it would program at once without a reset. `begin_program()` from a detached session has never been observed (round 9 started attached). Until it is, the user is asked not to flash in this state but to attach first and check the cores again.
 
+## Round 15 plan: cache + flush, like the Program menu (2026-11-11, not run yet)
+
+User report: *Hardware → Winbond W25Q64JW SPI → Program* by hand fails with `Error loading monitor` less often than Debug → Download / `begin_program()`. Not measured. Hypothesis, not verified: `begin_program` (like Debug → Download) re-initialises the session and touches every SoC core, while the menu only needs one stopped core to load the flash monitor; the failure log already says `No core which could program flash is stopped`.
+
+`umi.write(index, wProgDevice)` is the SDK's "write configured data" (TASKING `test_storage_write.py`) and is the call that erased before each row in round 3, so it stays forbidden. Spike 11 found no example on disk. The online SDK docs (TASKING winIDEA SDK, `test_storage_flush.py` and `IConnectUMI`):
+
+- `wProgCache = 0x4000`: "program the data into the intermediate cache"; `wProgDevice = 0`: "program the data into the device immediately".
+- `wOpFlush = 0x200`: "program the device from the intermediate cache". The example writes with `wProgCache`, then calls `storageCtrl.flush()` (a `CStorageDeviceController` from `CStorageDeviceFactory.makeDevice`).
+- Nothing in these pages says how flush honours "Mass erase before download".
+
+`spike/17_umi_cache_flush.py` tries `umi.write(index, wProgCache)` (configured rows into the cache), asks the user whether the Output showed any erase or program, then `umi.flush(index)`. It refuses when a core is `NOT ACCESSIBLE` or the default core is not stopped. Success means: one `ERASING`, the whole set programmed, the read at 0x0 works, 09 MATCH, ECU runs. Until then WFlash keeps `begin_program()`.
+
 ## Open questions
 
 1. **Version mismatch.** `isystem.connect` 9.26.11 against winIDEA 9.21.408. Connect, read, download, reset and run all worked, but `CLAUDE.md` requires the versions to match. Is there a Python SDK package under `C:/Data/_Devtools/Winidea408/` (9.21.408)? If yes, install it and re-run 01 to confirm nothing changes.

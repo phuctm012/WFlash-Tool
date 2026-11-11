@@ -1884,3 +1884,19 @@ Build trên Windows thành công: `check_build_env.py` báo không cần pip, 50
 ### Đã kiểm tra
 
 - Kết quả do người dùng chạy trên Windows (ảnh và log). Chỉ sửa tài liệu.
+
+## Phase 4.1: Spike 17, ghi Winbond bằng cache + flush (giống menu Program)
+
+Người dùng thấy bấm tay *Hardware → Winbond W25Q64JW SPI → Program* ít gặp `Error loading monitor` hơn Debug → Download, tức `begin_program()` mà WFlash đang dùng, và hỏi có gọi được menu đó qua API không. API ứng với menu là `umi.write(index, wProgDevice)`, chính là lệnh đã xoá chip trước mỗi dòng tick ở Round 3 và vẫn bị cấm. Spike 11 không tìm thấy ví dụ nào trên máy. Tài liệu SDK online của TASKING (`test_storage_flush.py`, `IConnectUMI`) cho một hướng khác: ghi vào cache (`wProgCache`) rồi `flush()` một lần. Giả thuyết là cách này chỉ xoá một lần như menu. Spike 17 thử đúng việc đó, có hai lần hỏi xác nhận, và giữa hai bước người dùng tự xem Output để chắc bước cache không đụng flash. Code flash của WFlash không đổi. `begin_program()` vẫn là cách duy nhất cho tới khi spike 17 có kết quả trên phần cứng.
+
+### Thay đổi
+
+- **`spike/17_umi_cache_flush.py`**: spike mới; dừng nếu core `NOT ACCESSIBLE` hoặc core mặc định không STOP.
+- **`spike/README.md`**: thêm dòng 17.
+- **`docs/winidea_api_notes.md`**: "Round 15 plan", gồm những gì tài liệu SDK nói và tiêu chí đạt.
+- **`docs/windows_test_guide.md`**: Vòng 15, cảnh báo ghi flash và cách khôi phục.
+
+### Đã kiểm tra
+
+- `py_compile` của spike trên macOS. Spike chưa chạy với `isystem.connect` thật. Không chạy thử với `tests/fake_isystem.py` vì fake cố ý chặn `write` và `flush`.
+

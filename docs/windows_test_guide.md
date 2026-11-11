@@ -724,3 +724,36 @@ Flash với Application From commit, Advanced Debug tắt. Mong đợi: Done, d�
 ### Gửi lại
 
 `build.txt`, ảnh cửa sổ exe (tiêu đề v1.0), ảnh hộp About, dòng log của Check winIDEA cores, và kết quả bước 6 nếu có làm. Đây là lần đầu `WFlash.exe` chạy với adapter thật: việc đóng gói `isystem.connect` bằng PyInstaller (`collect_all("isystem")` trong `wflash.spec`) chưa được kiểm chứng trên Windows.
+
+## Vòng 15: thử ghi flash giống menu Program (spike 17)
+
+Mục đích: tìm một lệnh API ghi Winbond giống bấm tay *Hardware → Winbond W25Q64JW SPI → Program* (bạn thấy cách này ít gặp `Error loading monitor` hơn Download). Lệnh `umi.write(0, wProgDevice)` từng xoá chip trước mỗi dòng tick, nên không dùng. Tài liệu SDK của TASKING có cách khác: ghi vào **cache** (`wProgCache`) rồi **flush** một lần. Cách này chưa ai chạy.
+
+> ⚠️ **Bước 2 của spike GHI VÀO FLASH.** Bằng chứng: tài liệu SDK chính thức (ví dụ `test_storage_flush.py`) nói `wProgCache` chỉ ghi vào cache và `flush` mới ghi thiết bị. Chưa chạy trên phần cứng. Rủi ro: flush xoá rồi lỗi giữa chừng, ECU không chạy. Khôi phục: bấm tay *Hardware → Winbond W25Q64JW SPI → Program* (hoặc Debug → Download) với các file đang tick, rồi tắt/bật nguồn ECU.
+
+### Chuẩn bị
+
+1. Các dòng đang tick trong *Hardware → Winbond → Configure… → Download Files* là firmware **tốt** (bản bạn vừa flash bằng tay và ECU chạy được). Như vậy nếu cần khôi phục thì chỉ cần bấm Program.
+2. Session Explorer: không core nào `NOT ACCESSIBLE`, M7_0 đang STOP. Nếu không, reset hoặc tắt/bật nguồn trước. Spike tự kiểm tra và dừng nếu sai.
+3. Mở *View → Output* của winIDEA và xoá nội dung cũ (chuột phải → Clear) để dễ đếm.
+
+### Chạy
+
+```bat
+cd C:\Data\tranph9\_TOOL\WFlash-Tool-main\spike
+python 17_umi_cache_flush.py
+```
+
+- **Bước 1** (`umi.write(wProgCache)`): gõ `YES`. Xong thì xem Output. Nếu có dòng `ERASING` hoặc `PROGRAMMING`, gõ `yes` (spike dừng, flash có thể đã bị đụng: khôi phục như trên). Nếu không có, gõ `no`.
+- **Bước 2** (`umi.flush`): gõ `YES`. Chờ (có thể khoảng 100 s, spike in mỗi 5 s).
+- Sau đó spike đọc 16 byte ở 0x0, reset và in trạng thái core.
+
+Rồi chạy `python 09_flash_compare.py` để so mẫu, và thử ECU có chạy không (tắt/bật nguồn nếu cần).
+
+### Gửi lại
+
+- File `results\17_umi_cache_flush_*.txt` và `results\09_flash_compare_*.txt`.
+- **Toàn bộ Output của winIDEA** từ lúc bắt đầu bước 1 (chép ra file .txt). Quan trọng nhất là số dòng `ERASING`: một dòng là đạt.
+- ECU có chạy không.
+- Nếu có: số lần bạn bấm tay Program thành công / bị `Error loading monitor` gần đây, để so với Download.
+
