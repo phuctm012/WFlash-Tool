@@ -1,4 +1,6 @@
-"""Spike 17: program Winbond bằng cache rồi flush một lần (thử làm giống Hardware → Winbond → Program).
+"""ĐÃ BỎ (Round 15, 2026-11-11): flush hay lỗi SAU khi đã ERASING (watchdog reset, Monitor did not start), để lại flash trống. Không dùng cách này; WFlash giữ begin_program().
+
+Spike 17: program Winbond bằng cache rồi flush một lần (thử làm giống Hardware → Winbond → Program).
 GHI VÀO FLASH ở bước 2. Script hỏi xác nhận trước mỗi bước.
 
 Vì sao: user thấy bấm tay Hardware → Winbond W25Q64JW SPI → Program ít gặp "Error loading monitor"

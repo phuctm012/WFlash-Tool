@@ -727,6 +727,8 @@ Flash với Application From commit, Advanced Debug tắt. Mong đợi: Done, d�
 
 ## Vòng 15: thử ghi flash giống menu Program (spike 17)
 
+> **Kết quả: đã bỏ.** Cách cache + flush chỉ xoá một lần, nhưng `flush` hay lỗi sau khi đã xoá (watchdog reset, `Monitor did not start`), để lại flash trống. Không chạy lại spike này. WFlash tiếp tục dùng `begin_program()`.
+
 Mục đích: tìm một lệnh API ghi Winbond giống bấm tay *Hardware → Winbond W25Q64JW SPI → Program* (bạn thấy cách này ít gặp `Error loading monitor` hơn Download). Lệnh `umi.write(0, wProgDevice)` từng xoá chip trước mỗi dòng tick, nên không dùng. Tài liệu SDK của TASKING có cách khác: ghi vào **cache** (`wProgCache`) rồi **flush** một lần. Cách này chưa ai chạy.
 
 > ⚠️ **Bước 2 của spike GHI VÀO FLASH.** Bằng chứng: tài liệu SDK chính thức (ví dụ `test_storage_flush.py`) nói `wProgCache` chỉ ghi vào cache và `flush` mới ghi thiết bị. Chưa chạy trên phần cứng. Rủi ro: flush xoá rồi lỗi giữa chừng, ECU không chạy. Khôi phục: bấm tay *Hardware → Winbond W25Q64JW SPI → Program* (hoặc Debug → Download) với các file đang tick, rồi tắt/bật nguồn ECU.

@@ -1926,3 +1926,17 @@ Lần chạy 15:25: bước cache mất 0.0 s, Output chỉ có LOADING/LOADED, 
 
 - Kết quả do người dùng chạy trên Windows (file 17, 09, Output). Trên macOS: `py_compile`, bộ test, test threading và stress test trước khi push.
 
+## Phase 4.1.3: Bỏ hướng cache + flush
+
+Người dùng chạy spike 17 thêm và thấy `flush` hay lỗi. Output của một lần lỗi: `ERASING`, `PROGRAMMING (79 sectors)`, rồi `Write error`, `External reset detected - possible watchdog activity`, `Monitor execution error`, `Monitor did not start`. Lỗi đến **sau** khi đã xoá, nên flash bị bỏ trống. Lỗi này tệ hơn lỗi `Error loading monitor` của `begin_program`, vì lỗi đó xảy ra trước khi xoá. Lần này không có `Overlap detected`, tức cache đã trống. Người dùng quyết định bỏ hướng này. WFlash giữ `begin_program()`, không đổi code flash. CLAUDE.md thêm `wProgCache`/`flush` vào danh sách lệnh không được dùng, để sau này không ai thử lại mà không biết chuyện này.
+
+### Thay đổi
+
+- **`CLAUDE.md`**: một gạch đầu dòng về cache + flush trong "Calls that are known to be dangerous".
+- **`docs/winidea_api_notes.md`**: "Round 15 follow-up", Output lỗi và quyết định.
+- **`spike/17_umi_cache_flush.py`**, **`spike/README.md`**, **`docs/windows_test_guide.md`**: ghi rõ đã bỏ.
+
+### Đã kiểm tra
+
+- Ảnh Output do người dùng gửi. Chỉ sửa tài liệu và docstring của spike. Đã chạy bộ test, test threading và stress test trước khi push.
+
