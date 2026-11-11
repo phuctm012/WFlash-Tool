@@ -495,6 +495,26 @@ User report: *Hardware → Winbond W25Q64JW SPI → Program* by hand fails with 
 
 What this shows: the cache + flush path programs every enabled row with **one** erase, like the menu. What it does not show yet: (1) that new content is written: the files were the ones already in flash; (2) a lower `Error loading monitor` rate: one run, from a good core state; (3) how the stale cache behaves. Spike 17 now has `--no-reset` so that 09 can read right after the flush. WFlash still programs with `begin_program()`.
 
+## Round 15 follow-up: flush fails after the erase; path dropped (2026-11-11)
+
+Later runs of spike 17 (user report: flush fails often; how many runs is not recorded). Output of one failure, with no `Overlap detected` warnings this time (the cache was empty):
+
+```
+LOADING / LOADED      RAD_SUZ05_FFI.s3 (20 chunks), CAL Offset=0x7F'0000, Size=0x2018
+ERASING               Winbond W25Q64JW SPI
+PROGRAMMING           Winbond W25Q64JW SPI (79 sectors)
+UMI_ERROR             Code = 2 (Write error!)
+EMULATION             External reset detected - possible watchdog activity
+UMI ERROR             UMI_LLF_WaitUntilReturn  Code = 05 / 0. Monitor execution error
+                      If the error persist, try to perform CPU reset before flash operation.
+UMI ERROR             OW.Pre  Code = 49 / 0. Monitor did not start
+Running Reset ... EMULATION END - Without cleanup ... EMULATION STARTED
+```
+
+The failure comes **after** the erase, so the flash is left erased: worse than the quick `begin_program` failure (`Error loading monitor` before any erase, nothing written). A reset of the target during programming, possibly a watchdog, killed the flash monitor. Not verified: `flush` programs while other cores run (M7_RFE and BBE32EP were RUN in the first run), whereas `begin_program` re-initialises the session first, which may be why it does not see this.
+
+**Decision (user, 2026-11-11): drop the cache + flush path.** WFlash keeps `CSessionCtrl.begin_program()`. `write(..., wProgCache)` and `flush` join `write(index, wProgDevice)` and `erase` on the list of calls the adapter must not make.
+
 ## Open questions
 
 1. **Version mismatch.** `isystem.connect` 9.26.11 against winIDEA 9.21.408. Connect, read, download, reset and run all worked, but `CLAUDE.md` requires the versions to match. Is there a Python SDK package under `C:/Data/_Devtools/Winidea408/` (9.21.408)? If yes, install it and re-run 01 to confirm nothing changes.
