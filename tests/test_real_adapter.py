@@ -932,3 +932,29 @@ def test_b1_failed_power_cycle_does_not_program(connected, world):
     assert "begin_program" not in world.calls
     assert str(err.value) == "Flash not started: the ECU power cycle failed."
     assert err.value.hint == "Nothing was written to the flash. Open Switch Debugger and press Start."
+
+
+# Spike 19 (2026-11-12): workspace DD_05_02_01 on winIDEA 9.21.324 keeps the device list under /iOPEN/Data.UMI.
+def test_data_umi_workspace_reads_and_writes_under_its_own_root(connected, world, caplog):
+    from tests.fake_isystem import DATA_UMI_DEVICE, use_data_umi_root
+
+    use_data_umi_root(world)
+    with caplog.at_level(logging.INFO):
+        names = [entry.name for entry in connected.read_programs()]
+    assert "RAD_SUZ05_FFI.s3" in names and "20260623_CAL_T008.sre" in names
+    assert any("/iOPEN/Data.UMI.Devices.Devices" in r.getMessage() for r in caplog.records)
+    connected.set_program_path("RAD_SUZ05_FFI.s3", r"C:\new\RAD_SUZ05_FFI.s3")
+    assert world.options[f"{DATA_UMI_DEVICE}.DownloadFiles[1].Path"] == r"C:\new\RAD_SUZ05_FFI.s3"
+    assert not any("UMIConfig" in c for c in world.calls if c.startswith("setOption"))
+
+
+def test_umiconfig_workspace_never_tries_the_other_root(connected, world):
+    connected.read_programs()
+    assert connected._devices == "/iOPEN/UMIConfig.Devices.Devices"
+
+
+def test_no_device_root_is_a_short_winidea_error(connected, world):
+    world.options = {k: v for k, v in world.options.items() if "Devices.Devices" not in k}
+    with pytest.raises(WinIDEAError) as err:
+        connected.read_programs()
+    assert "reading the download files" in str(err.value)
