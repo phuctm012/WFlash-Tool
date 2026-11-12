@@ -82,7 +82,7 @@ def test_gui_jtag_connect_and_disconnect(env, qtbot):
     qtbot.waitUntil(lambda: not w.tools_busy(), timeout=3000)
     w.ui.action_jtagDisconnect.trigger()
     qtbot.waitUntil(lambda: not w.tools_busy(), timeout=3000)
-    assert lines(env) == ["SwitchDebugger6Sensor4Relay;On;Sensor;3\n", "SwitchDebugger6Sensor4Relay;Off;Sensor;3\n"]
+    assert lines(env) == ["SwitchDebugger6Sensor4Relay;On;Sensor;3\n", "SwitchDebugger6Sensor4Relay;Off_All;Sensor;_\n"]
 
 
 def test_gui_bench_does_nothing_while_off(env):

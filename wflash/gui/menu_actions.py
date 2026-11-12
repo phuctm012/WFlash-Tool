@@ -241,7 +241,7 @@ def _power_cycle(switch: BenchSwitch, ctx: WorkerContext) -> str:
 
 def _switch_jtag(connected: bool, switch: BenchSwitch, _ctx: WorkerContext) -> str:
     switch.jtag(connected)
-    return f"JTAG port {switch.config.jtag_port} {'connected' if connected else 'disconnected'}."
+    return f"JTAG port {switch.config.jtag_port} connected." if connected else "JTAG disconnected."
 
 
 def _check_cores(adapter, instance_id: str, _ctx: WorkerContext):

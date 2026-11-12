@@ -4,14 +4,19 @@ Protocol, from the user's `switch_debugger.py` and the Switch Debugger window:
 
     SwitchDebugger6Sensor4Relay;<On|Off>;<Sensor|Relay>;<0-based id>\\n
 
-- A "Sensor" is a JTAG port, A-F = 0-5. On connects the debugger to that port, Off disconnects it.
+- A "Sensor" is a JTAG port, A-F = 0-5. `On` connects the debugger to that port. The box connects
+  one port at a time, and it treats `Off;Sensor;<id>` like `On` (bench, 2026-11-12: C stayed green,
+  the box logged "Send Switch to Port 3" for both, the user's own script did the same, and pressing
+  C by hand does not release it). Only `Off_All;Sensor;_` disconnects, so Disconnect JTAG sends
+  that. It cannot cut another ECU's JTAG: no second port can be connected at the same time.
 - A "Relay" is numbered 1-6 on the box and 0-based in the protocol. For the ECU's power relay the
   polarity is inverted: relay **Off = power ON**, relay **On = power OFF** (user, 2026-11-11; the
   other relays stay On). The user's bench has ECU 0 on Port C + Relay 1 and ECU 1 on Port D + Relay 2.
   A power cycle keeps JTAG connected (user decision).
 
-Only the configured port and relay are ever switched. `Off_All` is never sent: "Disconnect All
-Relay" would also switch the relays of other ECUs on the same box.
+Only the configured port and relay are ever switched, apart from that `Off_All` for the ports.
+`Off_All` is never sent for the relays: "Disconnect All Relay" would also switch the relays, and so
+the power, of other ECUs on the same box.
 
 Each command opens a connection, waits, sends, waits and closes, as the user's script does (it
 mirrors the C# tool's `Execution.Wait(2000)`); no reply is read. Nothing here imports Qt.
@@ -74,6 +79,11 @@ def command(on: bool, kind: str, index: int) -> str:
     return f"{PREFIX};{'On' if on else 'Off'};{kind};{index}\n"
 
 
+def disconnect_all_ports() -> str:
+    """The only line that makes the box release a JTAG port. Ports only, never relays."""
+    return f"{PREFIX};Off_All;Sensor;_\n"
+
+
 def send_tcp(host: str, port: int, line: str) -> None:
     """Send one line the way the Switch Debugger expects it; raise BenchSwitchError on failure."""
     try:
@@ -110,8 +120,10 @@ class BenchSwitch:
 
     def jtag(self, connected: bool) -> None:
         port = self.config.jtag_port.upper()
-        self._do(command(connected, "Sensor", PORTS.index(port)),
-                 f"{'connect' if connected else 'disconnect'} JTAG port {port}")
+        if connected:
+            self._do(command(True, "Sensor", PORTS.index(port)), f"connect JTAG port {port}")
+        else:  # Off for one port does nothing on this box: see the module docstring
+            self._do(disconnect_all_ports(), "disconnect JTAG (all ports: the box connects one at a time)")
 
     def power(self, on: bool) -> None:
         relay = self.config.power_relay

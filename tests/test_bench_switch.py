@@ -31,7 +31,7 @@ def test_jtag_port_d_is_sensor_3():
     switch, sent, _ = make(jtag_port="D")
     switch.jtag(True)
     switch.jtag(False)
-    assert lines(sent) == ["SwitchDebugger6Sensor4Relay;On;Sensor;3\n", "SwitchDebugger6Sensor4Relay;Off;Sensor;3\n"]
+    assert lines(sent) == ["SwitchDebugger6Sensor4Relay;On;Sensor;3\n", "SwitchDebugger6Sensor4Relay;Off_All;Sensor;_\n"]
 
 
 def test_power_relay_is_inverted_and_zero_based():
@@ -47,12 +47,16 @@ def test_host_and_port_come_from_the_config():
     assert sent[0][:2] == ("10.0.0.5", 2000)
 
 
-def test_never_sends_off_all():
+def test_off_all_only_for_ports_never_for_relays():
+    # The box ignores Off for one port; Off_All of the ports is the only disconnect (bench, 2026-11-12).
+    # Off_All of the relays would switch the power of every ECU on the box.
     switch, sent, _ = make()
     switch.jtag(True)
     switch.jtag(False)
     switch.power_cycle()
-    assert not any("Off_All" in line for line in lines(sent))
+    off_all = [line for line in lines(sent) if "Off_All" in line]
+    assert off_all == ["SwitchDebugger6Sensor4Relay;Off_All;Sensor;_\n"]
+    assert not any("Off_All;Relay" in line for line in lines(sent))
 
 
 def test_power_cycle_off_wait_on_wait():

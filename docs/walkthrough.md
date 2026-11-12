@@ -1964,3 +1964,19 @@ Giao thức lấy từ `switch_debugger.py` của người dùng: `SwitchDebugge
 - Trên macOS: bộ test, test threading, stress test, và app mở được với fake adapter. Chưa chạy với Switch Debugger thật: đó là Vòng 16.
 - Lần đầu test GUI bị treo. Nguyên nhân thứ nhất là test thay `time.sleep` cho cả tiến trình; nguyên nhân thứ hai là test giả lập "đang flash" nên khi đóng cửa sổ, `closeEvent` mở hộp thoại hỏi rồi chờ. Cả hai đều là lỗi của test, đã sửa trong test.
 
+
+## Phase 4.2.1: Disconnect JTAG gửi `Off_All` cho các port
+
+Vòng 16 trên bàn test (2026-11-12): Connect JTAG chạy đúng. Disconnect JTAG gửi `Off;Sensor;2` cho ECU 0, nhưng nút C vẫn xanh; Switch Debugger ghi "Send Switch to Port 3" cho cả lệnh On lẫn Off. Người dùng thử thêm: script `switch_debugger.py disconnect sensor --channel C` của chính họ cũng không tắt được C; bấm tay vào nút C cũng không tắt; chỉ `disconnect sensor --all` (`Off_All;Sensor;_`) mới tắt được. Mỗi lúc hộp chỉ nối JTAG được cho một ECU, không nối được cả hai cùng lúc. Vậy `Off_All` cho các port không thể ngắt JTAG của ECU kia, và đó là cách duy nhất để ngắt. Lệnh `Off_All` cho relay vẫn bị cấm, vì nó đổi nguồn của mọi ECU trên hộp.
+
+### Thay đổi
+
+- **`wflash/core/bench_switch.py`**: `jtag(False)` gửi `disconnect_all_ports()` = `SwitchDebugger6Sensor4Relay;Off_All;Sensor;_`. Docstring ghi lại quan sát.
+- **`wflash/gui/menu_actions.py`**: log "JTAG disconnected." (không còn ghi tên port, vì lệnh ngắt mọi port).
+- **`wflash/gui/main_window.ui`**: tooltip của `action_jtagDisconnect`; `ui_main_window.py` sinh lại.
+- **`wflash/resources/help/user_guide.html`**, **`docs/windows_test_guide.md`**, **`CLAUDE.md`**: ghi rõ Disconnect JTAG ngắt port đang nối.
+- **Test**: `test_off_all_only_for_ports_never_for_relays` thay cho `test_never_sends_off_all`; hai test JTAG chờ `Off_All;Sensor;_`.
+
+### Đã kiểm tra
+
+- Trên macOS: bộ test đầy đủ, test threading, stress test, app mở được với fake adapter. Lệnh mới chưa chạy với Switch Debugger thật; dòng lệnh giống hệt `--all` mà người dùng đã thử thành công.
