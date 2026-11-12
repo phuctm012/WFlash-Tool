@@ -64,7 +64,11 @@ class WinIDEAAdapter(Protocol):
         """Replace only the symbol file path of an existing application."""
         ...
 
-    def download(self, progress: ProgressCallback, cancel: CancelToken, timeout_s: int) -> None: ...
+    def download(self, progress: ProgressCallback, cancel: CancelToken, timeout_s: int,
+                 power_cycle: Callable[[], None] | None = None) -> None:
+        """Program every enabled row. `power_cycle` (Switch Debugger on) turns the ECU off and on before
+        programming when it is not in the just-powered-on state, instead of a reset (user, 2026-11-12)."""
+        ...
 
     def verify_flash(self, progress: ProgressCallback) -> None:
         """Compare samples of the flash with the enabled files; raises FlashError on a difference."""
@@ -134,6 +138,10 @@ CORE_WAIT_S = 2.0  # not measured: a short grace after each reset before the sta
 # User decision (2026-11-09): a reset from winIDEA cleared NOT ACCESSIBLE, so reset again while a core is in
 # that state, at most this many resets in all for one press of Flash (the first reset included).
 MAX_CORE_RESETS = 10
+# User decision (2026-11-12, B1): with Switch Debugger on, a power cycle replaces the reset before programming.
+# Not measured: how long after the power cycle (which already waits its boot time) the cores may take to show
+# the just-powered-on state; round 17 read it about 9 s after power on.
+POWER_ON_WAIT_S = 15.0
 CORE_HINT = (
     "Nothing was written to the flash. Turn the ECU power off and on (Tools > Power-cycle ECU), check that "
     "winIDEA's Session Explorer shows M7_0 and M7_RFE STOP and no core RUN, then flash again."
@@ -394,7 +402,8 @@ class RealWinIDEAAdapter:
         i, j = where
         self._write_path(f"{APPLICATIONS}[{i}].SymbolFiles.File[{j}].Path", name, path)
 
-    def download(self, progress: ProgressCallback, cancel: CancelToken, timeout_s: int) -> None:
+    def download(self, progress: ProgressCallback, cancel: CancelToken, timeout_s: int,
+                 power_cycle: Callable[[], None] | None = None) -> None:
         """Program through the session, as Debug > Download does: one erase, then all enabled rows.
 
         begin_program() blocks and reports nothing, so `progress` is an estimate from elapsed time.
@@ -406,14 +415,20 @@ class RealWinIDEAAdapter:
 
         Such a quick failure is tried again, up to MAX_PROGRAM_ATTEMPTS in all: reset, core check,
         begin_program. The resets of every try share one budget of MAX_CORE_RESETS (user decision).
+
+        With `power_cycle` (Switch Debugger on), a power cycle takes the place of those resets: one before
+        a try whose cores are not in the just-powered-on state, and one before every retry (round 16-17).
         """
         ic, cmgr, _ide = self._session()
-        self.program_stats = {"resets": 0, "tries": 0, "program_s": 0.0}
+        self.program_stats = {"resets": 0, "tries": 0, "program_s": 0.0, "power_cycles": 0}
         resets_left = MAX_CORE_RESETS
         for attempt in range(1, MAX_PROGRAM_ATTEMPTS + 1):
             # The first try checks the cores before any reset; a retry follows a failure whose cores
             # looked fine (round 11), so it resets first.
-            resets_left = self._prepare_cores(ic, cmgr, resets_left, reset_first=attempt > 1)
+            if power_cycle is not None:
+                resets_left = self._prepare_by_power(ic, cmgr, resets_left, attempt > 1, power_cycle, progress)
+            else:
+                resets_left = self._prepare_cores(ic, cmgr, resets_left, reset_first=attempt > 1)
             label = "Programming external flash (estimated)"
             if attempt > 1:
                 label = f"Programming external flash, try {attempt} of {MAX_PROGRAM_ATTEMPTS} (estimated)"
@@ -569,18 +584,67 @@ class RealWinIDEAAdapter:
         log.error("Not programming, cores not accessible after %d resets: %s", MAX_CORE_RESETS, summary)
         raise inaccessible_cores_error(bad)
 
-    def _just_powered_on(self, ic, cmgr) -> bool:
+    def _power_on_state(self, ic, cmgr) -> tuple[bool, str]:
+        """(just powered on, summary of the core states); ("", False) when they cannot be read."""
         try:
             states = self._core_states(ic, cmgr)
         except Exception:
-            return False  # _inaccessible_cores reads again and reports it
+            return False, ""  # _inaccessible_cores reads again and reports it
         stopped = getattr(ic, "EStatus_Core_stStopped", CORE_STOPPED)
         inaccessible = getattr(ic, "EStatus_Core_stInaccessible", CORE_INACCESSIBLE)
-        if not just_powered_on([status for _name, status, _text in states], stopped, inaccessible):
-            return False
         summary = ", ".join(f"{name} {text}" for name, _status, text in states)
-        log.info("Cores before programming: %s. ECU just powered on: programming without a reset", summary)
-        return True
+        return just_powered_on([status for _name, status, _text in states], stopped, inaccessible), summary
+
+    def _just_powered_on(self, ic, cmgr) -> bool:
+        fresh, summary = self._power_on_state(ic, cmgr)
+        if fresh:
+            log.info("Cores before programming: %s. ECU just powered on: programming without a reset", summary)
+        return fresh
+
+    def _prepare_by_power(self, ic, cmgr, resets_left: int, retry: bool, power_cycle: Callable[[], None],
+                          progress: ProgressCallback) -> int:
+        """Switch Debugger on (B1, user 2026-11-12): program at once right after power on, else power-cycle
+        the ECU first. A retry always power-cycles: a reset there starts the firmware (round 16).
+
+        When the cores still do not show the just-powered-on state after the power cycle, the check of
+        `_prepare_cores` applies as before. Returns what is left of the resets.
+        """
+        if not retry:
+            fresh, summary = self._power_on_state(ic, cmgr)
+            if fresh:
+                log.info("Cores before programming: %s. ECU just powered on: programming without a reset", summary)
+                return resets_left
+            log.info("Cores before programming: %s. Power-cycling the ECU first", summary or "unreadable")
+        else:
+            log.info("Power-cycling the ECU before trying again")
+        self._power_cycle_ecu(power_cycle, progress)
+        deadline = time.monotonic() + POWER_ON_WAIT_S
+        while True:
+            fresh, summary = self._power_on_state(ic, cmgr)
+            if fresh:
+                log.info("Cores after the power cycle: %s. Programming without a reset", summary)
+                return resets_left
+            if time.monotonic() >= deadline:
+                break
+            time.sleep(HALT_POLL_S)
+        log.warning("Cores after the power cycle: %s, not the just-powered-on state; checking them as before",
+                    summary or "unreadable")
+        return self._prepare_cores(ic, cmgr, resets_left, reset_first=False)
+
+    def _power_cycle_ecu(self, power_cycle: Callable[[], None], progress: ProgressCallback) -> None:
+        try:
+            progress(0, "Power-cycling the ECU (Switch Debugger)")
+        except Exception:
+            pass  # cancel is locked from this step on; a failing progress callback must not stop the flash
+        calls_log.debug("Switch Debugger power cycle (before programming)")
+        try:
+            power_cycle()  # always turns the power back on, even when it fails half way
+        except Exception as exc:
+            log.error("The power cycle before programming failed: %s", exc)
+            hint = getattr(exc, "hint", "") or "Check Switch Debugger, or turn it off in the Setting tab."
+            raise FlashError("Flash not started: the ECU power cycle failed.",
+                             hint=f"Nothing was written to the flash. {hint}") from exc
+        self.program_stats["power_cycles"] = self.program_stats.get("power_cycles", 0) + 1
 
     def _inaccessible_cores(self, ic, cmgr, grace: bool = True) -> tuple[list[str], str, bool]:
         """(NOT ACCESSIBLE core names, summary, readable). After a reset (`grace`) it re-reads for up

@@ -1996,3 +1996,21 @@ Debug bundle 2026-11-12 09:07: người dùng tắt/bật nguồn bằng Switch 
 
 - Trên macOS với `tests/fake_isystem.py`: bộ test đầy đủ, test threading, stress test, app mở được.
 - Vòng 17 trên ECU (debug bundle 2026-11-12 10:06): ba lần Power-cycle ECU → Flash, cả ba lần nạp không reset, `begin_program` khoảng 100.5 s, đạt ngay lần đầu, Done.
+
+## Phase 4.4: Flash tự tắt/bật nguồn thay cho reset (B1)
+
+Vòng 17 cho thấy trình tự "tắt/bật nguồn → nạp không reset" đạt cả 3 lần, còn reset trước khi nạp thì làm firmware chạy và làm hỏng lần nạp (Vòng 16). Người dùng chọn B1: khi Switch Debugger đang bật trong Setting, bấm Flash là WFlash tự tắt/bật nguồn nếu ECU không ở trạng thái vừa bật nguồn, thay vì reset. B2 (chỉ tắt/bật nguồn khi lỗi) không được chọn vì lần đầu vẫn có thể reset và hỏng như sáng 2026-11-12.
+
+### Thay đổi
+
+- **`wflash/core/winidea_adapter.py`**: `download(..., power_cycle=None)` trong Protocol và adapter thật. `_prepare_by_power`: vừa bật nguồn thì nạp luôn; không thì `_power_cycle_ecu` rồi đọc core mỗi `HALT_POLL_S`, tối đa `POWER_ON_WAIT_S` (15 s, chưa đo), đến khi về trạng thái vừa bật nguồn; nếu không về thì dùng `_prepare_cores` như cũ. Lần thử lại sau lỗi nhanh cũng tắt/bật nguồn thay cho reset. Tắt/bật nguồn lỗi thì `FlashError` "Flash not started: the ECU power cycle failed.", không ghi gì. `program_stats` có thêm `power_cycles`.
+- **`wflash/core/flash_workflow.py`**: `FlashRequest.power_cycle`; `_download` chỉ truyền `power_cycle` khi có, nên khi Switch Debugger tắt lời gọi giống hệt trước.
+- **`wflash/core/fake_adapter.py`**: nhận `power_cycle`; `WFLASH_FAKE_FAIL=cores_running` giả lập firmware đang chạy, để fake gọi tắt/bật nguồn.
+- **`wflash/gui/flash_mixin.py`**: `_flash_power_cycle()` tạo `BenchSwitch` của ECU đã chọn khi bấm Flash, chỉ khi Switch Debugger bật.
+- **`wflash/gui/main_window.ui`**: chữ gợi ý của nhóm Switch Debugger nói thêm về Flash; `ui_main_window.py` sinh lại.
+- **Tài liệu**: `CLAUDE.md`, `docs/winidea_api_notes.md`, `user_guide.html`, `docs/windows_test_guide.md` (Vòng 18).
+- **Test**: adapter thật (nạp luôn khi vừa bật nguồn; tắt/bật nguồn thay reset; thử lại cũng tắt/bật nguồn; tối đa một lần mỗi lần thử; không về trạng thái vừa bật nguồn thì dùng cách cũ; tắt/bật nguồn lỗi thì không nạp), workflow với fake (truyền tới adapter, lỗi thì trả đường dẫn), GUI (chỉ có khi Switch Debugger bật).
+
+### Đã kiểm tra
+
+- Trên macOS: bộ test đầy đủ, test threading, stress test, app mở được. Chưa chạy trên ECU: đó là Vòng 18.

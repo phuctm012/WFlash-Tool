@@ -1258,7 +1258,7 @@ class Ui_MainWindow(object):
         self.spinBox_benchOff.setSuffix(QCoreApplication.translate("MainWindow", u" s", None))
         self.label_benchBoot.setText(QCoreApplication.translate("MainWindow", u"Boot wait", None))
         self.spinBox_benchBoot.setSuffix(QCoreApplication.translate("MainWindow", u" s", None))
-        self.label_benchHint.setText(QCoreApplication.translate("MainWindow", u"Used by Tools \u203a Power-cycle ECU, Connect JTAG and Disconnect JTAG. Locked while a flash runs: cutting the power during programming leaves the flash empty. Only the port and the relay of this ECU are switched.", None))
+        self.label_benchHint.setText(QCoreApplication.translate("MainWindow", u"Used by Tools \u203a Power-cycle ECU, Connect JTAG and Disconnect JTAG, and by Flash: before programming, WFlash power-cycles this ECU unless it was just powered on (instead of a reset). Never during programming: cutting the power then leaves the flash empty. Only the port and the relay of this ECU are switched.", None))
         self.tabWidget_main.setTabText(self.tabWidget_main.indexOf(self.tab_setting), QCoreApplication.translate("MainWindow", u"Setting", None))
         self.pushButton_copyLog.setText(QCoreApplication.translate("MainWindow", u"Copy", None))
         self.pushButton_clearLog.setText(QCoreApplication.translate("MainWindow", u"Clear", None))

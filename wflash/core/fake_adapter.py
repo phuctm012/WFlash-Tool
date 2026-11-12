@@ -22,7 +22,7 @@ import os
 import time
 from dataclasses import replace
 from pathlib import Path
-from typing import Iterable
+from typing import Callable, Iterable
 
 from wflash.core.cancel import CancelToken
 from wflash.core.errors import FlashError, WinIDEAError
@@ -134,10 +134,20 @@ class FakeWinIDEAAdapter:
             raise WinIDEAError(f"Unknown application {name!r}")
         self.applications[name] = path
 
-    def download(self, progress: ProgressCallback, cancel: CancelToken, timeout_s: int) -> None:
+    def download(self, progress: ProgressCallback, cancel: CancelToken, timeout_s: int,
+                 power_cycle: Callable[[], None] | None = None) -> None:
         self._require_connected()
         self._call("download")
-        self.program_stats = {"resets": 0, "tries": 1, "program_s": round(self.download_seconds, 1)}
+        self.program_stats = {"resets": 0, "tries": 1, "program_s": round(self.download_seconds, 1), "power_cycles": 0}
+        if "cores_running" in self.fail_on and power_cycle is not None:
+            # The firmware runs (not the just-powered-on state): the real adapter power-cycles first.
+            progress(0, "Power-cycling the ECU (fake)")
+            try:
+                power_cycle()
+            except Exception as exc:
+                raise FlashError("Flash not started: the ECU power cycle failed.",
+                                 hint=f"Nothing was written to the flash. {getattr(exc, 'hint', '')}".strip()) from exc
+            self.program_stats["power_cycles"] = 1
         if "core_inaccessible" in self.fail_on:
             raise inaccessible_cores_error(["A53", "BBE32EP"])
         steps = 20

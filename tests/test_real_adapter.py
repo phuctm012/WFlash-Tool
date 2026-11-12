@@ -758,3 +758,88 @@ def test_program_stats_count_resets_tries_and_seconds(connected, world, monkeypa
     connected.download(lambda p, m: None, CancelToken(), 600)
     stats = connected.program_stats
     assert stats["resets"] == 3 and stats["tries"] == 2 and stats["program_s"] >= 0
+
+
+# B1 (user, 2026-11-12): Switch Debugger on, a power cycle takes the place of the reset before programming.
+class PowerSwitch:
+    """Stands in for BenchSwitch.power_cycle: after it, the cores show `after` (default: just powered on)."""
+
+    def __init__(self, world, after=None, error=None):
+        self.world, self.after, self.error, self.count = world, after, error, 0
+
+    def __call__(self):
+        self.count += 1
+        self.world.calls.append("power_cycle")
+        if self.error:
+            raise self.error
+        self.world.cores = list(self.after or FRESH)
+
+
+def test_b1_programs_at_once_right_after_power_on(connected, world):
+    world.cores = FRESH
+    switch = PowerSwitch(world)
+    connected.download(lambda p, m: None, CancelToken(), 600, power_cycle=switch)
+    assert switch.count == 0 and "reset" not in world.calls
+    assert world.calls.count("begin_program") == 1
+
+
+def test_b1_power_cycles_instead_of_resetting_when_a_core_runs(connected, world, caplog):
+    world.cores = AFTER_RESET
+    world.cores_after_reset = [AFTER_RESET]
+    switch = PowerSwitch(world)
+    with caplog.at_level(logging.INFO):
+        connected.download(lambda p, m: None, CancelToken(), 600, power_cycle=switch)
+    order = [c for c in world.calls if c in ("power_cycle", "reset", "begin_program")]
+    assert order == ["power_cycle", "begin_program"]
+    assert connected.program_stats["power_cycles"] == 1 and connected.program_stats["resets"] == 0
+    assert any("Cores after the power cycle" in r.getMessage() for r in caplog.records)
+
+
+def test_b1_retry_power_cycles_instead_of_resetting(connected, world, monkeypatch):
+    world.cores = FRESH
+    world.cores_after_reset = [AFTER_RESET]
+    real_read_back = winidea_adapter.RealWinIDEAAdapter._read_back
+    failures = iter([("error loading monitor", OSError("Error loading monitor"))])
+    monkeypatch.setattr(winidea_adapter.RealWinIDEAAdapter, "_read_back",
+                        lambda self, ic, cmgr: next(failures, None) or real_read_back(self, ic, cmgr))
+    switch = PowerSwitch(world)
+    connected.download(lambda p, m: None, CancelToken(), 600, power_cycle=switch)
+    order = [c for c in world.calls if c in ("power_cycle", "reset", "begin_program")]
+    assert order == ["begin_program", "power_cycle", "begin_program"]
+
+
+def test_b1_at_most_one_power_cycle_per_try(connected, world, monkeypatch):
+    world.cores = FRESH
+    monkeypatch.setattr(winidea_adapter.RealWinIDEAAdapter, "_read_back",
+                        lambda self, ic, cmgr: ("error loading monitor", OSError("Error loading monitor")))
+    switch = PowerSwitch(world)
+    with pytest.raises(FlashError):
+        connected.download(lambda p, m: None, CancelToken(), 600, power_cycle=switch)
+    assert world.calls.count("begin_program") == winidea_adapter.MAX_PROGRAM_ATTEMPTS == 3
+    assert switch.count == 2  # before tries 2 and 3; try 1 started just powered on
+    assert "reset" not in world.calls
+
+
+def test_b1_falls_back_to_the_old_check_when_not_fresh_after_the_power_cycle(connected, world, monkeypatch, caplog):
+    monkeypatch.setattr(winidea_adapter, "POWER_ON_WAIT_S", 0.05)
+    monkeypatch.setattr(winidea_adapter, "HALT_POLL_S", 0.01)
+    still = [("M7_0", 2, "STOP"), ("M7_RFE", 3, "RUN"), ("A53", 2, "STOP"), ("SPT", 5, "IDLE"), ("BBE32EP", 3, "RUN")]
+    world.cores = AFTER_RESET
+    switch = PowerSwitch(world, after=still)  # no core NOT ACCESSIBLE: the old check programs at once
+    with caplog.at_level(logging.WARNING):
+        connected.download(lambda p, m: None, CancelToken(), 600, power_cycle=switch)
+    assert switch.count == 1 and "reset" not in world.calls
+    assert world.calls.count("begin_program") == 1
+    assert any("checking them as before" in r.getMessage() for r in caplog.records)
+
+
+def test_b1_failed_power_cycle_does_not_program(connected, world):
+    from wflash.core.errors import BenchSwitchError
+
+    world.cores = AFTER_RESET
+    switch = PowerSwitch(world, error=BenchSwitchError("refused", hint="Open Switch Debugger and press Start."))
+    with pytest.raises(FlashError) as err:
+        connected.download(lambda p, m: None, CancelToken(), 600, power_cycle=switch)
+    assert "begin_program" not in world.calls
+    assert str(err.value) == "Flash not started: the ECU power cycle failed."
+    assert err.value.hint == "Nothing was written to the flash. Open Switch Debugger and press Start."

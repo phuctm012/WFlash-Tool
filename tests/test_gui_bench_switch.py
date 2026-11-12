@@ -111,3 +111,15 @@ def test_gui_bench_failure_is_logged_with_its_hint(env, qtbot, monkeypatch, capl
     w.ui.action_jtagConnect.trigger()
     qtbot.waitUntil(lambda: not w.tools_busy(), timeout=3000)
     assert "press Start" in caplog.text
+
+
+def test_gui_flash_power_cycle_only_when_switch_debugger_is_on(env, qtbot):
+    # B1 (2026-11-12): the flash request carries the power cycle of the chosen ECU only when it is on.
+    w = env.window
+    assert w._flash_power_cycle() is None
+    w.ui.checkBox_benchEnabled.setChecked(True)
+    w.ui.comboBox_benchEcu.setCurrentIndex(0)
+    power_cycle = w._flash_power_cycle()
+    assert power_cycle is not None
+    power_cycle()
+    assert lines(env) == ["SwitchDebugger6Sensor4Relay;On;Relay;0\n", "SwitchDebugger6Sensor4Relay;Off;Relay;0\n"]

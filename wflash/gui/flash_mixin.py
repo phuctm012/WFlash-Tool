@@ -16,7 +16,8 @@ from __future__ import annotations
 import dataclasses
 import time
 
-from wflash.core.errors import CancelledError, WinIDEAError
+from wflash.core.bench_switch import BenchSwitch, ecu_label
+from wflash.core.errors import BenchSwitchError, CancelledError, WinIDEAError
 from wflash.core.flash_history import append_flash
 from wflash.core.flash_workflow import FlashRequest, FlashWorkflow, Step
 from wflash.core.logging_setup import get_logger
@@ -90,6 +91,19 @@ class FlashMixin:
 
     def flash_request_extras(self) -> dict:
         return {}
+
+    def _flash_power_cycle(self):
+        """Switch Debugger on: the power cycle the adapter uses instead of a reset (B1, 2026-11-12)."""
+        if not self.settings.bench_enabled:
+            return None
+        try:
+            switch = BenchSwitch(self.settings.bench_config())
+        except BenchSwitchError as exc:
+            log.warning("Switch Debugger settings are not valid, flashing without it: %s", exc)
+            return None
+        log.info("Switch Debugger on: WFlash power-cycles %s before programming unless it was just powered on",
+                 ecu_label(self.settings.bench_ecu))
+        return switch.power_cycle
 
     def flash_locked(self) -> bool:
         """Programming has started and cannot be stopped safely; Cancel stays disabled."""
@@ -280,6 +294,7 @@ class FlashMixin:
             run=self.ui.checkBox_reset.isChecked() and self.ui.checkBox_run.isChecked(),
             timeout_s=self.profile.timeouts.download_s,
             verify=self.ui.checkBox_verifyFlash.isChecked(),
+            power_cycle=self._flash_power_cycle(),
             **self.flash_request_extras(),
         )
         adapter, debug_ctx = self.adapter, self.ctx
