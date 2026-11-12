@@ -11,8 +11,9 @@ Protocol, from the user's `switch_debugger.py` and the Switch Debugger window:
   that. It cannot cut another ECU's JTAG: no second port can be connected at the same time.
 - A "Relay" is numbered 1-6 on the box and 0-based in the protocol. For the ECU's power relay the
   polarity is inverted: relay **Off = power ON**, relay **On = power OFF** (user, 2026-11-11; the
-  other relays stay On). The user's bench has ECU 0 on Port C + Relay 1 and ECU 1 on Port D + Relay 2.
-  A power cycle keeps JTAG connected (user decision).
+  other relays stay On). Each bench wires its two ECUs to its own ports and relays (`BENCHES`, user,
+  2026-11-12). A power cycle keeps JTAG connected (user decision). Benches 1 and 4 switch the power
+  through another tool and are not supported yet.
 
 Only the configured port and relay are ever switched, apart from that `Off_All` for the ports.
 `Off_All` is never sent for the relays: "Disconnect All Relay" would also switch the relays, and so
@@ -38,16 +39,35 @@ PORTS = "ABCDEF"
 RELAYS = range(1, 7)
 SEND_DELAY_S = 2.0
 CONNECT_TIMEOUT_S = 5.0
-DEFAULT_HOST = "127.11.0.1"
+DEFAULT_HOST = "127.11.0.1"  # the same on every bench (user, 2026-11-12): not in the GUI
 DEFAULT_PORT = 1101
-# The user's bench (2026-11-11): two ECUs, each with its JTAG port and its power relay.
-ECUS = {0: ("C", 1), 1: ("D", 2)}
+# User, 2026-11-12: 1 s each works on the bench, so they are fixed and not in the GUI.
+OFF_S = 1
+BOOT_S = 1
+# The benches (user, 2026-11-12): ECU -> (JTAG channel of Switch Debugger, power relay of Switch Debugger).
+# Bench 3 and Bench 5 are wired alike; both are listed so the user picks the bench by its name.
+BENCHES: dict[str, dict[int, tuple[str, int]]] = {
+    "Bench 2": {0: ("C", 1), 1: ("D", 2)},  # the bench WFlash was tested on (rounds 16-19)
+    "Bench 3": {0: ("A", 1), 1: ("B", 2)},
+    "Bench 5": {0: ("A", 1), 1: ("B", 2)},
+}
+DEFAULT_BENCH = "Bench 2"
 DEFAULT_ECU = 1
 
 
-def ecu_label(ecu: int) -> str:
-    port, relay = ECUS[ecu]
-    return f"ECU {ecu} (port {port}, relay {relay})"
+def ecus_of(bench: str) -> dict[int, tuple[str, int]]:
+    return BENCHES.get(bench, BENCHES[DEFAULT_BENCH])
+
+
+def ecu_label(ecu: int, bench: str = DEFAULT_BENCH) -> str:
+    port, relay = ecus_of(bench)[ecu]
+    return f"ECU {ecu} (CH-{port}, relay {relay})"
+
+
+def bench_label(bench: str) -> str:
+    """The Bench combo's item text: the bench and how its ECUs are wired."""
+    wiring = ", ".join(f"ECU {ecu}: CH-{port} + relay {relay}" for ecu, (port, relay) in sorted(BENCHES[bench].items()))
+    return f"{bench} ({wiring})"
 
 
 @dataclass(frozen=True)
@@ -56,16 +76,17 @@ class BenchConfig:
     port: int = DEFAULT_PORT
     jtag_port: str = "D"  # A-F
     power_relay: int = 2  # 1-6, as labelled on the box
-    off_s: int = 3  # power off this long during a power cycle
-    boot_s: int = 4  # wait this long after power on (user, 2026-11-11)
+    off_s: int = OFF_S  # power off this long during a power cycle
+    boot_s: int = BOOT_S  # wait this long after power on
 
     @classmethod
-    def for_ecu(cls, ecu: int, host: str = DEFAULT_HOST, port: int = DEFAULT_PORT, off_s: int = 3,
-                boot_s: int = 4) -> "BenchConfig":
-        if ecu not in ECUS:
+    def for_ecu(cls, ecu: int, bench: str = DEFAULT_BENCH) -> "BenchConfig":
+        if bench not in BENCHES:
+            raise BenchSwitchError(f"Unknown bench {bench!r}.", hint="Choose the bench in the Setting tab.")
+        if ecu not in BENCHES[bench]:
             raise BenchSwitchError(f"Unknown ECU {ecu}.", hint="Choose the ECU in the Setting tab.")
-        jtag_port, relay = ECUS[ecu]
-        return cls(host, port, jtag_port, relay, off_s, boot_s)
+        jtag_port, relay = BENCHES[bench][ecu]
+        return cls(DEFAULT_HOST, DEFAULT_PORT, jtag_port, relay)
 
     def check(self) -> None:
         if self.jtag_port.upper() not in PORTS or len(self.jtag_port) != 1:
@@ -99,7 +120,7 @@ def send_tcp(host: str, port: int, line: str) -> None:
     except OSError as exc:
         raise BenchSwitchError(
             f"Could not reach Switch Debugger at {host}:{port}.",
-            hint="Check the Switch Debugger IP and port in the Setting tab.",
+            hint="Check that Switch Debugger's TCP/IP box shows 127.11.0.1, port 1101, and that it is started.",
         ) from exc
 
 

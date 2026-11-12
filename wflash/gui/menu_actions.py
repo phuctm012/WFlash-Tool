@@ -172,7 +172,8 @@ class MenuActionsMixin:
         except BenchSwitchError as exc:
             self._on_tool_failed("", exc)
             return
-        log.info("Switch Debugger: %s, %s…", what, ecu_label(self.settings.bench_ecu))
+        log.info("Switch Debugger: %s, %s, %s…", what, self.settings.bench_name,
+                 ecu_label(self.settings.bench_ecu, self.settings.bench_name))
         self._workers.start(
             f"{TOOLS_PREFIX}bench", partial(job, switch),
             on_succeeded=self._on_bench_done, on_failed=self._on_tool_failed, on_finished=self._on_tool_finished,
