@@ -125,14 +125,33 @@ QUICK_FAIL_S = 30.0
 # Spike 16 (2026-11-09): EStatus_Core_stInaccessible. Flashing failed with "Error loading monitor" whenever
 # a core showed NOT ACCESSIBLE in the Session Explorer, and worked when none did (a core in RUN was fine).
 CORE_INACCESSIBLE = 1
+CORE_STOPPED = 2  # EStatus_Core_stStopped
+# Round 16 (2026-11-12): right after a power cycle the cores are always M7_0 STOP, M7_RFE STOP, A53, SPT and
+# BBE32EP NOT ACCESSIBLE (not started yet), and Debug > Download by hand always works. WFlash's reset in that
+# state started the firmware (M7_RFE, A53, BBE32EP RUN), begin_program failed with "Error loading monitor",
+# and further resets never cleared it. So that state is programmed at once, without a reset (user, 2026-11-12).
 CORE_WAIT_S = 2.0  # not measured: a short grace after each reset before the states count
 # User decision (2026-11-09): a reset from winIDEA cleared NOT ACCESSIBLE, so reset again while a core is in
 # that state, at most this many resets in all for one press of Flash (the first reset included).
 MAX_CORE_RESETS = 10
 CORE_HINT = (
-    "Nothing was written to the flash. Turn the ECU power off and on until no core in winIDEA's "
-    "Session Explorer shows NOT ACCESSIBLE, then flash again."
+    "Nothing was written to the flash. Turn the ECU power off and on (Tools > Power-cycle ECU), check that "
+    "winIDEA's Session Explorer shows M7_0 and M7_RFE STOP and no core RUN, then flash again."
 )
+
+
+def just_powered_on(statuses: list[int], stopped: int = CORE_STOPPED, inaccessible: int = CORE_INACCESSIBLE) -> bool:
+    """Every core STOP or NOT ACCESSIBLE, at least one STOP: the state right after power on (round 16).
+
+    Any core in RUN, IDLE or another state means the firmware has started, and the old check applies.
+    """
+    return bool(statuses) and stopped in statuses and all(s in (stopped, inaccessible) for s in statuses)
+
+
+def just_powered_on_text(texts: list[str]) -> bool:
+    """The same test on status_string() values (Tools > Check winIDEA cores)."""
+    upper = [t.strip().upper() for t in texts]
+    return bool(upper) and "STOP" in upper and all(t in ("STOP", "NOT ACCESSIBLE") for t in upper)
 
 
 def inaccessible_cores_error(names: list[str]) -> FlashError:
@@ -518,8 +537,9 @@ class RealWinIDEAAdapter:
         return states
 
     def _prepare_cores(self, ic, cmgr, resets_left: int, reset_first: bool) -> int:
-        """Read every core first; program at once when none is NOT ACCESSIBLE, else reset and read
-        again while one is (user decision, 2026-11-09: check first, reset only when needed).
+        """Read every core first; program at once when none is NOT ACCESSIBLE, or when the ECU has just
+        been powered on (only STOP and NOT ACCESSIBLE, round 16); else reset and read again while one
+        is NOT ACCESSIBLE (user decision, 2026-11-09: check first, reset only when needed).
 
         begin_program fails silently in that state. `reset_first` (a try after a quick failure, whose
         cores looked fine) and unreadable states start with a reset, as before. `resets_left` is
@@ -528,6 +548,8 @@ class RealWinIDEAAdapter:
         paths. The caller never passes 0.
         """
         if not reset_first:
+            if self._just_powered_on(ic, cmgr):
+                return resets_left  # a reset here starts the firmware and breaks programming (round 16)
             bad, summary, readable = self._inaccessible_cores(ic, cmgr, grace=False)
             if readable and not bad:
                 return resets_left  # no reset needed
@@ -546,6 +568,19 @@ class RealWinIDEAAdapter:
                 log.warning("Cores not accessible (%s) after reset %d of %d; resetting again", summary, used, MAX_CORE_RESETS)
         log.error("Not programming, cores not accessible after %d resets: %s", MAX_CORE_RESETS, summary)
         raise inaccessible_cores_error(bad)
+
+    def _just_powered_on(self, ic, cmgr) -> bool:
+        try:
+            states = self._core_states(ic, cmgr)
+        except Exception:
+            return False  # _inaccessible_cores reads again and reports it
+        stopped = getattr(ic, "EStatus_Core_stStopped", CORE_STOPPED)
+        inaccessible = getattr(ic, "EStatus_Core_stInaccessible", CORE_INACCESSIBLE)
+        if not just_powered_on([status for _name, status, _text in states], stopped, inaccessible):
+            return False
+        summary = ", ".join(f"{name} {text}" for name, _status, text in states)
+        log.info("Cores before programming: %s. ECU just powered on: programming without a reset", summary)
+        return True
 
     def _inaccessible_cores(self, ic, cmgr, grace: bool = True) -> tuple[list[str], str, bool]:
         """(NOT ACCESSIBLE core names, summary, readable). After a reset (`grace`) it re-reads for up

@@ -651,7 +651,57 @@ def test_download_gives_up_after_the_maximum_resets(connected, world, monkeypatc
     assert "begin_program" not in world.calls
     assert str(err.value) == "Flash not started: A53, BBE32EP still not accessible after 10 resets."
     assert "Session Explorer" in err.value.hint and "Nothing was written" in err.value.hint
+    assert "Power-cycle ECU" in err.value.hint
     assert any("NOT ACCESSIBLE" in r.getMessage() for r in caplog.records)
+
+
+FRESH = [("M7_0", 2, "STOP"), ("M7_RFE", 2, "STOP"), ("A53", 1, "NOT ACCESSIBLE"),
+         ("SPT", 1, "NOT ACCESSIBLE"), ("BBE32EP", 1, "NOT ACCESSIBLE")]  # round 16, right after power on
+AFTER_RESET = [("M7_0", 2, "STOP"), ("M7_RFE", 3, "RUN"), ("A53", 3, "RUN"),
+               ("SPT", 5, "IDLE"), ("BBE32EP", 3, "RUN")]  # round 16, WFlash's reset started the firmware
+
+
+def test_download_programs_at_once_right_after_power_on(connected, world, caplog):
+    # Round 16: a reset in this state started the firmware and programming failed; by hand it always works.
+    world.cores = FRESH
+    world.cores_after_reset = [AFTER_RESET]
+    with caplog.at_level(logging.INFO):
+        connected.download(lambda p, m: None, CancelToken(), 600)
+    assert "reset" not in world.calls
+    assert world.calls.count("begin_program") == 1
+    assert world.calls.index("get_status") < world.calls.index("begin_program")
+    assert any("just powered on" in r.getMessage() for r in caplog.records)
+
+
+def test_a_retry_after_power_on_still_resets_first(connected, world, monkeypatch):
+    # A quick failure in the fresh state keeps the old retry: reset, check, program (unchanged).
+    monkeypatch.setattr(winidea_adapter, "CORE_WAIT_S", 0.02)
+    monkeypatch.setattr(winidea_adapter, "HALT_POLL_S", 0.01)
+    world.cores = FRESH
+    world.cores_after_reset = [AFTER_RESET]
+    real_read_back = winidea_adapter.RealWinIDEAAdapter._read_back
+    failures = iter([("error loading monitor", OSError("Error loading monitor"))])
+
+    def read_back(self, ic, cmgr):
+        return next(failures, None) or real_read_back(self, ic, cmgr)
+
+    monkeypatch.setattr(winidea_adapter.RealWinIDEAAdapter, "_read_back", read_back)
+    connected.download(lambda p, m: None, CancelToken(), 600)
+    order = [c for c in world.calls if c in ("reset", "begin_program")]
+    assert order == ["begin_program", "reset", "begin_program"]
+
+
+@pytest.mark.parametrize("states, fresh", [
+    (FRESH, True),
+    (AFTER_RESET, False),
+    (INACCESSIBLE, False),  # M7_RFE RUN: the firmware runs, the old check applies
+    ([("M7_0", 2, "STOP"), ("M7_RFE", 2, "STOP"), ("A53", 2, "STOP"), ("SPT", 5, "IDLE"), ("BBE32EP", 3, "RUN")], False),
+    ([("M7_0", 1, "NOT ACCESSIBLE")], False),  # no core stopped
+    ([], False),
+])
+def test_just_powered_on(states, fresh):
+    assert winidea_adapter.just_powered_on([s for _n, s, _t in states]) is fresh
+    assert winidea_adapter.just_powered_on_text([t for _n, _s, t in states]) is fresh
 
 
 def test_download_programs_when_the_cores_become_accessible_within_the_grace(connected, world, monkeypatch):

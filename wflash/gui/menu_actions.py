@@ -30,6 +30,7 @@ from wflash.core.errors import BenchSwitchError, GitLabError
 from wflash.core.flash_history import history_path
 from wflash.core.gitlab_url import project_path, split_gitlab_url
 from wflash.core.logging_setup import default_log_dir, get_logger
+from wflash.core.winidea_adapter import just_powered_on_text
 from wflash.gui.style import RESOURCES_DIR, app_icon
 from wflash.gui.workers import WorkerContext
 
@@ -143,8 +144,10 @@ class MenuActionsMixin:
         if self._closing:
             return
         summary = ", ".join(f"{name} {text}" for name, text in states)
-        if any(text.upper() == "NOT ACCESSIBLE" for _name, text in states):
-            log.warning("winIDEA cores: %s. WFlash resets the ECU before flashing; power-cycle it if that is not enough.", summary)
+        if just_powered_on_text([text for _name, text in states]):
+            log.info("winIDEA cores: %s. ECU just powered on: ready to flash.", summary)
+        elif any(text.upper() == "NOT ACCESSIBLE" for _name, text in states):
+            log.warning("winIDEA cores: %s. Power-cycle the ECU (Tools > Power-cycle ECU) before flashing.", summary)
         else:
             log.info("winIDEA cores: %s", summary)
 
