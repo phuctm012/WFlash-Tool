@@ -102,6 +102,15 @@ def connect(report: Report, instance_id: str | None):
             cmgr.connect()
     else:
         report.line("no/many instances -> cmgr.connect() (most recent winIDEA)")
-        cmgr.connect()
+        try:
+            cmgr.connect()
+        except TypeError:
+            # isystem.connect 9.21.107 has no zero-argument connect; its prototypes are
+            # connect(host, port), connect(CConnectionConfig), connect(uint32_t) (bench 1, 2026-11-12).
+            ports = [i["port"] for i in instances if i.get("port")]
+            if len(ports) != 1:
+                raise
+            report.line(f"cmgr.connect() needs arguments here -> cmgr.connect('localhost', {ports[0]})")
+            cmgr.connect("localhost", int(ports[0]))
     report.line(f"isAttached: {try_call(report, 'cmgr.isAttached', cmgr.isAttached)}")
     return ic, cmgr
