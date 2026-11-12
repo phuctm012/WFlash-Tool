@@ -858,3 +858,12 @@ Trên bench 1 hoặc 4. WFlash cần `hidapi` trong env của nó: `python -m pi
 5. **(FLASH)** Bấm Flash khi firmware đang chạy: WFlash tự tắt/bật nguồn qua bo USB rồi nạp. ⚠️ Ghi flash. Cơ sở: Vòng 17–19 trên Bench 2 với cùng trình tự. Rủi ro: hỏng nhanh thì chưa xoá gì; hỏng sau `ERASING` thì flash có thể trống. Khôi phục: tắt/bật nguồn bằng USB Relay Control, rồi Debug → Download bấm tay.
 
 Gửi lại: debug bundle, và ảnh USB Relay Control nếu relay không như mong đợi.
+
+## Vòng 22: Bench 1, workspace `DD_05_02_01` (gốc `/iOPEN/Data.UMI`)
+
+Build lại exe (hoặc chạy bằng Python 3.12 có `isystem.connect` 9.26.11) từ `main` mới, mở winIDEA với workspace `DD_05_02_01`.
+
+1. Bấm Flash. Mong đợi trong log: `This workspace keeps its flash device under /iOPEN/Data.UMI.Devices.Devices`, rồi qua được `Checking workspace entries` và `Updating file paths`. ⚠️ Từ đây có ghi flash. Cơ sở: đọc qua gốc này đã thấy đúng 3 dòng (spike 19); trình tự nạp như Vòng 19. Rủi ro: ghi đường dẫn qua gốc này chưa được quan sát; nếu ghi lỗi, WFlash trả đường dẫn cũ và dừng trước khi nạp. Khôi phục: tắt/bật nguồn bằng USB Relay Control, rồi Debug → Download bấm tay.
+2. Sau khi Done: mở Hardware → Winbond W25Q64JW SPI trong winIDEA, xem dòng FFI có trỏ tới file trong thư mục cache của WFlash không.
+
+Gửi lại: debug bundle.

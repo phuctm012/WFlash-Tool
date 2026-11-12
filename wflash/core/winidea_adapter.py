@@ -108,9 +108,12 @@ def create_adapter(kind: str) -> WinIDEAAdapter:
     raise ValueError(f"Unknown adapter kind: {kind}")
 
 
-DEVICES = "/iOPEN/UMIConfig.Devices.Devices"
-DEVICE = f"{DEVICES}[0]"
-DOWNLOAD_FILES = f"{DEVICE}.DownloadFiles"
+# The external flash device list. Its option root depends on the workspace (spike 19, 2026-11-12):
+# - "/iOPEN/UMIConfig..." on R_04_01_01 (winIDEA 9.21.408, bench 2: rounds 3-19, read and written);
+# - "/iOPEN/Data.UMI..." on DD_05_02_01 (winIDEA 9.21.324, bench 1), where UMIConfig gives E_INVALIDARG.
+#   That root is CStorageDeviceFactory.DEVICES_OPT_URL. Read there by spike 19; writes not yet observed.
+# The first root that resolves is used for the whole session, reads and writes alike.
+DEVICE_ROOTS = ("/iOPEN/UMIConfig.Devices.Devices", "/iOPEN/Data.UMI.Devices.Devices")
 APPLICATIONS = "/IDE/System.Debug.Applications"
 # Observed with spike 14 (2026-11-08): the tick of a symbol file, "true"/"false", writable and read back.
 SYMBOL_TICK_FIELD = "Load"
@@ -216,6 +219,7 @@ class RealWinIDEAAdapter:
         self._ide = None
         self.program_stats: dict[str, float] = {"resets": 0, "tries": 0, "program_s": 0.0}
         self._workspaces: dict[str, str] = {}
+        self._devices: str | None = None  # the DEVICE_ROOTS entry this workspace resolves
         self._program_rows: dict[str, int] = {}
         self._symbol_files: dict[str, tuple[int, int]] = {}
 
@@ -268,6 +272,7 @@ class RealWinIDEAAdapter:
                 hint="Close the other winIDEA windows so that only the selected workspace is open.",
             )
         self._ic, self._cmgr, self._ide = ic, cmgr, ide
+        self._devices = None
         self._program_rows, self._symbol_files = {}, {}
 
     def disconnect(self) -> None:
@@ -304,16 +309,42 @@ class RealWinIDEAAdapter:
         calls_log.debug("getOptionStr %s", url)
         return self._session()[2].getOptionStr(url)
 
-    def _check_device(self) -> None:
+    def _device_count(self) -> int:
+        """Find the option root of the device list (DEVICE_ROOTS) and return how many devices it has."""
         ide = self._session()[2]
-        calls_log.debug("getDynamicOptionSize %s", DEVICES)
-        if ide.getDynamicOptionSize(DEVICES) != 1:
+        roots = (self._devices,) if self._devices else DEVICE_ROOTS
+        last: Exception | None = None
+        for root in roots:
+            calls_log.debug("getDynamicOptionSize %s", root)
+            try:
+                count = ide.getDynamicOptionSize(root)
+            except Exception as exc:  # E_INVALIDARG "Cannot resolve path" on a workspace laid out otherwise
+                last = exc
+                continue
+            if root != self._devices:
+                self._devices = root
+                if root != DEVICE_ROOTS[0]:
+                    # UNVERIFIED for writes: spike 19 read this root on bench 1; setOption there not yet observed.
+                    log.info("This workspace keeps its flash device under %s", root)
+            return count
+        raise last if last is not None else WinIDEAError("No external flash device list found")
+
+    def _device(self) -> str:
+        if self._devices is None:
+            self._device_count()
+        return f"{self._devices}[0]"
+
+    def _download_files(self) -> str:
+        return f"{self._device()}.DownloadFiles"
+
+    def _check_device(self) -> None:
+        if self._device_count() != 1:
             raise WinIDEAError(
                 "Expected exactly one external flash device in the workspace",
                 hint="Check Hardware > Options in winIDEA; WFlash supports one device.",
             )
         for option, label in (("Enabled", "enabled"), ("ProgramAtDownload", "'Program at download'")):
-            if self._read(f"{DEVICE}.{option}") != "true":
+            if self._read(f"{self._device()}.{option}") != "true":
                 raise WinIDEAError(
                     f"The external flash device does not have {label} set, so a download would not program it",
                     hint="Set it in Hardware > (your flash device) > Configure… in winIDEA.",
@@ -323,11 +354,11 @@ class RealWinIDEAAdapter:
         try:
             self._check_device()
             ide = self._session()[2]
-            calls_log.debug("getDynamicOptionSize %s", DOWNLOAD_FILES)
+            calls_log.debug("getDynamicOptionSize %s", self._download_files())
             rows = []
-            for i in range(ide.getDynamicOptionSize(DOWNLOAD_FILES)):
-                path = self._read(f"{DOWNLOAD_FILES}[{i}].Path")
-                rows.append((i, path, self._read(f"{DOWNLOAD_FILES}[{i}].Enabled") == "true"))
+            for i in range(ide.getDynamicOptionSize(self._download_files())):
+                path = self._read(f"{self._download_files()}[{i}].Path")
+                rows.append((i, path, self._read(f"{self._download_files()}[{i}].Enabled") == "true"))
         except WinIDEAError:
             raise
         except Exception as exc:
@@ -409,7 +440,7 @@ class RealWinIDEAAdapter:
         row = self._program_rows.get(name)
         if row is None:
             raise WinIDEAError(f"No single enabled download row is named {name!r}")
-        self._write_path(f"{DOWNLOAD_FILES}[{row}].Path", name, path)
+        self._write_path(f"{self._download_files()}[{row}].Path", name, path)
 
     def set_symbol_path(self, name: str, path: str) -> None:
         self._session()
@@ -766,14 +797,14 @@ class RealWinIDEAAdapter:
         images: list[list[tuple[int, bytes]]] = []
         names: list[str] = []
         try:
-            for i in range(ide.getDynamicOptionSize(DOWNLOAD_FILES)):
-                if self._read(f"{DOWNLOAD_FILES}[{i}].Enabled") != "true":
+            for i in range(ide.getDynamicOptionSize(self._download_files())):
+                if self._read(f"{self._download_files()}[{i}].Enabled") != "true":
                     continue
-                stored = self._read(f"{DOWNLOAD_FILES}[{i}].Path")
+                stored = self._read(f"{self._download_files()}[{i}].Path")
                 if not is_image_file(stored):
                     log.warning("Verify skips %s: unknown file type", stored)
                     continue
-                offset = int(self._read(f"{DOWNLOAD_FILES}[{i}].Offset"), 16)
+                offset = int(self._read(f"{self._download_files()}[{i}].Offset"), 16)
                 images.append(read_image(Path(workspace_dir) / stored, offset))
                 names.append(stored)
         except OSError as exc:
@@ -824,12 +855,12 @@ class RealWinIDEAAdapter:
             self._check_device()
             ide = self._session()[2]
             rows = []
-            for i in range(ide.getDynamicOptionSize(DOWNLOAD_FILES)):
-                path = self._read(f"{DOWNLOAD_FILES}[{i}].Path")
+            for i in range(ide.getDynamicOptionSize(self._download_files())):
+                path = self._read(f"{self._download_files()}[{i}].Path")
                 rows.append(ProgramRow(
                     i, PureWindowsPath(path).name, path,
-                    self._read(f"{DOWNLOAD_FILES}[{i}].Enabled") == "true",
-                    int(self._read(f"{DOWNLOAD_FILES}[{i}].Offset"), 16),
+                    self._read(f"{self._download_files()}[{i}].Enabled") == "true",
+                    int(self._read(f"{self._download_files()}[{i}].Offset"), 16),
                 ))
             return rows
         except WinIDEAError:
@@ -869,7 +900,7 @@ class RealWinIDEAAdapter:
             raise WinIDEAError(f"winIDEA did not accept the change to {label}.")
 
     def set_program_row(self, index: int, path: str | None = None, tick: bool | None = None) -> None:
-        row = f"{DOWNLOAD_FILES}[{index}]"
+        row = f"{self._download_files()}[{index}]"
         if path is not None:
             self._write_option(f"{row}.Path", path, f"download row {index}")
         if tick is not None:

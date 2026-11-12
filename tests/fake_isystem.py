@@ -6,6 +6,7 @@ import sys
 import types
 
 DEVICE = "/iOPEN/UMIConfig.Devices.Devices[0]"
+DATA_UMI_DEVICE = "/iOPEN/Data.UMI.Devices.Devices[0]"  # workspace DD_05_02_01, bench 1 (spike 19)
 WORKSPACE = "C:/ws/SUZ_7G5_M7.xjrf"
 RMS = "E_INVALIDARG: Invalid parameter. /   [CIDEController.cpp, 744], error code: -2147024809\n"
 
@@ -155,7 +156,12 @@ def build_module(world: World) -> types.ModuleType:
 
         def getDynamicOptionSize(self, url):
             self._check()
-            return 1 if url.endswith(".Devices.Devices") else _size_of(world, url)
+            if url.endswith(".Devices.Devices"):
+                if not any(key.startswith(url + "[") for key in world.options):
+                    # spike 19: a root the workspace does not have raises E_INVALIDARG
+                    raise ValueError(RMS + f"    __StringOut__: Cannot resolve path: {url}")
+                return 1
+            return _size_of(world, url)
 
         def getOptionJSON(self, url):
             raise AssertionError("getOptionJSON must never be called")
@@ -276,3 +282,9 @@ def install(monkeypatch, world: World) -> types.ModuleType:
     monkeypatch.setitem(sys.modules, "isystem", package)
     monkeypatch.setitem(sys.modules, "isystem.connect", mod)
     return mod
+
+
+def use_data_umi_root(world) -> None:
+    """Lay the device list out like workspace DD_05_02_01 (bench 1, spike 19): /iOPEN/Data.UMI..."""
+    world.options = {(DATA_UMI_DEVICE + key[len(DEVICE):] if key.startswith(DEVICE) else key): value
+                     for key, value in world.options.items()}

@@ -2084,3 +2084,19 @@ Spike 18 trên bench 4 (Round 20 trong `docs/winidea_api_notes.md`): `hidapi` 0.
 
 - Trên macOS: bộ test đầy đủ, test threading, stress test, app mở được. Lệnh bật/tắt relay chưa chạy trên bo thật: đó là Vòng 21.
 - Sửa thêm: **`tools/check_build_env.py`** liệt kê `hidapi` (module `hid`). Trước đó, trên máy đã có đủ các gói khác, `build_windows.bat` bỏ qua pip và build ra exe không có `hidapi`.
+
+## Phase 4.9: workspace có gốc thiết bị khác (`/iOPEN/Data.UMI`)
+
+Bench 1 (winIDEA 9.21.324, workspace `DD_05_02_01`) báo `Cannot resolve path: UMIConfig.Devices.Devices` ở bước kiểm tra workspace; không có gì bị đổi. File `.xjrf` của workspace này đặt danh sách file nạp ở `HServerData.Data.UMI1…` thay vì `HServerData.HW.BDM.UMIConfig…`. Spike 19 (chỉ đọc, Python 3.8 + `isystem.connect` 9.21.107) cho thấy chỉ `/iOPEN/Data.UMI.Devices.Devices` đọc được, đủ 3 dòng như trong file. Chưa biết khác biệt do phiên bản winIDEA hay do workspace.
+
+### Thay đổi
+
+- **`wflash/core/winidea_adapter.py`**: `DEVICE_ROOTS` (`/iOPEN/UMIConfig…` rồi `/iOPEN/Data.UMI…`); `_device_count` dùng gốc đầu tiên winIDEA nhận và giữ cho cả phiên, đọc và ghi; `_device`, `_download_files` thay cho các hằng số cũ. Ghi qua `Data.UMI` chưa được quan sát (ghi chú UNVERIFIED).
+- **`tests/fake_isystem.py`**: gốc không có trong workspace thì `getDynamicOptionSize` báo lỗi như winIDEA thật; `use_data_umi_root` dựng workspace kiểu bench 1.
+- **`spike/19_umi1_paths.py`**, **`spike/_common.py`** (kết nối theo cổng khi `connect()` không tham số không có, bản 9.21.107).
+- **Test**: workspace kiểu `Data.UMI` đọc và ghi đúng gốc, không đụng `UMIConfig`; workspace kiểu bench 2 không thử gốc kia; không gốc nào thì lỗi WinIDEA ngắn gọn.
+- **Tài liệu**: `docs/winidea_api_notes.md` (Round 21), `CLAUDE.md`, `docs/windows_test_guide.md` (Vòng 22).
+
+### Đã kiểm tra
+
+- Trên macOS: bộ test đầy đủ, test threading, stress test, app mở được. Chưa chạy trên Bench 1: đó là Vòng 22.

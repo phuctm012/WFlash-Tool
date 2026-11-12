@@ -586,6 +586,17 @@ Not winIDEA, but recorded here because it is a hardware call WFlash makes. Bench
 
 Not observed by the spike: switching. WFlash sends `send_feature_report([0x00, 0xFF|0xFD, n, 0x01])`, which is what the user's `usb_relay_control.py` sends to this board, and reads the mask back after every switch; a relay that did not move is an error. User: ECU 0 = relay 1, ECU 1 = relay 2, relay **ON = ECU powered**. All on/off (0xFE/0xFC) is never sent.
 
+## Round 21: a workspace with another device root (spike 19, 2026-11-12)
+
+Bench 1: winIDEA **9.21.324**, workspace `C:/Data/SUZ05/WinIdea_DD_05_02_01/STRX_WinIdea_SUZ_YVF_DD_05_02_01/SUZ_7G5_M7.xjrf`, Python 3.8.10 with `isystem.connect` **9.21.107** (WFlash.exe itself bundles 9.26.11). WFlash failed at "Checking workspace entries": `Cannot resolve path: UMIConfig.Devices.Devices`. Nothing was changed.
+
+- In this `.xjrf`, the device list is the XML element `HServerData.Data.UMI1.Devices.Devices` (bench 2's R_04_01_01: `HServerData.HW.BDM.UMIConfig.Devices.Devices`).
+- Spike 19, read only: `/iOPEN/UMIConfig...`, `/iOPEN/Data.UMI1...`, `/iOPEN/UMI1...`, `/iOPEN/Cfg.SoC[0].BBS.UMI1...` all raise `E_INVALIDARG` (also from `getDynamicOptionSize`). **`/iOPEN/Data.UMI.Devices.Devices` works**: size 1, Manufacturer `Winbond`, Device `W25Q64JW`, Name `''`, EraseBeforeDownload `true`, DownloadFiles size 3 with Path/Enabled/Offset as in the XML (`Radar_SUZ05_Gen7.s3` off at 0x1AA000, `../../ciFFI/RAD_SUZ05_FFI.s3` on, `T008_from_E5T3_2_8.1.16.s3` on). It is `CStorageDeviceFactory.DEVICES_OPT_URL`.
+- `/IDE/System.Debug.Applications[...]` reads as on bench 2 (App_M7, App_BBE, App_A53). `getDeviceNames` -> `['Winbond W25Q64JW SPI']`.
+- `isystem.connect` 9.21.107 has no zero-argument `ConnectionMgr.connect()`; its prototypes are `connect(host, port)`, `connect(CConnectionConfig)`, `connect(uint32_t)`. `connect('localhost', 63131)` attached. WFlash.exe uses 9.26.11, where `connect()` works, so the adapter is unchanged there.
+
+Not known: whether the difference comes from the winIDEA version or from the workspace (it was created with another layout); `/iOPEN/Data.UMI...` has not been tried on bench 2. **Change:** the adapter tries `DEVICE_ROOTS` in order (`UMIConfig` first, the root proven on bench 2) and keeps the first that resolves for the session, reads and writes alike. `setOption` under `Data.UMI` has not been observed yet.
+
 ## Open questions
 
 1. **Version mismatch.** `isystem.connect` 9.26.11 against winIDEA 9.21.408. Connect, read, download, reset and run all worked, but `CLAUDE.md` requires the versions to match. Is there a Python SDK package under `C:/Data/_Devtools/Winidea408/` (9.21.408)? If yes, install it and re-run 01 to confirm nothing changes.
