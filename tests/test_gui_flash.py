@@ -150,7 +150,7 @@ def test_gui_thread_cancel_flash_mid_download_rolls_back(qtbot, tmp_path):
     adapter = FakeWinIDEAAdapter(download_seconds=5)
     w = make_host(qtbot, tmp_path, adapter)
     w.start_flash()
-    qtbot.waitUntil(lambda: w.current_step() == Step.DOWNLOAD.value, timeout=3000)
+    qtbot.waitUntil(lambda: w.current_step() in (Step.DOWNLOAD.value, Step.PROGRAM.value), timeout=3000)
     qtbot.mouseClick(w.ui.pushButton_flash, Qt.MouseButton.LeftButton)  # "Cancel"
     assert not w.ui.pushButton_flash.isEnabled()  # one cancel; now it waits for the rollback
     w.cancel_flash()  # a second cancel is harmless
@@ -186,7 +186,7 @@ def test_gui_thread_cancel_during_download_with_failed_restore_warns(qtbot, tmp_
     adapter = RestoreFails(download_seconds=5)
     w = make_host(qtbot, tmp_path, adapter)
     w.start_flash()
-    qtbot.waitUntil(lambda: w.current_step() == Step.DOWNLOAD.value, timeout=3000)
+    qtbot.waitUntil(lambda: w.current_step() in (Step.DOWNLOAD.value, Step.PROGRAM.value), timeout=3000)
     with caplog.at_level(logging.CRITICAL):
         w.cancel_flash()
         qtbot.waitUntil(lambda: bool(w.errors_shown), timeout=5000)
@@ -222,7 +222,7 @@ def test_gui_thread_flash_refused_while_instances_worker_runs(qtbot, tmp_path):
 def test_gui_thread_second_cancel_keeps_label_step(qtbot, tmp_path):
     w = make_host(qtbot, tmp_path, FakeWinIDEAAdapter(download_seconds=5))
     w.start_flash()
-    qtbot.waitUntil(lambda: w.current_step() == Step.DOWNLOAD.value, timeout=3000)
+    qtbot.waitUntil(lambda: w.current_step() in (Step.DOWNLOAD.value, Step.PROGRAM.value), timeout=3000)
     w.cancel_flash()
     w._set_step("sentinel")
     w.cancel_flash()
@@ -266,7 +266,7 @@ def test_gui_thread_cancel_is_locked_while_programming_when_it_cannot_be_stopped
 def test_gui_thread_cancellable_adapter_is_not_locked(qtbot, tmp_path):
     w = make_host(qtbot, tmp_path, FakeWinIDEAAdapter(download_seconds=0.5))
     w.start_flash()
-    qtbot.waitUntil(lambda: w.current_step() == Step.DOWNLOAD.value, timeout=3000)
+    qtbot.waitUntil(lambda: w.current_step() in (Step.DOWNLOAD.value, Step.PROGRAM.value), timeout=3000)
     assert not w.flash_locked()
     assert w.ui.pushButton_flash.isEnabled()
     w.cancel_flash()
@@ -281,3 +281,33 @@ def test_gui_thread_verify_checkbox_is_off_by_default_and_reaches_the_workflow(q
     w.start_flash()
     qtbot.waitUntil(lambda: not w.flash_active(), timeout=5000)
     assert "verify" in adapter.calls
+
+
+def test_gui_thread_retry_unlocks_cancel_and_cancel_restores_the_paths(qtbot, tmp_path):
+    # User decision (2026-11-12): Cancel works during a retry; it locks only while begin_program runs.
+    from wflash.core.errors import CancelledError
+
+    retry_announced = threading.Event()
+
+    class Retrying(FakeWinIDEAAdapter):
+        def download(self, progress, cancel, timeout_s, power_cycle=None, on_program=None):
+            self._require_connected()
+            on_program(True)  # first try: locked
+            cancel.wait(0.2)
+            on_program(False)  # quick failure, retry decided: unlocked
+            retry_announced.set()
+            for _ in range(100):  # the power cycle / reset before the retry
+                if cancel.wait(0.05):
+                    raise CancelledError("Flash cancelled", hint="Nothing was written to the flash.")
+            on_program(True)
+
+    adapter = Retrying(download_seconds=0.01, cancellable=False)
+    w = make_host(qtbot, tmp_path, adapter)
+    w.start_flash()
+    qtbot.waitUntil(w.flash_locked, timeout=3000)
+    assert not w.ui.pushButton_flash.isEnabled()
+    qtbot.waitUntil(lambda: retry_announced.is_set() and not w.flash_locked(), timeout=3000)
+    assert w.ui.pushButton_flash.isEnabled() and w.ui.pushButton_flash.text() == "Cancel"
+    w.cancel_flash()
+    qtbot.waitUntil(lambda: not w.flash_active(), timeout=5000)
+    assert adapter.programs["App"] == OLD_APP

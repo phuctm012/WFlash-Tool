@@ -206,11 +206,22 @@ def test_download_calls_begin_program_once(connected, world):
     assert world.calls.count("begin_program") == 1
 
 
-def test_download_ignores_cancel_because_it_cannot_be_stopped_safely(connected, world):
+def test_download_cancel_before_programming_writes_nothing(connected, world):
+    # User decision (2026-11-12): Cancel works until begin_program starts.
     token = CancelToken()
     token.cancel()
-    connected.download(lambda p, m: None, token, 600)
+    with pytest.raises(CancelledError):
+        connected.download(lambda p, m: None, token, 600)
+    assert "begin_program" not in world.calls
+
+
+def test_download_ignores_cancel_once_programming_runs(connected, world):
+    token = CancelToken()
+    world.begin_program_hook = token.cancel  # cancelled while begin_program runs: it cannot be stopped
+    phases = []
+    connected.download(lambda p, m: None, token, 600, on_program=phases.append)
     assert world.calls.count("begin_program") == 1
+    assert phases == [True]
 
 
 def test_download_reports_estimated_progress_below_100(connected, world, monkeypatch):
@@ -792,7 +803,7 @@ def test_b1_power_cycles_instead_of_resetting_when_a_core_runs(connected, world,
     order = [c for c in world.calls if c in ("power_cycle", "reset", "begin_program")]
     assert order == ["power_cycle", "begin_program"]
     assert connected.program_stats["power_cycles"] == 1 and connected.program_stats["resets"] == 0
-    assert any("Cores after the power cycle" in r.getMessage() for r in caplog.records)
+    assert any("Cores after power cycle 1 of 3" in r.getMessage() for r in caplog.records)
 
 
 def test_b1_retry_power_cycles_instead_of_resetting(connected, world, monkeypatch):
@@ -820,17 +831,95 @@ def test_b1_at_most_one_power_cycle_per_try(connected, world, monkeypatch):
     assert "reset" not in world.calls
 
 
-def test_b1_falls_back_to_the_old_check_when_not_fresh_after_the_power_cycle(connected, world, monkeypatch, caplog):
+M7_0_LOST = [("M7_0", 1, "NOT ACCESSIBLE"), ("M7_RFE", 3, "RUN"), ("A53", 1, "NOT ACCESSIBLE"),
+             ("SPT", 1, "NOT ACCESSIBLE"), ("BBE32EP", 1, "NOT ACCESSIBLE")]  # round 18, 3 of 6 power cycles
+NOT_FRESH = [("M7_0", 2, "STOP"), ("M7_RFE", 3, "RUN"), ("A53", 2, "STOP"), ("SPT", 5, "IDLE"), ("BBE32EP", 3, "RUN")]
+
+
+def test_b1_m7_0_lost_after_the_power_cycle_stops_with_the_recovery_steps(connected, world, monkeypatch):
+    # User decision (2026-11-12): no more power cycles or resets; the user recovers the session by hand.
     monkeypatch.setattr(winidea_adapter, "POWER_ON_WAIT_S", 0.05)
     monkeypatch.setattr(winidea_adapter, "HALT_POLL_S", 0.01)
-    still = [("M7_0", 2, "STOP"), ("M7_RFE", 3, "RUN"), ("A53", 2, "STOP"), ("SPT", 5, "IDLE"), ("BBE32EP", 3, "RUN")]
     world.cores = AFTER_RESET
-    switch = PowerSwitch(world, after=still)  # no core NOT ACCESSIBLE: the old check programs at once
-    with caplog.at_level(logging.WARNING):
+    switch = PowerSwitch(world, after=M7_0_LOST)
+    with pytest.raises(FlashError) as err:
         connected.download(lambda p, m: None, CancelToken(), 600, power_cycle=switch)
-    assert switch.count == 1 and "reset" not in world.calls
+    assert switch.count == 1 and "reset" not in world.calls and "begin_program" not in world.calls
+    assert str(err.value) == "Flash not started: M7_0 is not accessible after the power cycle."
+    hint = err.value.hint
+    assert hint.startswith("Nothing was written to the flash.")
+    for step in ("Debug > End Session", "Disconnect JTAG", "Power-cycle ECU", "Connect JTAG",
+                 "Attach the debugger", "Check winIDEA cores", "Flash again"):
+        assert step in hint
+    assert hint.index("End Session") < hint.index("Disconnect JTAG") < hint.index("Power-cycle ECU") \
+        < hint.index("Connect JTAG") < hint.index("Attach") < hint.index("Check winIDEA cores")
+
+
+def test_b1_power_cycles_again_when_not_fresh(connected, world, monkeypatch):
+    monkeypatch.setattr(winidea_adapter, "POWER_ON_WAIT_S", 0.05)
+    monkeypatch.setattr(winidea_adapter, "HALT_POLL_S", 0.01)
+    world.cores = AFTER_RESET
+    states = iter([NOT_FRESH, FRESH])
+
+    class Switch(PowerSwitch):
+        def __call__(self):
+            super().__call__()
+            self.world.cores = list(next(states))
+
+    switch = Switch(world)
+    connected.download(lambda p, m: None, CancelToken(), 600, power_cycle=switch)
+    assert switch.count == 2 and "reset" not in world.calls
     assert world.calls.count("begin_program") == 1
-    assert any("checking them as before" in r.getMessage() for r in caplog.records)
+
+
+def test_b1_refuses_after_the_maximum_power_cycles(connected, world, monkeypatch):
+    monkeypatch.setattr(winidea_adapter, "POWER_ON_WAIT_S", 0.05)
+    monkeypatch.setattr(winidea_adapter, "HALT_POLL_S", 0.01)
+    world.cores = AFTER_RESET
+    switch = PowerSwitch(world, after=NOT_FRESH)
+    with pytest.raises(FlashError) as err:
+        connected.download(lambda p, m: None, CancelToken(), 600, power_cycle=switch)
+    assert switch.count == winidea_adapter.MAX_POWER_CYCLES == 3
+    assert "reset" not in world.calls and "begin_program" not in world.calls
+    assert "after 3 power cycles" in str(err.value) and "Nothing was written" in err.value.hint
+
+
+def test_b1_cancel_between_power_cycles_writes_nothing(connected, world, monkeypatch):
+    # User decision (2026-11-12): Cancel stops a retry. The power cycle in progress runs to its end.
+    monkeypatch.setattr(winidea_adapter, "POWER_ON_WAIT_S", 0.05)
+    monkeypatch.setattr(winidea_adapter, "HALT_POLL_S", 0.01)
+    world.cores = AFTER_RESET
+    token = CancelToken()
+
+    class Switch(PowerSwitch):
+        def __call__(self):
+            super().__call__()
+            token.cancel()  # the user presses Cancel during the first power cycle
+
+    switch = Switch(world, after=NOT_FRESH)
+    with pytest.raises(CancelledError):
+        connected.download(lambda p, m: None, token, 600, power_cycle=switch)
+    assert switch.count == 1 and "begin_program" not in world.calls
+
+
+def test_retry_unlocks_cancel_and_a_cancel_then_stops_it(connected, world, monkeypatch):
+    world.cores = FRESH
+    world.cores_after_reset = [AFTER_RESET]
+    token = CancelToken()
+    monkeypatch.setattr(winidea_adapter.RealWinIDEAAdapter, "_read_back",
+                        lambda self, ic, cmgr: ("error loading monitor", OSError("Error loading monitor")))
+    phases = []
+
+    def on_program(active):
+        phases.append(active)
+        if not active:
+            token.cancel()  # Cancel pressed once the retry is announced
+
+    switch = PowerSwitch(world)
+    with pytest.raises(CancelledError):
+        connected.download(lambda p, m: None, token, 600, power_cycle=switch, on_program=on_program)
+    assert phases == [True, False]
+    assert world.calls.count("begin_program") == 1 and switch.count == 0
 
 
 def test_b1_failed_power_cycle_does_not_program(connected, world):

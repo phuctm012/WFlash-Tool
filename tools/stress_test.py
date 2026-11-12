@@ -120,7 +120,7 @@ def suz05_rows():
 class DropsMidTransfer(FakeWinIDEAAdapter):
     """Connection drops at 30 % of the download; winIDEA is back for the rollback."""
 
-    def download(self, progress, cancel, timeout_s):
+    def download(self, progress, cancel, timeout_s, **_kwargs):
         progress(30, "Programming external flash (fake)")
         raise WinIDEAError("Connection to winIDEA lost during download")
 
@@ -130,7 +130,7 @@ class DropsAndStaysDown(DropsMidTransfer):
 
     lost = False
 
-    def download(self, progress, cancel, timeout_s):
+    def download(self, progress, cancel, timeout_s, **_kwargs):
         self.lost = True
         super().download(progress, cancel, timeout_s)
 
@@ -236,7 +236,9 @@ class Stress:
         self.pump(0.05)
 
     def wait_step(self, window, text: str, timeout_s: float) -> bool:
-        return self.pump_until(lambda: window.current_step() == text, timeout_s)
+        # The download step has two phases: preparing the target, then begin_program (Step.PROGRAM).
+        texts = (Step.DOWNLOAD.value, Step.PROGRAM.value) if text == Step.DOWNLOAD.value else (text,)
+        return self.pump_until(lambda: window.current_step() in texts, timeout_s)
 
     def wait_flash_idle(self, window, timeout_s: float = 10.0) -> bool:
         return self.pump_until(lambda: not window.flash_active(), timeout_s)

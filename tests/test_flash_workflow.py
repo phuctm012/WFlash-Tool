@@ -40,7 +40,7 @@ def test_happy_path(rows, tmp_path):
     assert adapter.programs["App"] == str((tmp_path / "App.s3").resolve())
     assert adapter.applications["CM7_1"] == str((tmp_path / "x_cm7_1.elf").resolve())
     assert adapter.target_state == "halted"
-    assert steps == [Step.CONNECT, Step.VALIDATE, Step.SET_PATHS, Step.DOWNLOAD, Step.RESET, Step.DONE]
+    assert steps == [Step.CONNECT, Step.VALIDATE, Step.SET_PATHS, Step.DOWNLOAD, Step.PROGRAM, Step.RESET, Step.DONE]
     assert progress[-1] == 100
     assert adapter.connected_to is None
     assert set(ctx.snapshots) == {"before", "after_set"}
@@ -111,7 +111,7 @@ def test_cancel_during_download_rolls_back(rows):
 
 def test_unexpected_exception_wrapped(rows):
     class Broken(FakeWinIDEAAdapter):
-        def download(self, progress, cancel, timeout_s):
+        def download(self, progress, cancel, timeout_s, **_kwargs):
             raise RuntimeError("COM error")
 
     adapter = Broken()
@@ -163,7 +163,7 @@ def test_connection_lost_during_download(rows):
     class Dropping(FakeWinIDEAAdapter):
         lost = False
 
-        def download(self, progress, cancel, timeout_s):
+        def download(self, progress, cancel, timeout_s, **_kwargs):
             self.lost = True
             raise WinIDEAError("Connection to winIDEA lost during download")
 
@@ -250,7 +250,7 @@ def test_rollback_flag_false_on_success_and_clean_rollback(rows):
 
 def test_wrapped_unexpected_error_recorded_in_ctx(rows):
     class Broken(FakeWinIDEAAdapter):
-        def download(self, progress, cancel, timeout_s):
+        def download(self, progress, cancel, timeout_s, **_kwargs):
             raise RuntimeError("COM error")
 
     ctx, _, _, error = run(Broken(), rows)

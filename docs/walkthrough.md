@@ -2014,3 +2014,20 @@ Vòng 17 cho thấy trình tự "tắt/bật nguồn → nạp không reset" đ�
 ### Đã kiểm tra
 
 - Trên macOS: bộ test đầy đủ, test threading, stress test, app mở được. Chưa chạy trên ECU: đó là Vòng 18.
+
+## Phase 4.5: M7_0 NOT ACCESSIBLE sau khi tắt/bật nguồn thì dừng; Cancel được trong lúc thử lại
+
+Vòng 18 (debug bundle 2026-11-12 10:45): 7 lần bấm Flash với B1. 4 lần Done. 3 lần, sau khi WFlash tắt/bật nguồn, các core là M7_0 NOT ACCESSIBLE, M7_RFE RUN, các core khác NOT ACCESSIBLE; trạng thái này không đổi trong 15 s, rồi cách cũ (reset 10 lần) không gỡ được và WFlash từ chối nạp. Không lần nào ghi gì vào flash. Người dùng quyết định: khi M7_0 NOT ACCESSIBLE sau khi tắt/bật nguồn thì dừng và hướng dẫn khôi phục bằng tay (End Session, Disconnect JTAG, tắt/bật nguồn, Connect JTAG, attach, kiểm tra core, Flash lại); và Cancel phải dừng được quá trình thử lại.
+
+### Thay đổi
+
+- **`wflash/core/winidea_adapter.py`**: `_prepare_by_power` không còn quay về cách reset. Sau mỗi lần tắt/bật nguồn: vừa bật nguồn thì nạp; M7_0 (core đầu tiên) NOT ACCESSIBLE thì `FlashError` với `RECOVER_HINT` (7 bước); trạng thái sai khác thì tắt/bật nguồn thêm, tối đa `MAX_POWER_CYCLES` = 3 mỗi lần bấm Flash, kể cả lần thử lại. `POWER_ON_WAIT_S` 15 s → 5 s (Vòng 18: trạng thái tốt có ngay lần đọc đầu). `download(..., on_program=)`: gọi `on_program(True)` ngay trước `begin_program`, `on_program(False)` khi quyết định thử lại. `_check_cancel` trước mỗi lần reset, tắt/bật nguồn, đọc core và trước `begin_program`: Cancel thì `CancelledError`, không ghi gì. Lần tắt/bật nguồn đang chạy luôn chạy hết.
+- **`wflash/core/flash_workflow.py`**: `Step.PROGRAM` ("Programming external flash"); `on_program` đổi bước giữa DOWNLOAD (chuẩn bị) và PROGRAM.
+- **`wflash/gui/flash_mixin.py`**: khoá Cancel ở `Step.PROGRAM` thay vì `Step.DOWNLOAD`; mở lại khi quay về `Step.DOWNLOAD` (thử lại).
+- **`wflash/core/fake_adapter.py`**: báo `on_program(True)` khi bắt đầu nạp giả; kiểm tra cancel trước đó.
+- **Test**: adapter thật (M7_0 mất thì dừng với 7 bước đúng thứ tự; tắt/bật nguồn thêm khi trạng thái sai khác; tối đa 3 lần; Cancel giữa hai lần tắt/bật nguồn; thử lại mở khoá Cancel rồi Cancel dừng; Cancel trước khi nạp không ghi gì; Cancel trong lúc nạp bị bỏ qua), GUI (thử lại mở khoá nút Cancel, Cancel trả đường dẫn). Các test GUI và stress test chờ bước tải nay chấp nhận cả DOWNLOAD và PROGRAM.
+- **Tài liệu**: `CLAUDE.md` (luật threading 7 và đoạn Switch Debugger), `docs/winidea_api_notes.md` (Round 18), `user_guide.html`, `docs/windows_test_guide.md` (kết quả Vòng 18, Vòng 19).
+
+### Đã kiểm tra
+
+- Trên macOS: bộ test đầy đủ, test threading, stress test, app mở được. Chưa chạy trên ECU: đó là Vòng 19.
