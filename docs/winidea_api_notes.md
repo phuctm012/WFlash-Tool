@@ -559,7 +559,18 @@ Seven presses of Flash, Switch Debugger on, ECU 1, power off 5 s, boot wait 4 s.
 
 So a power cycle reaches the just-powered-on state about half the time from a running firmware; otherwise M7_0 is NOT ACCESSIBLE and M7_RFE RUN, the state did not change within 15 s, and 30 resets never helped (each also took 6 s: "The target did not stop after the reset"). Unknown why: the manual power cycles of round 16-17 always gave the good state.
 
-**Decision (user, 2026-11-12):** when M7_0 is NOT ACCESSIBLE after a power cycle, stop and tell the user to recover by hand: Debug > End Session, Disconnect JTAG, power off/on, Connect JTAG, attach the debugger in winIDEA, check the cores, flash again (`RECOVER_HINT`). Any other state that is not the just-powered-on one gets another power cycle, within `MAX_POWER_CYCLES` = 3 per press of Flash, retries included; `POWER_ON_WAIT_S` is now 5 s. No reset any more on this path. And Cancel works while WFlash prepares the target and between tries; it is locked only while `begin_program` runs. Not yet run on hardware.
+**Decision (user, 2026-11-12):** when M7_0 is NOT ACCESSIBLE after a power cycle, stop and tell the user to recover by hand: Debug > End Session, Disconnect JTAG, power off/on, Connect JTAG, attach the debugger in winIDEA, check the cores, flash again (`RECOVER_HINT`). Any other state that is not the just-powered-on one gets another power cycle, within `MAX_POWER_CYCLES` = 3 per press of Flash, retries included; `POWER_ON_WAIT_S` is now 5 s. No reset any more on this path. And Cancel works while WFlash prepares the target and between tries; it is locked only while `begin_program` runs.
+
+**Round 19 (debug bundle 2026-11-12 11:43): it works on the ECU; the user confirmed every test passed.**
+
+| Time | Case | Result |
+|---|---|---|
+| 11:30 | cores all NOT OBSERVED; Cancel pressed during the power cycle | power cycle finished, `Flash cancelled before programming started; nothing was written`, paths restored |
+| 11:31, 11:33, 11:35 | firmware running (or M7_RFE RUN): one power cycle | just powered on at the first read (about 8 s after power on), Done, about 101 s each |
+| 11:38 | after the power cycle M7_0 NOT ACCESSIBLE, M7_RFE RUN | stopped at once with `RECOVER_HINT`, no reset, nothing written, paths restored |
+| 11:39-11:40 | recovery by hand: Disconnect JTAG (`Off_All;Sensor;_`), Power-cycle ECU, Connect JTAG, then Flash | cores M7_0 STOP, M7_RFE RUN: one power cycle, then Done |
+
+Cancel was locked while `begin_program` ran (`Programming started; Cancel is locked`). The case "Switch Debugger stopped" is not in this bundle.
 
 Switch Debugger (same round): `Off;Sensor;<id>` does not release a JTAG port; the box logs "Send Switch to Port N" for On and Off alike, and pressing the port by hand does not release it either. Only `Off_All;Sensor;_` does. The box connects one port at a time.
 

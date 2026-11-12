@@ -835,3 +835,5 @@ Theo quyết định của bạn sau Vòng 18:
 4. (Từ Vòng 18) Bấm Stop ở ô TCP/IP của Switch Debugger, cho firmware chạy, bấm Flash. Mong đợi: `Flash not started: the ECU power cycle failed.`, không ghi gì.
 
 Gửi lại: debug bundle.
+
+**Kết quả Vòng 19 (2026-11-12 11:43): đạt.** Bạn xác nhận tất cả bước đều đạt. Trong debug bundle: Cancel trong lúc tắt/bật nguồn thì nguồn bật lại, không ghi gì, đường dẫn được trả về; 3 lần WFlash tự tắt/bật nguồn một lần rồi Done; 1 lần M7_0 NOT ACCESSIBLE thì dừng ngay với 7 bước, làm theo các bước rồi Flash lại thì Done; Cancel bị khoá trong lúc nạp. Bước 4 (Switch Debugger tắt) không có trong bundle này.

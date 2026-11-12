@@ -2030,4 +2030,5 @@ Vòng 18 (debug bundle 2026-11-12 10:45): 7 lần bấm Flash với B1. 4 lần 
 
 ### Đã kiểm tra
 
-- Trên macOS: bộ test đầy đủ, test threading, stress test, app mở được. Chưa chạy trên ECU: đó là Vòng 19.
+- Trên macOS: bộ test đầy đủ, test threading, stress test, app mở được.
+- Vòng 19 trên ECU (debug bundle 2026-11-12 11:43): người dùng xác nhận mọi bước đạt. Cancel trong lúc tắt/bật nguồn không ghi gì; 3 lần tự tắt/bật nguồn rồi Done; M7_0 NOT ACCESSIBLE thì dừng với 7 bước, làm theo rồi Flash lại thì Done; Cancel bị khoá trong lúc nạp.
