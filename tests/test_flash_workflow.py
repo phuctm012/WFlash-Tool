@@ -435,3 +435,32 @@ def test_planned_flash_without_a_loaded_bm_refuses(tmp_path):
     with pytest.raises(MappingError, match="BM|FBL_M7"):
         flow.run(req, CancelToken())
     assert "download" not in adapter.calls
+
+
+# B1 (user, 2026-11-12): with Switch Debugger on, the adapter power-cycles the ECU instead of resetting it.
+def test_power_cycle_reaches_the_adapter_when_the_cores_run(rows):
+    adapter = FakeWinIDEAAdapter(download_seconds=0.02, fail_on={"cores_running"})
+    cycles = []
+    _ctx, steps, _, error = run(adapter, rows, power_cycle=lambda: cycles.append(1))
+    assert error is None and Step.DONE in steps
+    assert cycles == [1] and adapter.program_stats["power_cycles"] == 1
+
+
+def test_no_power_cycle_without_switch_debugger(rows):
+    adapter = FakeWinIDEAAdapter(download_seconds=0.02, fail_on={"cores_running"})
+    _ctx, steps, _, error = run(adapter, rows)
+    assert error is None and adapter.program_stats["power_cycles"] == 0
+
+
+def test_failed_power_cycle_writes_nothing_and_rolls_back(rows):
+    from wflash.core.errors import BenchSwitchError
+
+    def refuse():
+        raise BenchSwitchError("refused", hint="Open Switch Debugger and press Start in its TCP/IP box, then try again.")
+
+    adapter = FakeWinIDEAAdapter(download_seconds=0.02, fail_on={"cores_running"})
+    _ctx, steps, _, error = run(adapter, rows, power_cycle=refuse)
+    assert isinstance(error, FlashError) and str(error) == "Flash not started: the ECU power cycle failed."
+    assert "Nothing was written" in error.hint and "press Start" in error.hint
+    assert adapter.programs["App"] == OLD_APP
+    assert Step.ROLLBACK in steps and Step.DONE not in steps

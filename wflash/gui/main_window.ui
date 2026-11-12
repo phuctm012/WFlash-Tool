@@ -1560,7 +1560,7 @@
                <item row="4" column="0" colspan="4">
                 <widget class="QLabel" name="label_benchHint">
                  <property name="text">
-                  <string>Used by Tools › Power-cycle ECU, Connect JTAG and Disconnect JTAG. Locked while a flash runs: cutting the power during programming leaves the flash empty. Only the port and the relay of this ECU are switched.</string>
+                  <string>Used by Tools › Power-cycle ECU, Connect JTAG and Disconnect JTAG, and by Flash: before programming, WFlash power-cycles this ECU unless it was just powered on (instead of a reset). Never during programming: cutting the power then leaves the flash empty. Only the port and the relay of this ECU are switched.</string>
                  </property>
                  <property name="wordWrap">
                   <bool>true</bool>

@@ -804,3 +804,16 @@ Lần tới WFlash báo `Flash failed: winIDEA could not start programming in 3 
 Gửi lại: debug bundle (File → Export debug bundle) sau các lần flash.
 
 **Kết quả Vòng 17 (2026-11-12): đạt.** Ba lần: Power-cycle ECU → Check winIDEA cores (`ready to flash`) → Flash. Cả ba lần WFlash nạp luôn không reset, `begin_program` khoảng 100.5 s, đạt ngay lần thử đầu, Done.
+
+## Vòng 18: WFlash tự tắt/bật nguồn khi bấm Flash (B1)
+
+Khi Switch Debugger đang bật trong Setting, bấm Flash là đủ: nếu ECU vừa bật nguồn thì WFlash nạp luôn; nếu không (có core RUN), WFlash tắt/bật nguồn ECU đã chọn, chờ các core về trạng thái vừa bật nguồn (tối đa 15 s), rồi mới nạp. Không còn reset trước khi nạp. Khi lỗi nhanh và thử lại, WFlash cũng tắt/bật nguồn thay vì reset. Tắt Switch Debugger trong Setting thì mọi thứ như Vòng 17.
+
+⚠️ Các bước có FLASH đều ghi flash. Cơ sở: Vòng 17, cùng trình tự (tắt/bật nguồn → nạp không reset) bấm tay 3 lần đều đạt. Điểm mới chưa quan sát: WFlash giữ kết nối tới winIDEA trong lúc tắt/bật nguồn. Việc tắt/bật nguồn chỉ diễn ra trước `begin_program`, không bao giờ trong lúc nạp. Rủi ro: hỏng nhanh (`Error loading monitor`) thì chưa xoá gì; hỏng sau `ERASING` thì flash có thể trống. Khôi phục: tắt/bật nguồn, rồi Debug → Download bấm tay.
+
+1. **(FLASH)** Đưa ECU về trạng thái firmware đang chạy: ví dụ flash một lần với **Run after reset** bật, hoặc bấm Run trong winIDEA. Tools → Check winIDEA cores phải thấy có core RUN. Bấm Flash. Mong đợi trong log: `Power-cycling the ECU first`, các dòng `Switch Debugger: power OFF/ON`, `Cores after the power cycle: M7_0 STOP, M7_RFE STOP, ... Programming without a reset`, không có `CDebugFacade.reset (before programming)`, `begin_program` khoảng 100 s, Done.
+2. **(FLASH)** Tools → Power-cycle ECU, rồi bấm Flash. Mong đợi: `ECU just powered on: programming without a reset`, WFlash **không** tắt/bật nguồn thêm.
+3. **(FLASH)** Lặp lại bước 1 thêm 2 lần.
+4. Đóng Switch Debugger (hoặc bấm Stop ở ô TCP/IP), đưa ECU về trạng thái có core RUN, bấm Flash. Mong đợi: `Flash not started: the ECU power cycle failed.`, gợi ý mở Switch Debugger, không ghi gì vào flash, đường dẫn được trả về.
+
+Gửi lại: debug bundle sau các lần flash, và Boot wait đang dùng.

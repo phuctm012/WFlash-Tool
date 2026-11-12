@@ -44,6 +44,8 @@ class FlashRequest:
     profile: Profile | None = None  # a profile with builds selects the planned flash
     advanced: bool = False  # Advanced Debug: flash BM and FBL too
     cal_file: str = ""  # CAL file name next to the workspace
+    # Switch Debugger on: turns the ECU off and on, used by the adapter instead of a reset (B1, 2026-11-12).
+    power_cycle: Callable[[], None] | None = None
 
 
 class FlashWorkflow:
@@ -113,11 +115,16 @@ class FlashWorkflow:
             self._read_current("after_set")
             cancel.raise_if_cancelled()
             self._step(Step.DOWNLOAD)
-            self.adapter.download(self._on_progress, cancel, req.timeout_s)
+            self._download(req, cancel)
         except BaseException:
             self._rollback(written)
             raise
         self._finish(req)
+
+    def _download(self, req: FlashRequest, cancel: CancelToken) -> None:
+        # power_cycle only when Switch Debugger is on: the call is then exactly what it was before B1.
+        extra = {"power_cycle": req.power_cycle} if req.power_cycle is not None else {}
+        self.adapter.download(self._on_progress, cancel, req.timeout_s, **extra)
 
     def _finish(self, req: FlashRequest) -> None:
         if req.verify:
@@ -156,7 +163,7 @@ class FlashWorkflow:
             self.ctx.snapshot_rows("after_set", self.adapter.read_program_rows(), self.adapter.read_symbol_rows())
             cancel.raise_if_cancelled()
             self._step(Step.DOWNLOAD)
-            self.adapter.download(self._on_progress, cancel, req.timeout_s)
+            self._download(req, cancel)
         except BaseException:
             self._restore_row_paths(changed)
             raise

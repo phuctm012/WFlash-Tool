@@ -541,6 +541,8 @@ So the reset is what broke programming: it started the firmware on the other cor
 
 **Round 17 (debug bundle 2026-11-12 10:06): it works on the ECU.** Three times: Tools → Power-cycle ECU (Switch Debugger, ECU 1), Check winIDEA cores ("ready to flash"), Flash. Each time `_prepare_cores` saw M7_0 STOP, M7_RFE STOP, A53 / SPT / BBE32EP NOT ACCESSIBLE and programmed without a reset; `begin_program` took 100.7 s, 100.5 s and 100.5 s, the read-back confirmed it on the first try, Done. The user confirmed all three passed.
 
+**Decision (user, 2026-11-12, B1): with Switch Debugger on, WFlash power-cycles instead of resetting.** `download(..., power_cycle=)`: just powered on → program at once; otherwise `BenchSwitch.power_cycle()` (relay On, `off_s`, relay Off, `boot_s`), then read the cores every `HALT_POLL_S` for up to `POWER_ON_WAIT_S` (15 s, not measured) until they show the just-powered-on state; if they never do, the old `_prepare_cores` check runs. A retry after a quick failure power-cycles first instead of resetting. Still unobserved: reading `get_status()` through a connection that stays open across the power cycle (round 17 connected after it), and what the cores show right after power on with a short `boot_s`. Not yet run on hardware.
+
 Switch Debugger (same round): `Off;Sensor;<id>` does not release a JTAG port; the box logs "Send Switch to Port N" for On and Off alike, and pressing the port by hand does not release it either. Only `Off_All;Sensor;_` does. The box connects one port at a time.
 
 ## Open questions
