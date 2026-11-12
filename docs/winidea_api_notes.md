@@ -574,6 +574,18 @@ Cancel was locked while `begin_program` ran (`Programming started; Cancel is loc
 
 Switch Debugger (same round): `Off;Sensor;<id>` does not release a JTAG port; the box logs "Send Switch to Port N" for On and Off alike, and pressing the port by hand does not release it either. Only `Off_All;Sensor;_` does. The box connects one port at a time.
 
+## Round 20: USB relay board of benches 1 and 4 (spike 18, 2026-11-12)
+
+Not winIDEA, but recorded here because it is a hardware call WFlash makes. Bench 4, Python 3.12.10 64-bit, `hidapi` 0.15.0 (a wheel; on Python 3.15 pip had to build it and failed without MSVC). The USB Relay Control window was open.
+
+- `hid.enumerate()`: one board, vid 0x16C0, pid 0x05DF, product `USBRelay8`, manufacturer `www.dcttech.com`, HID serial empty.
+- `hid.device().open_path(path)`: opened on the first try with USB Relay Control open.
+- `send_feature_report([0x00, 0xF1])` -> 2.
+- `get_feature_report(0, 9)` -> `00 36 51 4D 42 53 00 00 01`: report id, the board's serial `6QMBS`, two zeros, the relay mask (0x01: relay 1 on, as the window showed).
+- `get_feature_report(1, 9)` -> 8 bytes ending 0x00 (wrong); `read(9, 500 ms)` -> `OSError('read error')`. Neither is used.
+
+Not observed by the spike: switching. WFlash sends `send_feature_report([0x00, 0xFF|0xFD, n, 0x01])`, which is what the user's `usb_relay_control.py` sends to this board, and reads the mask back after every switch; a relay that did not move is an error. User: ECU 0 = relay 1, ECU 1 = relay 2, relay **ON = ECU powered**. All on/off (0xFE/0xFC) is never sent.
+
 ## Open questions
 
 1. **Version mismatch.** `isystem.connect` 9.26.11 against winIDEA 9.21.408. Connect, read, download, reset and run all worked, but `CLAUDE.md` requires the versions to match. Is there a Python SDK package under `C:/Data/_Devtools/Winidea408/` (9.21.408)? If yes, install it and re-run 01 to confirm nothing changes.

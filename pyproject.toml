@@ -14,6 +14,7 @@ dependencies = [
     "PyYAML>=6.0",
     "keyring>=24",
     "truststore>=0.10",
+    "hidapi>=0.14",  # USB relay board of benches 1 and 4; imported lazily, only there
 ]
 
 [project.optional-dependencies]

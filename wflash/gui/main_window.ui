@@ -1427,7 +1427,7 @@
             <item>
              <widget class="QGroupBox" name="groupBox_bench">
               <property name="title">
-               <string>Bench power (Switch Debugger)</string>
+               <string>Bench power and JTAG</string>
               </property>
               <layout class="QGridLayout" name="gridLayout_bench" columnstretch="0,1,0,1">
                <property name="horizontalSpacing">
@@ -1439,7 +1439,7 @@
                <item row="0" column="0" colspan="4">
                 <widget class="QCheckBox" name="checkBox_benchEnabled">
                  <property name="text">
-                  <string>Control JTAG and ECU power through Switch Debugger</string>
+                  <string>Control JTAG (Switch Debugger) and ECU power (Switch Debugger or USB relay)</string>
                  </property>
                 </widget>
                </item>
@@ -1454,12 +1454,22 @@
                 <widget class="QComboBox" name="comboBox_benchName">
                  <item>
                   <property name="text">
+                   <string>Bench 1 (ECU 0: CH-A + USB relay 1, ECU 1: CH-B + USB relay 2)</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
                    <string>Bench 2 (ECU 0: CH-C + relay 1, ECU 1: CH-D + relay 2)</string>
                   </property>
                  </item>
                  <item>
                   <property name="text">
                    <string>Bench 3 (ECU 0: CH-A + relay 1, ECU 1: CH-B + relay 2)</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>Bench 4 (ECU 0: CH-A + USB relay 1, ECU 1: CH-B + USB relay 2)</string>
                   </property>
                  </item>
                  <item>
@@ -1508,6 +1518,16 @@
                 <widget class="QLabel" name="label_benchHint">
                  <property name="text">
                   <string>Used by Tools › Power-cycle ECU, Connect JTAG and Disconnect JTAG, and by Flash: before programming, WFlash power-cycles this ECU unless it was just powered on (instead of a reset). The power stays off 1 s and WFlash waits 1 s after power on. Never during programming: cutting the power then leaves the flash empty. Only the port and the relay of this ECU are switched.</string>
+                 </property>
+                 <property name="wordWrap">
+                  <bool>true</bool>
+                 </property>
+                </widget>
+               </item>
+               <item row="4" column="0" colspan="4">
+                <widget class="QLabel" name="label_benchUsbNote">
+                 <property name="text">
+                  <string>Bench 1 and 4: JTAG through Switch Debugger (CH-A / CH-B), power through the USB relay board. USB Relay Control can stay open; WFlash reads the relays back after each switch.</string>
                  </property>
                  <property name="wordWrap">
                   <bool>true</bool>
