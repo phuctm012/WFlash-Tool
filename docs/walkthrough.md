@@ -2050,3 +2050,18 @@ WFlash dùng trên nhiều bench có cách nối khác nhau. Người dùng cho 
 ### Đã kiểm tra
 
 - Trên macOS: bộ test đầy đủ, test threading, stress test, app mở được. Chưa chạy trên Bench 3 hay Bench 5.
+
+## Phase 4.7: bench 1 và 4, bo USB relay (spike 18)
+
+Bench 1 và 4 tắt/bật nguồn ECU bằng bo USB relay 8 kênh (tool `usb_relay_control.py` của người dùng, giao thức HID qua gói `hidapi`), JTAG vẫn qua Switch Debugger. Người dùng (2026-11-12): hai bench giống nhau, ECU 0 = Relay 1 của bo USB + CH-A của Switch Debugger, ECU 1 = Relay 2 + CH-B; relay **ON = ECU có nguồn** (ngược với Switch Debugger); cửa sổ USB Relay Control thường mở sẵn. Giao thức trong tool: bật `00 FF n 01`, tắt `00 FD n 01`, hỏi trạng thái `00 F1` rồi đọc feature report (byte cuối là bitmask). Tool mở rồi đóng thiết bị sau mỗi lệnh, nên WFlash có thể dùng chung khi cửa sổ đang mở, nhưng chưa kiểm chứng. Lần chạy thử đầu của người dùng dùng Python cũ (`SyntaxError: future feature annotations`), không phải env `pyside6`.
+
+Theo luật của dự án (không viết lời gọi phần cứng chưa kiểm chứng), làm spike trước, chưa đưa vào WFlash.
+
+### Thay đổi
+
+- **`spike/18_usb_relay.py`** (mới, chỉ đọc): nạp `hid`, in version và API; liệt kê bo relay theo VID/PID `0x16C0/0x05DF`, `0x5131/0x2007` (`--all`: mọi thiết bị HID); mở thiết bị, thử lại khi bận; gửi duy nhất `00 F1` rồi in nguyên byte của `get_feature_report` id 0 và 1 và `read`. Không gửi lệnh bật/tắt.
+- **`spike/README.md`**: dòng của spike 18.
+
+### Đã kiểm tra
+
+- Trên macOS với một module `hid` giả: script chạy hết, chỉ gửi `00 F1`. Điều này chỉ chứng minh logic của script; bo thật chưa chạy.

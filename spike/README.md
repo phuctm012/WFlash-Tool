@@ -38,6 +38,7 @@ Mục đích: xác minh API `isystem.connect` trên winIDEA 9.21 + workspace SAF
 | `python 15_pipeline_sha.py` | tìm pipeline và job theo commit trên GitLab; token lấy từ biến `GITLAB_TOKEN` | Không |
 | `python 16_core_status.py --label all_stopped` | đọc trạng thái từng core (Session Explorer) qua `CSessionCtrl.get_status()` và `getCPUStatus`; in API cho từng core. Chạy một lần khi mọi core STOP, một lần khi có core NOT ACCESSIBLE (`--label not_accessible`) | Không (chỉ đọc) |
 | `python 17_umi_cache_flush.py` | **Đã bỏ: flush hay lỗi sau khi đã xoá flash (Round 15).** thử ghi Winbond giống *Hardware → Winbond → Program*: `umi.write(0, wProgCache)` nạp các dòng tick vào cache, bạn xem Output (không được có ERASING), rồi `umi.flush(0)` xoá và ghi một lần; đọc 16 byte ở 0x0, reset. Hỏi YES trước mỗi bước | **Có, bước 2 ghi flash.** Khôi phục: *Hardware → Winbond → Program* hoặc Debug → Download bằng tay |
+| `pip install hidapi` rồi `python 18_usb_relay.py` | bo USB relay của bench 1 và 4: `hidapi` có nạp được không, liệt kê bo relay (VID/PID, serial), mở thiết bị (kể cả khi USB Relay Control đang mở), đọc trạng thái relay. Chỉ gửi lệnh hỏi `00 F1`. Không cần winIDEA | Không bật/tắt relay nào |
 | `python 11_find_examples.py` | tìm ví dụ và tài liệu `isystem.connect` trên máy, chép vào `results\examples` (không kết nối winIDEA) | Không |
 
 - Nhiều instance winIDEA: thêm `--instance <id>` (id lấy từ output 01).
