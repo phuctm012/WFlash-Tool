@@ -27,6 +27,7 @@ class Step(str, Enum):
     VALIDATE = "Checking workspace entries"
     SET_PATHS = "Updating file paths"
     DOWNLOAD = "Downloading to external flash"
+    PROGRAM = "Programming external flash"  # begin_program runs: it cannot be stopped
     VERIFY = "Verifying flash samples"
     RESET = "Resetting target"
     ROLLBACK = "Restoring previous paths"
@@ -124,7 +125,12 @@ class FlashWorkflow:
     def _download(self, req: FlashRequest, cancel: CancelToken) -> None:
         # power_cycle only when Switch Debugger is on: the call is then exactly what it was before B1.
         extra = {"power_cycle": req.power_cycle} if req.power_cycle is not None else {}
-        self.adapter.download(self._on_progress, cancel, req.timeout_s, **extra)
+
+        def on_program(active: bool) -> None:
+            # PROGRAM: Cancel locks (the real adapter); back to DOWNLOAD when a retry is decided.
+            self._step(Step.PROGRAM if active else Step.DOWNLOAD)
+
+        self.adapter.download(self._on_progress, cancel, req.timeout_s, on_program=on_program, **extra)
 
     def _finish(self, req: FlashRequest) -> None:
         if req.verify:

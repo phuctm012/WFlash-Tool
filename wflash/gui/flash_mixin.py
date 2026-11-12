@@ -342,7 +342,12 @@ class FlashMixin:
     def _on_flash_step(self, text: str) -> None:
         if self._closing:
             return
-        if text == Step.DOWNLOAD.value:
+        if text == Step.DOWNLOAD.value and self._flash_locked:
+            # A retry was decided after a quick failure: nothing is programming, Cancel works again.
+            self._flash_locked = False
+            log.info("Programming will be tried again; Cancel works until it starts")
+            self._update_flash_controls()
+        if text == Step.PROGRAM.value:
             if self._estimator is not None:
                 self._estimator.start(self._flash_total_bytes, time.monotonic())
                 self.ui.label_flashStats.setText(self._estimator.running_text())

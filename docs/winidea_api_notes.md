@@ -541,7 +541,25 @@ So the reset is what broke programming: it started the firmware on the other cor
 
 **Round 17 (debug bundle 2026-11-12 10:06): it works on the ECU.** Three times: Tools → Power-cycle ECU (Switch Debugger, ECU 1), Check winIDEA cores ("ready to flash"), Flash. Each time `_prepare_cores` saw M7_0 STOP, M7_RFE STOP, A53 / SPT / BBE32EP NOT ACCESSIBLE and programmed without a reset; `begin_program` took 100.7 s, 100.5 s and 100.5 s, the read-back confirmed it on the first try, Done. The user confirmed all three passed.
 
-**Decision (user, 2026-11-12, B1): with Switch Debugger on, WFlash power-cycles instead of resetting.** `download(..., power_cycle=)`: just powered on → program at once; otherwise `BenchSwitch.power_cycle()` (relay On, `off_s`, relay Off, `boot_s`), then read the cores every `HALT_POLL_S` for up to `POWER_ON_WAIT_S` (15 s, not measured) until they show the just-powered-on state; if they never do, the old `_prepare_cores` check runs. A retry after a quick failure power-cycles first instead of resetting. Still unobserved: reading `get_status()` through a connection that stays open across the power cycle (round 17 connected after it), and what the cores show right after power on with a short `boot_s`. Not yet run on hardware.
+**Decision (user, 2026-11-12, B1): with Switch Debugger on, WFlash power-cycles instead of resetting.** `download(..., power_cycle=)`: just powered on → program at once; otherwise `BenchSwitch.power_cycle()` (relay On, `off_s`, relay Off, `boot_s`), then read the cores every `HALT_POLL_S` for up to `POWER_ON_WAIT_S` (15 s, not measured) until they show the just-powered-on state; if they never do, the old `_prepare_cores` check runs. A retry after a quick failure power-cycles first instead of resetting. Still unobserved: reading `get_status()` through a connection that stays open across the power cycle (round 17 connected after it), and what the cores show right after power on with a short `boot_s`.
+
+## Round 18: WFlash power-cycles by itself (debug bundle 2026-11-12 10:45)
+
+Seven presses of Flash, Switch Debugger on, ECU 1, power off 5 s, boot wait 4 s. Reading `get_status()` through the open connection works across the power cycle. Nothing was ever written on a failed press.
+
+| Time | Cores before | WFlash | Cores after the power cycle (first read, about 8 s after power on) | Result |
+|---|---|---|---|---|
+| 10:25 | all RUN (SPT IDLE) | power cycle | just powered on | Done, 104.0 s |
+| 10:27 | just powered on | none | – | Done, 108.8 s |
+| 10:31 | all RUN | power cycle | **M7_0 NOT ACCESSIBLE, M7_RFE RUN**, A53 / SPT / BBE32EP NOT ACCESSIBLE | 15 s wait, then 10 resets: refused |
+| 10:34 | all RUN | power cycle | same | refused |
+| 10:36 | M7_0, M7_RFE, A53 STOP, SPT IDLE, BBE32EP RUN | power cycle | just powered on | Done, 101.4 s |
+| 10:38 | all RUN | power cycle | M7_0 NOT ACCESSIBLE, M7_RFE RUN | refused |
+| 10:43 | all RUN | power cycle | just powered on | Done, 101.1 s |
+
+So a power cycle reaches the just-powered-on state about half the time from a running firmware; otherwise M7_0 is NOT ACCESSIBLE and M7_RFE RUN, the state did not change within 15 s, and 30 resets never helped (each also took 6 s: "The target did not stop after the reset"). Unknown why: the manual power cycles of round 16-17 always gave the good state.
+
+**Decision (user, 2026-11-12):** when M7_0 is NOT ACCESSIBLE after a power cycle, stop and tell the user to recover by hand: Debug > End Session, Disconnect JTAG, power off/on, Connect JTAG, attach the debugger in winIDEA, check the cores, flash again (`RECOVER_HINT`). Any other state that is not the just-powered-on one gets another power cycle, within `MAX_POWER_CYCLES` = 3 per press of Flash, retries included; `POWER_ON_WAIT_S` is now 5 s. No reset any more on this path. And Cancel works while WFlash prepares the target and between tries; it is locked only while `begin_program` runs. Not yet run on hardware.
 
 Switch Debugger (same round): `Off;Sensor;<id>` does not release a JTAG port; the box logs "Send Switch to Port N" for On and Off alike, and pressing the port by hand does not release it either. Only `Off_All;Sensor;_` does. The box connects one port at a time.
 

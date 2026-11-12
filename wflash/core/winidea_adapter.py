@@ -65,9 +65,12 @@ class WinIDEAAdapter(Protocol):
         ...
 
     def download(self, progress: ProgressCallback, cancel: CancelToken, timeout_s: int,
-                 power_cycle: Callable[[], None] | None = None) -> None:
+                 power_cycle: Callable[[], None] | None = None,
+                 on_program: Callable[[bool], None] | None = None) -> None:
         """Program every enabled row. `power_cycle` (Switch Debugger on) turns the ECU off and on before
-        programming when it is not in the just-powered-on state, instead of a reset (user, 2026-11-12)."""
+        programming when it is not in the just-powered-on state, instead of a reset (user, 2026-11-12).
+        `on_program(True)` comes right before the step that cannot be stopped, `on_program(False)` when a
+        retry is decided after it: Cancel works outside it (user, 2026-11-12)."""
         ...
 
     def verify_flash(self, progress: ProgressCallback) -> None:
@@ -138,10 +141,24 @@ CORE_WAIT_S = 2.0  # not measured: a short grace after each reset before the sta
 # User decision (2026-11-09): a reset from winIDEA cleared NOT ACCESSIBLE, so reset again while a core is in
 # that state, at most this many resets in all for one press of Flash (the first reset included).
 MAX_CORE_RESETS = 10
+RECOVER_HINT = (
+    "Nothing was written to the flash. Recover the debug session, then flash again:\n"
+    "1. In winIDEA: Debug > End Session.\n"
+    "2. Tools > Disconnect JTAG.\n"
+    "3. Tools > Power-cycle ECU.\n"
+    "4. Tools > Connect JTAG.\n"
+    "5. Attach the debugger in winIDEA.\n"
+    "6. Tools > Check winIDEA cores: it should say \"ready to flash\".\n"
+    "7. Flash again."
+)
 # User decision (2026-11-12, B1): with Switch Debugger on, a power cycle replaces the reset before programming.
-# Not measured: how long after the power cycle (which already waits its boot time) the cores may take to show
-# the just-powered-on state; round 17 read it about 9 s after power on.
-POWER_ON_WAIT_S = 15.0
+# Round 18 (2026-11-12): after a power cycle the cores showed the just-powered-on state at the first read
+# (about 8 s after power on) or not at all within 15 s (M7_0 NOT ACCESSIBLE, M7_RFE RUN, 3 of 6 power cycles).
+# In that state 30 resets never helped. User decision (2026-11-12): when M7_0, the default core, is NOT
+# ACCESSIBLE after a power cycle, stop and show RECOVER_HINT. Any other state that is not the just-powered-on
+# one gets another power cycle, at most MAX_POWER_CYCLES per press of Flash (retries included). Never a reset.
+POWER_ON_WAIT_S = 5.0
+MAX_POWER_CYCLES = 3
 CORE_HINT = (
     "Nothing was written to the flash. Turn the ECU power off and on (Tools > Power-cycle ECU), check that "
     "winIDEA's Session Explorer shows M7_0 and M7_RFE STOP and no core RUN, then flash again."
@@ -403,7 +420,8 @@ class RealWinIDEAAdapter:
         self._write_path(f"{APPLICATIONS}[{i}].SymbolFiles.File[{j}].Path", name, path)
 
     def download(self, progress: ProgressCallback, cancel: CancelToken, timeout_s: int,
-                 power_cycle: Callable[[], None] | None = None) -> None:
+                 power_cycle: Callable[[], None] | None = None,
+                 on_program: Callable[[bool], None] | None = None) -> None:
         """Program through the session, as Debug > Download does: one erase, then all enabled rows.
 
         begin_program() blocks and reports nothing, so `progress` is an estimate from elapsed time.
@@ -418,9 +436,16 @@ class RealWinIDEAAdapter:
 
         With `power_cycle` (Switch Debugger on), a power cycle takes the place of those resets: one before
         a try whose cores are not in the just-powered-on state, and one before every retry (round 16-17).
+
+        `cancel` is honoured until begin_program starts and again between tries (resets, power cycles,
+        the core checks), so Cancel stops a retry (user, 2026-11-12); `on_program` tells the GUI when
+        Cancel must be locked. A cancel raises CancelledError and the workflow restores the paths.
         """
         ic, cmgr, _ide = self._session()
+        self._cancel = cancel
+        on_program = on_program or (lambda active: None)
         self.program_stats = {"resets": 0, "tries": 0, "program_s": 0.0, "power_cycles": 0}
+        self._power_cycles_left = MAX_POWER_CYCLES
         resets_left = MAX_CORE_RESETS
         for attempt in range(1, MAX_PROGRAM_ATTEMPTS + 1):
             # The first try checks the cores before any reset; a retry follows a failure whose cores
@@ -432,6 +457,8 @@ class RealWinIDEAAdapter:
             label = "Programming external flash (estimated)"
             if attempt > 1:
                 label = f"Programming external flash, try {attempt} of {MAX_PROGRAM_ATTEMPTS} (estimated)"
+            self._check_cancel()  # the last point before the step that cannot be stopped
+            on_program(True)
             elapsed = self._begin_program(ic, cmgr, progress, timeout_s, label)
             self.program_stats["tries"] = attempt
             self.program_stats["program_s"] = round(self.program_stats["program_s"] + elapsed, 1)
@@ -448,13 +475,16 @@ class RealWinIDEAAdapter:
                 log.error("Not trying again: programming ran %.0f s before it failed, the flash may be erased", elapsed)
             elif attempt == MAX_PROGRAM_ATTEMPTS:
                 log.error("Programming did not start in %d tries", attempt)
-            elif resets_left == 0:
+            elif power_cycle is not None and self._power_cycles_left == 0:
+                log.error("Not trying again: the %d power cycles for this flash are used up", MAX_POWER_CYCLES)
+            elif power_cycle is None and resets_left == 0:
                 log.error("Not trying again: the %d resets for this flash are used up", MAX_CORE_RESETS)
             else:
                 log.warning(
                     "Programming did not start (Error loading monitor after %.1f s); trying again, %d of %d",
                     elapsed, attempt + 1, MAX_PROGRAM_ATTEMPTS,
                 )
+                on_program(False)  # nothing is being programmed: Cancel works again
                 continue
             message = "Flash failed: winIDEA could not start programming."
             if attempt > 1:
@@ -572,6 +602,7 @@ class RealWinIDEAAdapter:
                 log.warning("Cores not accessible (%s); resetting", summary)
         bad, summary = [], ""
         while resets_left > 0:
+            self._check_cancel()
             self._reset_before_programming(ic, cmgr)
             resets_left -= 1
             self.program_stats["resets"] = self.program_stats.get("resets", 0) + 1
@@ -584,8 +615,17 @@ class RealWinIDEAAdapter:
         log.error("Not programming, cores not accessible after %d resets: %s", MAX_CORE_RESETS, summary)
         raise inaccessible_cores_error(bad)
 
-    def _power_on_state(self, ic, cmgr) -> tuple[bool, str]:
-        """(just powered on, summary of the core states); ("", False) when they cannot be read."""
+    def _check_cancel(self) -> None:
+        cancel = getattr(self, "_cancel", None)
+        if cancel is not None and cancel.cancelled:
+            log.warning("Flash cancelled before programming started; nothing was written")
+            raise CancelledError("Flash cancelled", hint="Nothing was written to the flash.")
+
+    def _power_on_state(self, ic, cmgr, default_core_lost: list | None = None) -> tuple[bool, str]:
+        """(just powered on, summary of the core states); (False, "") when they cannot be read.
+
+        `default_core_lost`, when given, receives True when the first core (M7_0) is NOT ACCESSIBLE.
+        """
         try:
             states = self._core_states(ic, cmgr)
         except Exception:
@@ -593,6 +633,8 @@ class RealWinIDEAAdapter:
         stopped = getattr(ic, "EStatus_Core_stStopped", CORE_STOPPED)
         inaccessible = getattr(ic, "EStatus_Core_stInaccessible", CORE_INACCESSIBLE)
         summary = ", ".join(f"{name} {text}" for name, _status, text in states)
+        if default_core_lost is not None:
+            default_core_lost[:] = [bool(states) and states[0][1] == inaccessible]
         return just_powered_on([status for _name, status, _text in states], stopped, inaccessible), summary
 
     def _just_powered_on(self, ic, cmgr) -> bool:
@@ -606,8 +648,9 @@ class RealWinIDEAAdapter:
         """Switch Debugger on (B1, user 2026-11-12): program at once right after power on, else power-cycle
         the ECU first. A retry always power-cycles: a reset there starts the firmware (round 16).
 
-        When the cores still do not show the just-powered-on state after the power cycle, the check of
-        `_prepare_cores` applies as before. Returns what is left of the resets.
+        When the cores do not show the just-powered-on state after a power cycle, it power-cycles again
+        (round 18), within MAX_POWER_CYCLES for this press of Flash, and then refuses: nothing is written.
+        It never resets. Returns `resets_left` unchanged.
         """
         if not retry:
             fresh, summary = self._power_on_state(ic, cmgr)
@@ -617,19 +660,38 @@ class RealWinIDEAAdapter:
             log.info("Cores before programming: %s. Power-cycling the ECU first", summary or "unreadable")
         else:
             log.info("Power-cycling the ECU before trying again")
-        self._power_cycle_ecu(power_cycle, progress)
-        deadline = time.monotonic() + POWER_ON_WAIT_S
-        while True:
-            fresh, summary = self._power_on_state(ic, cmgr)
-            if fresh:
-                log.info("Cores after the power cycle: %s. Programming without a reset", summary)
-                return resets_left
-            if time.monotonic() >= deadline:
-                break
-            time.sleep(HALT_POLL_S)
-        log.warning("Cores after the power cycle: %s, not the just-powered-on state; checking them as before",
-                    summary or "unreadable")
-        return self._prepare_cores(ic, cmgr, resets_left, reset_first=False)
+        summary = ""
+        while self._power_cycles_left > 0:
+            self._check_cancel()
+            self._power_cycles_left -= 1
+            self._power_cycle_ecu(power_cycle, progress)  # runs to the end: the power always comes back on
+            used = MAX_POWER_CYCLES - self._power_cycles_left
+            deadline = time.monotonic() + POWER_ON_WAIT_S
+            lost = [False]
+            while True:
+                self._check_cancel()
+                fresh, summary = self._power_on_state(ic, cmgr, lost)
+                if fresh:
+                    log.info("Cores after power cycle %d of %d: %s. Programming without a reset",
+                             used, MAX_POWER_CYCLES, summary)
+                    return resets_left
+                if time.monotonic() >= deadline:
+                    break
+                time.sleep(HALT_POLL_S)
+            if lost[0]:
+                log.error("Not programming: M7_0 is NOT ACCESSIBLE after power cycle %d (%s); the debug session "
+                          "must be recovered by hand", used, summary)
+                raise FlashError("Flash not started: M7_0 is not accessible after the power cycle.", hint=RECOVER_HINT)
+            if self._power_cycles_left > 0:
+                log.warning("Cores after power cycle %d of %d: %s, not the just-powered-on state; power-cycling again",
+                            used, MAX_POWER_CYCLES, summary or "unreadable")
+        log.error("Not programming: the cores did not show the just-powered-on state after %d power cycles: %s",
+                  MAX_POWER_CYCLES, summary or "unreadable")
+        raise FlashError(
+            f"Flash not started: the ECU did not start in the expected state after {MAX_POWER_CYCLES} power cycles.",
+            hint="Nothing was written to the flash. Use Tools > Power-cycle ECU and Tools > Check winIDEA cores until "
+                 "they say \"ready to flash\", then flash again, or flash by hand with Debug > Download.",
+        )
 
     def _power_cycle_ecu(self, power_cycle: Callable[[], None], progress: ProgressCallback) -> None:
         try:

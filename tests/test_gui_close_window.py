@@ -72,7 +72,7 @@ def test_gui_thread_close_during_flash_cancels_and_rolls_back_before_returning(m
     adapter = FakeWinIDEAAdapter(download_seconds=10)
     w = make.factory(adapter)
     w.start_flash()
-    qtbot.waitUntil(lambda: w.current_step() == Step.DOWNLOAD.value, timeout=3000)
+    qtbot.waitUntil(lambda: w.current_step() in (Step.DOWNLOAD.value, Step.PROGRAM.value), timeout=3000)
     t0 = time.monotonic()
     w.close()
     elapsed = time.monotonic() - t0
@@ -93,7 +93,7 @@ def test_gui_thread_close_declined_keeps_flashing(make, qtbot):
     w = make.factory(adapter)
     make.answer = QMessageBox.StandardButton.No
     w.start_flash()
-    qtbot.waitUntil(lambda: w.current_step() == Step.DOWNLOAD.value, timeout=3000)
+    qtbot.waitUntil(lambda: w.current_step() in (Step.DOWNLOAD.value, Step.PROGRAM.value), timeout=3000)
     w.close()
     assert not w._closing and w.flash_active()
     qtbot.waitUntil(lambda: w.current_step() == Step.DONE.value, timeout=5000)
@@ -148,7 +148,7 @@ def test_gui_thread_close_reports_rollback_failure_after_the_wait(make, qtbot):
 
     w = make.factory(RestoreFails(download_seconds=10))
     w.start_flash()
-    qtbot.waitUntil(lambda: w.current_step() == Step.DOWNLOAD.value, timeout=3000)
+    qtbot.waitUntil(lambda: w.current_step() in (Step.DOWNLOAD.value, Step.PROGRAM.value), timeout=3000)
     w.close()
     assert len(make.shown) == 1
     assert make.shown[0][0] == "WFlash — rollback failed"
@@ -160,13 +160,13 @@ def test_gui_thread_close_wait_is_bounded_when_a_worker_ignores_cancel(make, qtb
     release = threading.Event()
 
     class Stuck(FakeWinIDEAAdapter):
-        def download(self, progress, cancel, timeout_s):
+        def download(self, progress, cancel, timeout_s, **_kwargs):
             release.wait(5)  # ignores the cancel token on purpose
 
     monkeypatch.setattr(main_window_module, "CLOSE_TIMEOUT_S", 0.5)
     w = make.factory(Stuck())
     w.start_flash()
-    qtbot.waitUntil(lambda: w.current_step() == Step.DOWNLOAD.value, timeout=3000)
+    qtbot.waitUntil(lambda: w.current_step() in (Step.DOWNLOAD.value, Step.PROGRAM.value), timeout=3000)
     worker = w._workers.worker(w._flash_key)
     w._flash_key_for_test = w._flash_key
     t0 = time.monotonic()
@@ -190,7 +190,7 @@ def test_gui_thread_close_logs_rollback_failure_critical_and_records_it(make, qt
 
     w = make.factory(RestoreFails(download_seconds=10))
     w.start_flash()
-    qtbot.waitUntil(lambda: w.current_step() == Step.DOWNLOAD.value, timeout=3000)
+    qtbot.waitUntil(lambda: w.current_step() in (Step.DOWNLOAD.value, Step.PROGRAM.value), timeout=3000)
     with caplog.at_level(logging.CRITICAL, logger="wflash"):
         w.close()
     assert any(r.levelno == logging.CRITICAL and "Rollback failed" in r.message for r in caplog.records)
@@ -209,13 +209,13 @@ def test_gui_thread_close_records_non_rollback_error_without_dialog(make, qtbot)
 
 def test_gui_thread_close_disables_ui_and_ignores_reentrant_close_during_wait(make, qtbot):
     class SlowToStop(FakeWinIDEAAdapter):
-        def download(self, progress, cancel, timeout_s):
+        def download(self, progress, cancel, timeout_s, **_kwargs):
             time.sleep(0.5)  # keeps the close wait open long enough for the probe
             super().download(progress, cancel, timeout_s)
 
     w = make.factory(SlowToStop(download_seconds=10))
     w.start_flash()
-    qtbot.waitUntil(lambda: w.current_step() == Step.DOWNLOAD.value, timeout=3000)
+    qtbot.waitUntil(lambda: w.current_step() in (Step.DOWNLOAD.value, Step.PROGRAM.value), timeout=3000)
     seen = {}
 
     def probe():
@@ -236,7 +236,7 @@ def test_gui_thread_close_disables_ui_and_ignores_reentrant_close_during_wait(ma
 def test_gui_thread_close_after_confirmed_cancel_logs_warning_not_error(make, qtbot, caplog):
     w = make.factory(FakeWinIDEAAdapter(download_seconds=10))
     w.start_flash()
-    qtbot.waitUntil(lambda: w.current_step() == Step.DOWNLOAD.value, timeout=3000)
+    qtbot.waitUntil(lambda: w.current_step() in (Step.DOWNLOAD.value, Step.PROGRAM.value), timeout=3000)
     with caplog.at_level(logging.INFO, logger="wflash"):
         w.close()
     assert any(r.levelno == logging.WARNING and "cancelled by closing" in r.message for r in caplog.records)
@@ -260,7 +260,7 @@ def test_gui_thread_close_keeps_every_menu_action_off_during_and_after_the_wait(
     """The menu bar is outside the central widget: its shortcuts must not start anything while
     the close wait pumps events, even after the flash worker finished inside that wait."""
     class SlowToStop(FakeWinIDEAAdapter):
-        def download(self, progress, cancel, timeout_s):
+        def download(self, progress, cancel, timeout_s, **_kwargs):
             time.sleep(0.5)
             super().download(progress, cancel, timeout_s)
 
@@ -271,7 +271,7 @@ def test_gui_thread_close_keeps_every_menu_action_off_during_and_after_the_wait(
     monkeypatch.setattr(QFileDialog, "getExistingDirectory", lambda *a, **k: dialogs.append(a) or "")
     w = make.factory(SlowToStop(download_seconds=10))
     w.start_flash()
-    qtbot.waitUntil(lambda: w.current_step() == Step.DOWNLOAD.value, timeout=3000)
+    qtbot.waitUntil(lambda: w.current_step() in (Step.DOWNLOAD.value, Step.PROGRAM.value), timeout=3000)
     seen = {}
 
     def probe():

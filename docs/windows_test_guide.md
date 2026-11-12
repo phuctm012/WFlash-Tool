@@ -817,3 +817,21 @@ Khi Switch Debugger đang bật trong Setting, bấm Flash là đủ: nếu ECU 
 4. Đóng Switch Debugger (hoặc bấm Stop ở ô TCP/IP), đưa ECU về trạng thái có core RUN, bấm Flash. Mong đợi: `Flash not started: the ECU power cycle failed.`, gợi ý mở Switch Debugger, không ghi gì vào flash, đường dẫn được trả về.
 
 Gửi lại: debug bundle sau các lần flash, và Boot wait đang dùng.
+
+**Kết quả Vòng 18 (2026-11-12 10:45):** 7 lần bấm Flash. 4 lần Done: 3 lần WFlash tự tắt/bật nguồn và các core về trạng thái vừa bật nguồn, 1 lần ECU đã vừa bật nguồn nên nạp luôn. 3 lần sau khi tắt/bật nguồn thì M7_0 NOT ACCESSIBLE, M7_RFE RUN; WFlash reset 10 lần không gỡ được và từ chối nạp, không ghi gì. Đọc trạng thái core trong lúc WFlash vẫn giữ kết nối tới winIDEA hoạt động bình thường. Bước 4 (Switch Debugger tắt) chưa chạy.
+
+## Vòng 19: M7_0 NOT ACCESSIBLE thì dừng; Cancel khi đang thử lại
+
+Theo quyết định của bạn sau Vòng 18:
+- Sau khi tắt/bật nguồn mà **M7_0 NOT ACCESSIBLE**: WFlash dừng ngay, không reset, không ghi gì, trả đường dẫn về, và popup liệt kê cách khôi phục: Debug → End Session, Tools → Disconnect JTAG, Tools → Power-cycle ECU, Tools → Connect JTAG, attach debugger trong winIDEA, Tools → Check winIDEA cores (phải báo `ready to flash`), rồi Flash lại.
+- Trạng thái sai khác (không phải M7_0 NOT ACCESSIBLE): WFlash tắt/bật nguồn thêm, tối đa 3 lần mỗi lần bấm Flash, không bao giờ reset.
+- **Cancel** bấm được trong lúc WFlash chuẩn bị (tắt/bật nguồn, chờ core, giữa các lần thử). Chỉ khoá trong lúc `begin_program` chạy (khoảng 100 s, chữ "Programming external flash"). Nếu bấm Cancel giữa lúc đang tắt/bật nguồn, WFlash chờ lần đó xong (nguồn luôn bật lại) rồi mới dừng.
+
+⚠️ Bước có FLASH ghi flash. Cơ sở: Vòng 17–18, mọi lần đạt đều theo đúng trình tự này. Rủi ro: hỏng nhanh thì chưa xoá gì; hỏng sau `ERASING` thì flash có thể trống. Khôi phục: tắt/bật nguồn, rồi Debug → Download bấm tay.
+
+1. **(FLASH)** Cho firmware chạy, bấm Flash, lặp lại vài lần. Khi gặp M7_0 NOT ACCESSIBLE: phải thấy popup `Flash not started: M7_0 is not accessible after the power cycle.` với 7 bước. Làm theo 7 bước, rồi Flash lại. Ghi lại các bước đó có gỡ được không.
+2. Cho firmware chạy, bấm Flash, rồi bấm **Cancel** trong lúc log còn ở `Power-cycling the ECU` hoặc `Cores after power cycle`. Mong đợi: nguồn bật lại, log `Flash cancelled before programming started; nothing was written`, đường dẫn được trả về.
+3. Khi chữ bước là **Programming external flash**: nút Cancel phải bị khoá.
+4. (Từ Vòng 18) Bấm Stop ở ô TCP/IP của Switch Debugger, cho firmware chạy, bấm Flash. Mong đợi: `Flash not started: the ECU power cycle failed.`, không ghi gì.
+
+Gửi lại: debug bundle.

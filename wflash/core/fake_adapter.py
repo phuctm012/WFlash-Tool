@@ -135,7 +135,8 @@ class FakeWinIDEAAdapter:
         self.applications[name] = path
 
     def download(self, progress: ProgressCallback, cancel: CancelToken, timeout_s: int,
-                 power_cycle: Callable[[], None] | None = None) -> None:
+                 power_cycle: Callable[[], None] | None = None,
+                 on_program: Callable[[bool], None] | None = None) -> None:
         self._require_connected()
         self._call("download")
         self.program_stats = {"resets": 0, "tries": 1, "program_s": round(self.download_seconds, 1), "power_cycles": 0}
@@ -150,6 +151,9 @@ class FakeWinIDEAAdapter:
             self.program_stats["power_cycles"] = 1
         if "core_inaccessible" in self.fail_on:
             raise inaccessible_cores_error(["A53", "BBE32EP"])
+        cancel.raise_if_cancelled()
+        if on_program is not None:
+            on_program(True)  # the real adapter: begin_program starts, Cancel locks unless cancellable
         steps = 20
         start = time.monotonic()
         for i in range(1, steps + 1):
