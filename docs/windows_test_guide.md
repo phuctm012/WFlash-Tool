@@ -791,3 +791,14 @@ Lần tới WFlash báo `Flash failed: winIDEA could not start programming in 3 
 - Ảnh cửa sổ Switch Debugger sau mỗi lệnh nếu có gì khác bảng trên.
 - Boot wait bao nhiêu thì đủ. Kết quả này quyết định bước 2 (WFlash tự tắt/bật nguồn khi gặp lỗi monitor).
 
+## Vòng 17: flash ngay sau khi tắt/bật nguồn, không reset
+
+Ở Vòng 16, ngay sau khi tắt/bật nguồn các core luôn là M7_0 STOP, M7_RFE STOP, A53 / SPT / BBE32EP NOT ACCESSIBLE, và Download bấm tay luôn được. WFlash cũ thấy NOT ACCESSIBLE nên reset; lệnh reset làm firmware chạy (M7_RFE, A53, BBE32EP RUN) và `begin_program` hỏng với `Error loading monitor`. Giờ ở trạng thái vừa bật nguồn, WFlash nạp luôn, không reset. Nếu có core nào RUN hay IDLE thì vẫn kiểm tra như cũ.
+
+⚠️ Bước 2 ghi flash. Cơ sở: bạn nạp tay ở đúng trạng thái này luôn được, và `begin_program()` cho Output giống Debug → Download. Rủi ro: hỏng nhanh (`Error loading monitor`, dưới 30 s) thì chưa xoá gì; hỏng sau `ERASING` thì flash có thể trống. Khôi phục: tắt/bật nguồn, rồi Debug → Download bấm tay.
+
+1. Tools → Power-cycle ECU, rồi Tools → Check winIDEA cores. Mong đợi: `winIDEA cores: M7_0 STOP, M7_RFE STOP, A53 NOT ACCESSIBLE, SPT NOT ACCESSIBLE, BBE32EP NOT ACCESSIBLE. ECU just powered on: ready to flash.`
+2. **(FLASH)** Bấm Flash. Mong đợi: log có `ECU just powered on: programming without a reset`, không có `CDebugFacade.reset (before programming)`, `begin_program` khoảng 100 s, rồi Done; ECU chạy.
+3. Lặp lại bước 1–2 thêm 2 lần.
+
+Gửi lại: debug bundle (File → Export debug bundle) sau các lần flash.

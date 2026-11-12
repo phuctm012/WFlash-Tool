@@ -527,6 +527,18 @@ User observation, Session Explorer screenshot after a hard reset (power cycle th
 
 **In this state, Debug → Download by hand always succeeds** (user). This contradicts the round 9 reading that any `NOT ACCESSIBLE` core makes programming fail: right after power on, A53, SPT and BBE32EP are not started yet and that is harmless. The bad state of rounds 9–11 came after the firmware had run (A53/BBE32EP RUN or NOT ACCESSIBLE after a winIDEA reset), and was cleared by a power cycle. Not yet known: what `_prepare_cores` does here. It treats `NOT ACCESSIBLE` as bad, so it would reset with `debug.reset()` and read again, up to 10 times, and refuse to program if the three cores stay `NOT ACCESSIBLE`. `STOP EXT` has not been seen by spike 16 before. No change to the flash path until a WFlash flash in this state has been observed.
 
+**WFlash in this state (debug bundle 2026-11-12 09:07), two presses of Flash, both the same:**
+
+| Step | Core states | Result |
+|---|---|---|
+| First check | M7_0 STOP, M7_RFE STOP, A53 / SPT / BBE32EP NOT ACCESSIBLE | `NOT ACCESSIBLE` seen: reset |
+| After reset 1 | M7_0 STOP, **M7_RFE RUN, A53 RUN**, SPT IDLE, **BBE32EP RUN** | `begin_program` 4.9 s, read-back `Error loading monitor` (nothing written) |
+| Retry, resets 2-10 | M7_RFE RUN, SPT IDLE, A53 and BBE32EP NOT ACCESSIBLE | refused after 10 resets, paths restored |
+
+So the reset is what broke programming: it started the firmware on the other cores, and only a power cycle undoes that. Round 9's table points the same way (good: M7_RFE STOP; bad: M7_RFE RUN). The user then read the cores after several power cycles and after waiting a few minutes: always M7_0 STOP, M7_RFE STOP, A53 / SPT / BBE32EP NOT ACCESSIBLE.
+
+**Decision (user, 2026-11-12):** when every core is STOP or NOT ACCESSIBLE and at least one is STOP (`just_powered_on`), `_prepare_cores` programs at once, without a reset. Any core in RUN, IDLE or another state keeps the old check. A retry after a quick failure still resets first. Tools → Check winIDEA cores says "ECU just powered on: ready to flash" in that state. Not yet run on hardware.
+
 Switch Debugger (same round): `Off;Sensor;<id>` does not release a JTAG port; the box logs "Send Switch to Port N" for On and Off alike, and pressing the port by hand does not release it either. Only `Off_All;Sensor;_` does. The box connects one port at a time.
 
 ## Open questions

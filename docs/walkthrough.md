@@ -1980,3 +1980,18 @@ Vòng 16 trên bàn test (2026-11-12): Connect JTAG chạy đúng. Disconnect JT
 ### Đã kiểm tra
 
 - Trên macOS: bộ test đầy đủ, test threading, stress test, app mở được với fake adapter. Lệnh mới chưa chạy với Switch Debugger thật; dòng lệnh giống hệt `--all` mà người dùng đã thử thành công.
+
+## Phase 4.3: nạp ngay khi ECU vừa bật nguồn, không reset
+
+Debug bundle 2026-11-12 09:07: người dùng tắt/bật nguồn bằng Switch Debugger, các core là M7_0 STOP, M7_RFE STOP, A53 / SPT / BBE32EP NOT ACCESSIBLE, và ở trạng thái này Download bấm tay luôn được. Nhưng WFlash bấm Flash hai lần đều hỏng: thấy NOT ACCESSIBLE nên reset; sau reset M7_RFE, A53, BBE32EP RUN (firmware chạy), `begin_program` hỏng nhanh với `Error loading monitor`; reset thêm 9 lần vẫn còn A53, BBE32EP NOT ACCESSIBLE nên WFlash từ chối. Không có gì bị ghi vào flash. Vậy chính lệnh reset làm hỏng trạng thái tốt; bảng Vòng 9 cũng khớp (lần được: M7_RFE STOP; lần hỏng: M7_RFE RUN). Người dùng đọc lại core sau nhiều lần tắt/bật nguồn và sau vài phút: lần nào cũng như trên. Người dùng đồng ý phương án A: ở trạng thái vừa bật nguồn thì nạp luôn, không reset.
+
+### Thay đổi
+
+- **`wflash/core/winidea_adapter.py`**: `just_powered_on` (mọi core STOP hoặc NOT ACCESSIBLE, ít nhất một core STOP) và `just_powered_on_text`. `_prepare_cores` kiểm tra điều kiện này trước; đúng thì nạp ngay, không reset. Có core RUN, IDLE hay trạng thái khác thì giữ cách cũ. Lần thử lại sau một lỗi nhanh vẫn reset trước, như cũ. `CORE_HINT` nay khuyên tắt/bật nguồn (Tools → Power-cycle ECU) và kiểm tra M7_0, M7_RFE STOP.
+- **`wflash/gui/menu_actions.py`**: Tools → Check winIDEA cores báo "ECU just powered on: ready to flash." ở trạng thái đó; còn NOT ACCESSIBLE ở trạng thái khác thì khuyên tắt/bật nguồn.
+- **Test**: `tests/test_real_adapter.py`: nạp ngay sau khi bật nguồn (không reset); lần thử lại vẫn reset trước; bảng `just_powered_on` cho các trạng thái đã thấy (vừa bật nguồn, sau reset, Vòng 9 hỏng và được).
+- **Tài liệu**: `docs/winidea_api_notes.md` (Round 16), `CLAUDE.md`, `user_guide.html`, `docs/windows_test_guide.md` (Vòng 17).
+
+### Đã kiểm tra
+
+- Trên macOS với `tests/fake_isystem.py`: bộ test đầy đủ, test threading, stress test, app mở được. Chưa chạy trên ECU: đó là Vòng 17.
