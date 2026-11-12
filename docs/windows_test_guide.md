@@ -837,3 +837,12 @@ Theo quyết định của bạn sau Vòng 18:
 Gửi lại: debug bundle.
 
 **Kết quả Vòng 19 (2026-11-12 11:43): đạt.** Bạn xác nhận tất cả bước đều đạt. Trong debug bundle: Cancel trong lúc tắt/bật nguồn thì nguồn bật lại, không ghi gì, đường dẫn được trả về; 3 lần WFlash tự tắt/bật nguồn một lần rồi Done; 1 lần M7_0 NOT ACCESSIBLE thì dừng ngay với 7 bước, làm theo các bước rồi Flash lại thì Done; Cancel bị khoá trong lúc nạp. Bước 4 (Switch Debugger tắt) không có trong bundle này.
+
+## Vòng 20: chọn bench; tắt nguồn và chờ khởi động 1 s
+
+Tab Setting, nhóm Switch Debugger: có ô **Bench** (Bench 2, 3, 5); bỏ Address, Port, Power off for, Boot wait (cố định `127.11.0.1:1101`, tắt nguồn 1 s, chờ 1 s). Mặc định Bench 2, ECU 1. Setting cũ của bạn (ECU, bật/tắt) được giữ.
+
+1. Mở WFlash: nhóm Switch Debugger phải hiện **Bench 2**, ECU 1 (CH-D, relay 2).
+2. Trên Bench 2: Tools → Power-cycle ECU. Mong đợi: chỉ Relay 2 đổi, tắt khoảng 1 s; log `Switch Debugger: power cycle, Bench 2, ECU 1 (CH-D, relay 2)…`.
+3. **(FLASH, nếu muốn)** Bấm Flash một lần trên Bench 2 như Vòng 19.
+4. Khi có dịp dùng Bench 3 hoặc 5: chọn bench đó, Tools → Connect JTAG phải bật **CH-A** (ECU 0) hoặc **CH-B** (ECU 1); Power-cycle ECU chỉ đổi Relay 1 hoặc Relay 2.

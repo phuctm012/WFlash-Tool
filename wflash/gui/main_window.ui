@@ -1444,22 +1444,27 @@
                 </widget>
                </item>
                <item row="1" column="0">
-                <widget class="QLabel" name="label_benchEcu">
+                <widget class="QLabel" name="label_benchName">
                  <property name="text">
-                  <string>ECU</string>
+                  <string>Bench</string>
                  </property>
                 </widget>
                </item>
                <item row="1" column="1">
-                <widget class="QComboBox" name="comboBox_benchEcu">
+                <widget class="QComboBox" name="comboBox_benchName">
                  <item>
                   <property name="text">
-                   <string>ECU 0 (port C, relay 1)</string>
+                   <string>Bench 2 (ECU 0: CH-C + relay 1, ECU 1: CH-D + relay 2)</string>
                   </property>
                  </item>
                  <item>
                   <property name="text">
-                   <string>ECU 1 (port D, relay 2)</string>
+                   <string>Bench 3 (ECU 0: CH-A + relay 1, ECU 1: CH-B + relay 2)</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>Bench 5 (ECU 0: CH-A + relay 1, ECU 1: CH-B + relay 2)</string>
                   </property>
                  </item>
                 </widget>
@@ -1472,95 +1477,37 @@
                 </widget>
                </item>
                <item row="2" column="0">
-                <widget class="QLabel" name="label_benchHost">
+                <widget class="QLabel" name="label_benchEcu">
                  <property name="text">
-                  <string>Address</string>
+                  <string>ECU</string>
                  </property>
                 </widget>
                </item>
                <item row="2" column="1">
-                <widget class="QLineEdit" name="lineEdit_benchHost">
-                 <property name="placeholderText">
-                  <string>127.11.0.1</string>
-                 </property>
+                <widget class="QComboBox" name="comboBox_benchEcu">
+                 <item>
+                  <property name="text">
+                   <string>ECU 0 (CH-C, relay 1)</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>ECU 1 (CH-D, relay 2)</string>
+                  </property>
+                 </item>
                 </widget>
                </item>
                <item row="2" column="2">
-                <widget class="QLabel" name="label_benchPort">
+                <widget class="QLabel" name="label_benchEcuNote">
                  <property name="text">
-                  <string>Port</string>
-                 </property>
-                 <property name="alignment">
-                  <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignVCenter</set>
+                  <string>The ECU list follows the bench</string>
                  </property>
                 </widget>
                </item>
-               <item row="2" column="3">
-                <widget class="QSpinBox" name="spinBox_benchPort">
-                 <property name="minimum">
-                  <number>1</number>
-                 </property>
-                 <property name="maximum">
-                  <number>65535</number>
-                 </property>
-                 <property name="value">
-                  <number>1101</number>
-                 </property>
-                </widget>
-               </item>
-               <item row="3" column="0">
-                <widget class="QLabel" name="label_benchOff">
-                 <property name="text">
-                  <string>Power off for</string>
-                 </property>
-                </widget>
-               </item>
-               <item row="3" column="1">
-                <widget class="QSpinBox" name="spinBox_benchOff">
-                 <property name="minimum">
-                  <number>1</number>
-                 </property>
-                 <property name="maximum">
-                  <number>60</number>
-                 </property>
-                 <property name="value">
-                  <number>3</number>
-                 </property>
-                 <property name="suffix">
-                  <string> s</string>
-                 </property>
-                </widget>
-               </item>
-               <item row="3" column="2">
-                <widget class="QLabel" name="label_benchBoot">
-                 <property name="text">
-                  <string>Boot wait</string>
-                 </property>
-                 <property name="alignment">
-                  <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignVCenter</set>
-                 </property>
-                </widget>
-               </item>
-               <item row="3" column="3">
-                <widget class="QSpinBox" name="spinBox_benchBoot">
-                 <property name="minimum">
-                  <number>0</number>
-                 </property>
-                 <property name="maximum">
-                  <number>120</number>
-                 </property>
-                 <property name="value">
-                  <number>4</number>
-                 </property>
-                 <property name="suffix">
-                  <string> s</string>
-                 </property>
-                </widget>
-               </item>
-               <item row="4" column="0" colspan="4">
+               <item row="3" column="0" colspan="4">
                 <widget class="QLabel" name="label_benchHint">
                  <property name="text">
-                  <string>Used by Tools › Power-cycle ECU, Connect JTAG and Disconnect JTAG, and by Flash: before programming, WFlash power-cycles this ECU unless it was just powered on (instead of a reset). Never during programming: cutting the power then leaves the flash empty. Only the port and the relay of this ECU are switched.</string>
+                  <string>Used by Tools › Power-cycle ECU, Connect JTAG and Disconnect JTAG, and by Flash: before programming, WFlash power-cycles this ECU unless it was just powered on (instead of a reset). The power stays off 1 s and WFlash waits 1 s after power on. Never during programming: cutting the power then leaves the flash empty. Only the port and the relay of this ECU are switched.</string>
                  </property>
                  <property name="wordWrap">
                   <bool>true</bool>

@@ -47,21 +47,35 @@ def test_gui_bench_is_off_by_default(env):
     for action in (ui.action_powerCycle, ui.action_jtagConnect, ui.action_jtagDisconnect):
         assert not action.isEnabled()
     assert ui.comboBox_benchEcu.currentIndex() == 1
-    assert ui.spinBox_benchBoot.value() == 4
+    assert ui.comboBox_benchName.currentText().startswith("Bench 2 ")
+    assert not ui.comboBox_benchName.isEnabled()
 
 
-def test_gui_bench_combo_items_match_the_bench(env):
-    combo = env.window.ui.comboBox_benchEcu
-    assert [combo.itemText(i) for i in range(combo.count())] == [bench_switch.ecu_label(e) for e in sorted(bench_switch.ECUS)]
+def test_gui_bench_combo_items_match_the_benches(env):
+    combo = env.window.ui.comboBox_benchName
+    assert [combo.itemText(i) for i in range(combo.count())] == [bench_switch.bench_label(b) for b in bench_switch.BENCHES]
+    ecus = env.window.ui.comboBox_benchEcu
+    assert [ecus.itemText(i) for i in range(ecus.count())] == ["ECU 0 (CH-C, relay 1)", "ECU 1 (CH-D, relay 2)"]
+
+
+def test_gui_ecu_items_follow_the_bench_and_save(env):
+    ui = env.window.ui
+    ui.checkBox_benchEnabled.setChecked(True)
+    ui.comboBox_benchName.setCurrentIndex(1)  # Bench 3
+    ecus = ui.comboBox_benchEcu
+    assert [ecus.itemText(i) for i in range(ecus.count())] == ["ECU 0 (CH-A, relay 1)", "ECU 1 (CH-B, relay 2)"]
+    saved = json.loads((env.tmp / "settings.json").read_text())
+    assert saved["bench_name"] == "Bench 3"
+    assert env.window.settings.bench_config().jtag_port == "B"
 
 
 def test_gui_bench_settings_save_at_once(env):
     ui = env.window.ui
     ui.checkBox_benchEnabled.setChecked(True)
     ui.comboBox_benchEcu.setCurrentIndex(0)
-    ui.spinBox_benchBoot.setValue(6)
     saved = json.loads((env.tmp / "settings.json").read_text())
-    assert saved["bench_enabled"] is True and saved["bench_ecu"] == 0 and saved["bench_boot_s"] == 6
+    assert saved["bench_enabled"] is True and saved["bench_ecu"] == 0
+    assert "bench_boot_s" not in saved and "bench_host" not in saved
     assert ui.action_powerCycle.isEnabled()
 
 

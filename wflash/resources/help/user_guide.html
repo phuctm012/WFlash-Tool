@@ -208,9 +208,8 @@ figcaption { color: var(--muted); font-size: 13px; margin-top: 8px; text-align: 
         </div>
         <div class="grp" style="margin-bottom:0"><b class="t">Bench power (Switch Debugger)</b>
           <div class="row wide"><span></span><span>☑ Control JTAG and ECU power through Switch Debugger</span></div>
-          <div class="row wide"><span>ECU</span><span class="fld">ECU 1 (port D, relay 2)</span></div>
-          <div class="row wide"><span>Address</span><span class="fld">127.11.0.1 &nbsp; Port 1101</span></div>
-          <div class="row wide"><span>Power off for</span><span>3 s &nbsp; Boot wait 4 s</span></div>
+          <div class="row wide"><span>Bench</span><span class="fld">Bench 2 (ECU 0: CH-C + relay 1, ECU 1: CH-D + relay 2)</span></div>
+          <div class="row wide"><span>ECU</span><span class="fld">ECU 1 (CH-D, relay 2)</span></div>
         </div>
       </div>
     </div>
@@ -222,7 +221,7 @@ figcaption { color: var(--muted); font-size: 13px; margin-top: 8px; text-align: 
     <li>Choose <span class="ui">Tools → Test GitLab connection</span>. The Information panel should say the connection works.</li>
     <li>Under <span class="ui">winIDEA</span>, pick your workspace in <span class="ui">Instance</span> (<span class="ui">Refresh</span> if winIDEA was started later).</li>
     <li>Leave <span class="ui">Reset target</span> on. <span class="ui">Verify samples</span> reads parts of the flash back after programming; it adds about 3 minutes.</li>
-    <li>Optional, on a bench with the Switch Debugger box: tick <span class="ui">Control JTAG and ECU power through Switch Debugger</span> and choose your <span class="ui">ECU</span> (ECU 0 = port C and relay 1, ECU 1 = port D and relay 2). Switch Debugger must be running with its TCP/IP service started. WFlash only switches the port and the relay of that ECU, and never while a flash runs.</li>
+    <li>Optional, on a bench with the Switch Debugger box: tick <span class="ui">Control JTAG and ECU power through Switch Debugger</span> then choose your <span class="ui">Bench</span> and <span class="ui">ECU</span>. Bench 2: ECU 0 = CH-C and relay 1, ECU 1 = CH-D and relay 2. Bench 3 and Bench 5: ECU 0 = CH-A and relay 1, ECU 1 = CH-B and relay 2. Switch Debugger must be running with its TCP/IP service started at 127.11.0.1, port 1101. A power cycle keeps the power off 1 s and waits 1 s after power on. WFlash only switches the port and the relay of that ECU, and never while a flash runs.</li>
   </ol>
 </section>
 
@@ -313,7 +312,7 @@ figcaption { color: var(--muted); font-size: 13px; margin-top: 8px; text-align: 
       <tr><td><code>Cores not accessible … resetting again</code></td><td>Nothing: WFlash resets the ECU up to 10 times by itself. If it still fails, turn the ECU power off and on, then flash again.</td></tr>
       <tr><td><code>Programming did not start … trying again</code></td><td>Nothing: winIDEA could not load its flash monitor, nothing was written. WFlash tries up to 3 times.</td></tr>
       <tr><td><code>Flash failed: winIDEA could not start programming in 3 tries.</code></td><td>Turn the ECU power off and on (<span class="ui">Tools → Power-cycle ECU</span> on a Switch Debugger bench), choose <span class="ui">Tools → Check winIDEA cores</span>, then flash again.</td></tr>
-      <tr><td><code>Switch Debugger refused the connection</code></td><td>Open Switch Debugger and press <span class="ui">Start</span> in its TCP/IP box; check the address and port in Setting.</td></tr>
+      <tr><td><code>Switch Debugger refused the connection</code></td><td>Open Switch Debugger and press <span class="ui">Start</span> in its TCP/IP box (127.11.0.1, port 1101).</td></tr>
       <tr><td><code>No CAL file was found next to the workspace</code></td><td>Copy the <code>*_CAL_T008_*.sre</code> file next to the <code>.xjrf</code>, then <span class="ui">Refresh</span> in Setting.</td></tr>
       <tr><td><code>No pipeline for &lt;commit&gt;</code> or job <code>manual</code> / <code>skipped</code></td><td>Push the commit, or run the job in GitLab. WFlash waits for running jobs, not for jobs nobody started.</td></tr>
       <tr><td><code>Application firmware is for commit … but the repository is at …</code></td><td>Your repository moved to a new commit and its firmware is not loaded yet. Wait for its pipeline, or select <span class="ui">Manual</span>. WFlash never flashes the firmware of another commit.</td></tr>

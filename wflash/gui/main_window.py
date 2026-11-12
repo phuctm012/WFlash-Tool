@@ -14,7 +14,7 @@ from PySide6.QtCore import QByteArray, QEvent, QThreadPool
 from PySide6.QtWidgets import QApplication, QFileDialog, QLabel, QMainWindow, QMessageBox
 
 from wflash import APP_AUTHOR, DISPLAY_VERSION
-from wflash.core.bench_switch import DEFAULT_ECU, DEFAULT_HOST, ECUS, ecu_label
+from wflash.core.bench_switch import BENCHES, DEFAULT_BENCH, DEFAULT_ECU, ecu_label, ecus_of
 from wflash.core.debug_bundle import DebugContext
 from wflash.core.errors import CancelledError, ProfileError, WFlashError
 from wflash.core.logging_setup import get_logger, redact, register_secret
@@ -132,36 +132,41 @@ class MainWindow(GitlabTabMixin, MappingTableMixin, FlashMixin, LogPanelMixin, M
         self._init_bench_settings()
 
     def _init_bench_settings(self) -> None:
-        """Bench power (Switch Debugger): the ECU's items come from the .ui; every change saves."""
+        """Bench power (Switch Debugger). The Bench items come from the .ui in the order of BENCHES;
+        the ECU items follow the bench (logic-driven text). Every change saves."""
         ui = self.ui
         s = self.settings
+        if s.bench_name not in BENCHES:
+            log.warning("Unknown bench %r in the settings; using %s", s.bench_name, DEFAULT_BENCH)
+            s.bench_name = DEFAULT_BENCH
+        if s.bench_ecu not in ecus_of(s.bench_name):
+            s.bench_ecu = DEFAULT_ECU
         ui.checkBox_benchEnabled.setChecked(s.bench_enabled)
-        ui.comboBox_benchEcu.setCurrentIndex(s.bench_ecu if s.bench_ecu in ECUS else DEFAULT_ECU)
-        ui.lineEdit_benchHost.setText(s.bench_host)
-        ui.spinBox_benchPort.setValue(s.bench_port)
-        ui.spinBox_benchOff.setValue(s.bench_off_s)
-        ui.spinBox_benchBoot.setValue(s.bench_boot_s)
+        ui.comboBox_benchName.setCurrentIndex(list(BENCHES).index(s.bench_name))
+        self._fill_bench_ecus(s.bench_name)
+        ui.comboBox_benchEcu.setCurrentIndex(s.bench_ecu)
         ui.checkBox_benchEnabled.toggled.connect(self._on_bench_edited)
+        ui.comboBox_benchName.currentIndexChanged.connect(self._on_bench_edited)
         ui.comboBox_benchEcu.currentIndexChanged.connect(self._on_bench_edited)
-        ui.lineEdit_benchHost.editingFinished.connect(self._on_bench_edited)
-        for spin in (ui.spinBox_benchPort, ui.spinBox_benchOff, ui.spinBox_benchBoot):
-            spin.valueChanged.connect(self._on_bench_edited)
+
+    def _fill_bench_ecus(self, bench: str) -> None:
+        combo = self.ui.comboBox_benchEcu
+        for ecu in sorted(ecus_of(bench)):
+            combo.setItemText(ecu, ecu_label(ecu, bench))
 
     def _on_bench_edited(self, *_args) -> None:
         ui = self.ui
         s = self.settings
-        before = s.bench_config(), s.bench_enabled
+        before = s.bench_name, s.bench_ecu, s.bench_enabled
         s.bench_enabled = ui.checkBox_benchEnabled.isChecked()
+        s.bench_name = list(BENCHES)[ui.comboBox_benchName.currentIndex()]
         s.bench_ecu = ui.comboBox_benchEcu.currentIndex()
-        s.bench_host = ui.lineEdit_benchHost.text().strip() or DEFAULT_HOST
-        s.bench_port = ui.spinBox_benchPort.value()
-        s.bench_off_s = ui.spinBox_benchOff.value()
-        s.bench_boot_s = ui.spinBox_benchBoot.value()
-        if (s.bench_config(), s.bench_enabled) == before:
+        self._fill_bench_ecus(s.bench_name)
+        if (s.bench_name, s.bench_ecu, s.bench_enabled) == before:
             return
         self._save_settings()
         if s.bench_enabled:
-            log.info("Switch Debugger: %s at %s:%s", ecu_label(s.bench_ecu), s.bench_host, s.bench_port)
+            log.info("Switch Debugger: %s, %s", s.bench_name, ecu_label(s.bench_ecu, s.bench_name))
         self._update_flash_controls()
 
     def _setting_error(self, text: str) -> None:

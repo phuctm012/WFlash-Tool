@@ -101,8 +101,8 @@ class FlashMixin:
         except BenchSwitchError as exc:
             log.warning("Switch Debugger settings are not valid, flashing without it: %s", exc)
             return None
-        log.info("Switch Debugger on: WFlash power-cycles %s before programming unless it was just powered on",
-                 ecu_label(self.settings.bench_ecu))
+        log.info("Switch Debugger on: WFlash power-cycles %s, %s before programming unless it was just powered on",
+                 self.settings.bench_name, ecu_label(self.settings.bench_ecu, self.settings.bench_name))
         return switch.power_cycle
 
     def flash_locked(self) -> bool:
@@ -181,8 +181,7 @@ class FlashMixin:
         # Switch Debugger: never while a flash runs (power off during programming empties the flash).
         bench_on = self.ui.checkBox_benchEnabled.isChecked()
         self.ui.groupBox_bench.setEnabled(not flashing)
-        for widget in (self.ui.comboBox_benchEcu, self.ui.lineEdit_benchHost, self.ui.spinBox_benchPort,
-                       self.ui.spinBox_benchOff, self.ui.spinBox_benchBoot):
+        for widget in (self.ui.comboBox_benchName, self.ui.comboBox_benchEcu):
             widget.setEnabled(bench_on)
         for action in (self.ui.action_powerCycle, self.ui.action_jtagConnect, self.ui.action_jtagDisconnect):
             action.setEnabled(bench_on and not flashing)

@@ -132,7 +132,8 @@ def test_settings_default_to_off_and_the_users_bench(tmp_path):
 
     settings = AppSettings()
     assert settings.bench_enabled is False
-    assert settings.bench_config() == BenchConfig("127.11.0.1", 1101, "D", 2, 3, 4)
+    assert settings.bench_name == "Bench 2"
+    assert settings.bench_config() == BenchConfig("127.11.0.1", 1101, "D", 2, 1, 1)
     settings.bench_enabled, settings.bench_ecu = True, 0
     path = tmp_path / "settings.json"
     settings.save(path)
@@ -158,4 +159,33 @@ def test_unknown_ecu_is_refused():
 
 
 def test_ecu_label():
-    assert bench_switch.ecu_label(0) == "ECU 0 (port C, relay 1)"
+    assert bench_switch.ecu_label(0) == "ECU 0 (CH-C, relay 1)"
+    assert bench_switch.ecu_label(1, "Bench 3") == "ECU 1 (CH-B, relay 2)"
+
+
+@pytest.mark.parametrize("bench, ecu, port, relay", [
+    ("Bench 2", 0, "C", 1), ("Bench 2", 1, "D", 2),
+    ("Bench 3", 0, "A", 1), ("Bench 3", 1, "B", 2),
+    ("Bench 5", 0, "A", 1), ("Bench 5", 1, "B", 2),
+])
+def test_benches_wire_their_ecus(bench, ecu, port, relay):
+    # User, 2026-11-12.
+    config = BenchConfig.for_ecu(ecu, bench)
+    assert (config.jtag_port, config.power_relay) == (port, relay)
+    assert (config.host, config.port, config.off_s, config.boot_s) == ("127.11.0.1", 1101, 1, 1)
+
+
+def test_unknown_bench_is_refused():
+    with pytest.raises(BenchSwitchError):
+        BenchConfig.for_ecu(0, "Bench 9")
+
+
+def test_old_settings_with_address_and_times_still_load(tmp_path):
+    from wflash.core.settings import AppSettings
+
+    path = tmp_path / "settings.json"
+    path.write_text('{"bench_enabled": true, "bench_host": "10.0.0.1", "bench_port": 2000, '
+                    '"bench_ecu": 0, "bench_off_s": 5, "bench_boot_s": 4}', encoding="utf-8")
+    config = AppSettings.load(path).bench_config()
+    assert (config.host, config.port, config.off_s, config.boot_s) == ("127.11.0.1", 1101, 1, 1)
+    assert config.jtag_port == "C" and config.power_relay == 1

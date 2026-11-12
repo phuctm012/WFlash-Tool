@@ -21,8 +21,8 @@ from PySide6.QtWidgets import (QAbstractItemView, QApplication, QCheckBox, QComb
     QHeaderView, QLabel, QLineEdit, QMainWindow,
     QMenu, QMenuBar, QPlainTextEdit, QProgressBar,
     QPushButton, QRadioButton, QScrollArea, QSizePolicy,
-    QSpacerItem, QSpinBox, QStatusBar, QTabWidget,
-    QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget)
+    QSpacerItem, QStatusBar, QTabWidget, QTableWidget,
+    QTableWidgetItem, QVBoxLayout, QWidget)
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -892,79 +892,46 @@ class Ui_MainWindow(object):
 
         self.gridLayout_bench.addWidget(self.checkBox_benchEnabled, 0, 0, 1, 4)
 
-        self.label_benchEcu = QLabel(self.groupBox_bench)
-        self.label_benchEcu.setObjectName(u"label_benchEcu")
+        self.label_benchName = QLabel(self.groupBox_bench)
+        self.label_benchName.setObjectName(u"label_benchName")
 
-        self.gridLayout_bench.addWidget(self.label_benchEcu, 1, 0, 1, 1)
+        self.gridLayout_bench.addWidget(self.label_benchName, 1, 0, 1, 1)
 
-        self.comboBox_benchEcu = QComboBox(self.groupBox_bench)
-        self.comboBox_benchEcu.addItem("")
-        self.comboBox_benchEcu.addItem("")
-        self.comboBox_benchEcu.setObjectName(u"comboBox_benchEcu")
+        self.comboBox_benchName = QComboBox(self.groupBox_bench)
+        self.comboBox_benchName.addItem("")
+        self.comboBox_benchName.addItem("")
+        self.comboBox_benchName.addItem("")
+        self.comboBox_benchName.setObjectName(u"comboBox_benchName")
 
-        self.gridLayout_bench.addWidget(self.comboBox_benchEcu, 1, 1, 1, 1)
+        self.gridLayout_bench.addWidget(self.comboBox_benchName, 1, 1, 1, 1)
 
         self.label_benchPolarity = QLabel(self.groupBox_bench)
         self.label_benchPolarity.setObjectName(u"label_benchPolarity")
 
         self.gridLayout_bench.addWidget(self.label_benchPolarity, 1, 2, 1, 1)
 
-        self.label_benchHost = QLabel(self.groupBox_bench)
-        self.label_benchHost.setObjectName(u"label_benchHost")
+        self.label_benchEcu = QLabel(self.groupBox_bench)
+        self.label_benchEcu.setObjectName(u"label_benchEcu")
 
-        self.gridLayout_bench.addWidget(self.label_benchHost, 2, 0, 1, 1)
+        self.gridLayout_bench.addWidget(self.label_benchEcu, 2, 0, 1, 1)
 
-        self.lineEdit_benchHost = QLineEdit(self.groupBox_bench)
-        self.lineEdit_benchHost.setObjectName(u"lineEdit_benchHost")
+        self.comboBox_benchEcu = QComboBox(self.groupBox_bench)
+        self.comboBox_benchEcu.addItem("")
+        self.comboBox_benchEcu.addItem("")
+        self.comboBox_benchEcu.setObjectName(u"comboBox_benchEcu")
 
-        self.gridLayout_bench.addWidget(self.lineEdit_benchHost, 2, 1, 1, 1)
+        self.gridLayout_bench.addWidget(self.comboBox_benchEcu, 2, 1, 1, 1)
 
-        self.label_benchPort = QLabel(self.groupBox_bench)
-        self.label_benchPort.setObjectName(u"label_benchPort")
-        self.label_benchPort.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignVCenter)
+        self.label_benchEcuNote = QLabel(self.groupBox_bench)
+        self.label_benchEcuNote.setObjectName(u"label_benchEcuNote")
 
-        self.gridLayout_bench.addWidget(self.label_benchPort, 2, 2, 1, 1)
-
-        self.spinBox_benchPort = QSpinBox(self.groupBox_bench)
-        self.spinBox_benchPort.setObjectName(u"spinBox_benchPort")
-        self.spinBox_benchPort.setMinimum(1)
-        self.spinBox_benchPort.setMaximum(65535)
-        self.spinBox_benchPort.setValue(1101)
-
-        self.gridLayout_bench.addWidget(self.spinBox_benchPort, 2, 3, 1, 1)
-
-        self.label_benchOff = QLabel(self.groupBox_bench)
-        self.label_benchOff.setObjectName(u"label_benchOff")
-
-        self.gridLayout_bench.addWidget(self.label_benchOff, 3, 0, 1, 1)
-
-        self.spinBox_benchOff = QSpinBox(self.groupBox_bench)
-        self.spinBox_benchOff.setObjectName(u"spinBox_benchOff")
-        self.spinBox_benchOff.setMinimum(1)
-        self.spinBox_benchOff.setMaximum(60)
-        self.spinBox_benchOff.setValue(3)
-
-        self.gridLayout_bench.addWidget(self.spinBox_benchOff, 3, 1, 1, 1)
-
-        self.label_benchBoot = QLabel(self.groupBox_bench)
-        self.label_benchBoot.setObjectName(u"label_benchBoot")
-        self.label_benchBoot.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignVCenter)
-
-        self.gridLayout_bench.addWidget(self.label_benchBoot, 3, 2, 1, 1)
-
-        self.spinBox_benchBoot = QSpinBox(self.groupBox_bench)
-        self.spinBox_benchBoot.setObjectName(u"spinBox_benchBoot")
-        self.spinBox_benchBoot.setMinimum(0)
-        self.spinBox_benchBoot.setMaximum(120)
-        self.spinBox_benchBoot.setValue(4)
-
-        self.gridLayout_bench.addWidget(self.spinBox_benchBoot, 3, 3, 1, 1)
+        self.gridLayout_bench.addWidget(self.label_benchEcuNote, 2, 2, 1, 1)
 
         self.label_benchHint = QLabel(self.groupBox_bench)
         self.label_benchHint.setObjectName(u"label_benchHint")
         self.label_benchHint.setWordWrap(True)
 
-        self.gridLayout_bench.addWidget(self.label_benchHint, 4, 0, 1, 4)
+        self.gridLayout_bench.addWidget(self.label_benchHint, 3, 0, 1, 4)
 
         self.gridLayout_bench.setColumnStretch(1, 1)
         self.gridLayout_bench.setColumnStretch(3, 1)
@@ -1246,19 +1213,18 @@ class Ui_MainWindow(object):
 #endif // QT_CONFIG(tooltip)
         self.groupBox_bench.setTitle(QCoreApplication.translate("MainWindow", u"Bench power (Switch Debugger)", None))
         self.checkBox_benchEnabled.setText(QCoreApplication.translate("MainWindow", u"Control JTAG and ECU power through Switch Debugger", None))
-        self.label_benchEcu.setText(QCoreApplication.translate("MainWindow", u"ECU", None))
-        self.comboBox_benchEcu.setItemText(0, QCoreApplication.translate("MainWindow", u"ECU 0 (port C, relay 1)", None))
-        self.comboBox_benchEcu.setItemText(1, QCoreApplication.translate("MainWindow", u"ECU 1 (port D, relay 2)", None))
+        self.label_benchName.setText(QCoreApplication.translate("MainWindow", u"Bench", None))
+        self.comboBox_benchName.setItemText(0, QCoreApplication.translate("MainWindow", u"Bench 2 (ECU 0: CH-C + relay 1, ECU 1: CH-D + relay 2)", None))
+        self.comboBox_benchName.setItemText(1, QCoreApplication.translate("MainWindow", u"Bench 3 (ECU 0: CH-A + relay 1, ECU 1: CH-B + relay 2)", None))
+        self.comboBox_benchName.setItemText(2, QCoreApplication.translate("MainWindow", u"Bench 5 (ECU 0: CH-A + relay 1, ECU 1: CH-B + relay 2)", None))
 
         self.label_benchPolarity.setText(QCoreApplication.translate("MainWindow", u"Relay off = power on", None))
-        self.label_benchHost.setText(QCoreApplication.translate("MainWindow", u"Address", None))
-        self.lineEdit_benchHost.setPlaceholderText(QCoreApplication.translate("MainWindow", u"127.11.0.1", None))
-        self.label_benchPort.setText(QCoreApplication.translate("MainWindow", u"Port", None))
-        self.label_benchOff.setText(QCoreApplication.translate("MainWindow", u"Power off for", None))
-        self.spinBox_benchOff.setSuffix(QCoreApplication.translate("MainWindow", u" s", None))
-        self.label_benchBoot.setText(QCoreApplication.translate("MainWindow", u"Boot wait", None))
-        self.spinBox_benchBoot.setSuffix(QCoreApplication.translate("MainWindow", u" s", None))
-        self.label_benchHint.setText(QCoreApplication.translate("MainWindow", u"Used by Tools \u203a Power-cycle ECU, Connect JTAG and Disconnect JTAG, and by Flash: before programming, WFlash power-cycles this ECU unless it was just powered on (instead of a reset). Never during programming: cutting the power then leaves the flash empty. Only the port and the relay of this ECU are switched.", None))
+        self.label_benchEcu.setText(QCoreApplication.translate("MainWindow", u"ECU", None))
+        self.comboBox_benchEcu.setItemText(0, QCoreApplication.translate("MainWindow", u"ECU 0 (CH-C, relay 1)", None))
+        self.comboBox_benchEcu.setItemText(1, QCoreApplication.translate("MainWindow", u"ECU 1 (CH-D, relay 2)", None))
+
+        self.label_benchEcuNote.setText(QCoreApplication.translate("MainWindow", u"The ECU list follows the bench", None))
+        self.label_benchHint.setText(QCoreApplication.translate("MainWindow", u"Used by Tools \u203a Power-cycle ECU, Connect JTAG and Disconnect JTAG, and by Flash: before programming, WFlash power-cycles this ECU unless it was just powered on (instead of a reset). The power stays off 1 s and WFlash waits 1 s after power on. Never during programming: cutting the power then leaves the flash empty. Only the port and the relay of this ECU are switched.", None))
         self.tabWidget_main.setTabText(self.tabWidget_main.indexOf(self.tab_setting), QCoreApplication.translate("MainWindow", u"Setting", None))
         self.pushButton_copyLog.setText(QCoreApplication.translate("MainWindow", u"Copy", None))
         self.pushButton_clearLog.setText(QCoreApplication.translate("MainWindow", u"Clear", None))

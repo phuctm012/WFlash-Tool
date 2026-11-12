@@ -2032,3 +2032,21 @@ Vòng 18 (debug bundle 2026-11-12 10:45): 7 lần bấm Flash với B1. 4 lần 
 
 - Trên macOS: bộ test đầy đủ, test threading, stress test, app mở được.
 - Vòng 19 trên ECU (debug bundle 2026-11-12 11:43): người dùng xác nhận mọi bước đạt. Cancel trong lúc tắt/bật nguồn không ghi gì; 3 lần tự tắt/bật nguồn rồi Done; M7_0 NOT ACCESSIBLE thì dừng với 7 bước, làm theo rồi Flash lại thì Done; Cancel bị khoá trong lúc nạp.
+
+## Phase 4.6: chọn bench; tắt nguồn 1 s, chờ khởi động 1 s, cố định
+
+WFlash dùng trên nhiều bench có cách nối khác nhau. Người dùng cho cấu hình: Bench 2 (bench đã dùng để test WFlash từ Vòng 16) ECU 0 = CH-C + Relay 1, ECU 1 = CH-D + Relay 2; Bench 3 và Bench 5 ECU 0 = CH-A + Relay 1, ECU 1 = CH-B + Relay 2. Bench 1 và 4 tắt/bật nguồn bằng một tool khác (JTAG vẫn qua Switch Debugger), người dùng sẽ gửi thông tin sau. Người dùng đã thử tắt nguồn 1 s và chờ khởi động 1 s, flash vẫn ổn, nên hai giá trị này cố định 1 s và bỏ khỏi giao diện; địa chỉ `127.11.0.1:1101` giống nhau trên mọi bench nên cũng bỏ. Mockup artboard 13 của canvas được duyệt trước khi làm.
+
+### Thay đổi
+
+- **`wflash/core/bench_switch.py`**: `BENCHES` (bench → ECU → kênh JTAG, relay), `DEFAULT_BENCH` = Bench 2, `bench_label`, `ecus_of`; `ecu_label(ecu, bench)` ghi dạng `CH-D`; `OFF_S` = `BOOT_S` = 1; `BenchConfig.for_ecu(ecu, bench)` luôn dùng `127.11.0.1:1101`, từ chối bench lạ. Gợi ý lỗi không còn nhắc ô IP/port trong Setting.
+- **`wflash/core/settings.py`**: `bench_name`; bỏ `bench_host`, `bench_port`, `bench_off_s`, `bench_boot_s` (file cũ vẫn đọc được, các giá trị đó bị bỏ qua).
+- **`wflash/gui/main_window.ui`**: `comboBox_benchName` (Bench 2, 3, 5, kèm cách nối) và `label_benchEcuNote`; bỏ Address, Port, Power off for, Boot wait; chữ gợi ý ghi 1 s. `ui_main_window.py` sinh lại.
+- **`wflash/gui/main_window.py`**: nạp/lưu bench; chữ các mục ECU đổi theo bench; tên bench lạ trong setting thì quay về Bench 2.
+- **`wflash/gui/flash_mixin.py`**, **`wflash/gui/menu_actions.py`**: log ghi tên bench.
+- **Tài liệu**: `user_guide.html` (hình tab Setting, bước thiết lập, xử lý sự cố), `CLAUDE.md`.
+- **Test**: cách nối của từng bench, bench lạ bị từ chối, file setting cũ vẫn nạp được với 1 s và `127.11.0.1:1101`; GUI: mục Bench khớp `BENCHES`, mục ECU đổi theo bench và lưu ngay.
+
+### Đã kiểm tra
+
+- Trên macOS: bộ test đầy đủ, test threading, stress test, app mở được. Chưa chạy trên Bench 3 hay Bench 5.
