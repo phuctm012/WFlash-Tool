@@ -1796,6 +1796,9 @@
    <property name="text">
     <string>Disconnect JTAG</string>
    </property>
+   <property name="toolTip">
+    <string>Releases the JTAG port. Switch Debugger connects one port at a time, so this disconnects whichever port is connected.</string>
+   </property>
   </action>
   <action name="action_refreshInstances">
    <property name="text">

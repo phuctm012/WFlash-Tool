@@ -775,7 +775,7 @@ Mục đích: kiểm chứng trên bàn test rằng WFlash điều khiển đún
 
 | Lệnh WFlash | Phải thấy trong Switch Debugger |
 |---|---|
-| Tools → Disconnect JTAG | Nút **D** hết xanh; log "Port D … OFF" |
+| Tools → Disconnect JTAG | Nút **D** hết xanh. WFlash gửi `Off_All;Sensor;_` vì Switch Debugger bỏ qua `Off` của một port (Vòng 16, 2026-11-12) |
 | Tools → Connect JTAG | Nút **D** xanh lại |
 | Tools → Power-cycle ECU | **Relay 2** xanh (mất nguồn) khoảng 3 s, rồi trắng lại (có nguồn); Relay 1, 3-6 **không đổi** |
 

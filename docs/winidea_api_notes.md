@@ -515,6 +515,20 @@ The failure comes **after** the erase, so the flash is left erased: worse than t
 
 **Decision (user, 2026-11-11): drop the cache + flush path.** WFlash keeps `CSessionCtrl.begin_program()`. `write(..., wProgCache)` and `flush` join `write(index, wProgDevice)` and `erase` on the list of calls the adapter must not make.
 
+## Round 16: Switch Debugger power cycle, core states (2026-11-12)
+
+User observation, Session Explorer screenshot after a hard reset (power cycle through the Switch Debugger relay):
+
+| Core | Status |
+|---|---|
+| MCU | ATTACHED (SAF8544) |
+| M7_0, M7_RFE | STOP EXT |
+| A53, SPT, BBE32EP | NOT ACCESSIBLE |
+
+**In this state, Debug → Download by hand always succeeds** (user). This contradicts the round 9 reading that any `NOT ACCESSIBLE` core makes programming fail: right after power on, A53, SPT and BBE32EP are not started yet and that is harmless. The bad state of rounds 9–11 came after the firmware had run (A53/BBE32EP RUN or NOT ACCESSIBLE after a winIDEA reset), and was cleared by a power cycle. Not yet known: what `_prepare_cores` does here. It treats `NOT ACCESSIBLE` as bad, so it would reset with `debug.reset()` and read again, up to 10 times, and refuse to program if the three cores stay `NOT ACCESSIBLE`. `STOP EXT` has not been seen by spike 16 before. No change to the flash path until a WFlash flash in this state has been observed.
+
+Switch Debugger (same round): `Off;Sensor;<id>` does not release a JTAG port; the box logs "Send Switch to Port N" for On and Off alike, and pressing the port by hand does not release it either. Only `Off_All;Sensor;_` does. The box connects one port at a time.
+
 ## Open questions
 
 1. **Version mismatch.** `isystem.connect` 9.26.11 against winIDEA 9.21.408. Connect, read, download, reset and run all worked, but `CLAUDE.md` requires the versions to match. Is there a Python SDK package under `C:/Data/_Devtools/Winidea408/` (9.21.408)? If yes, install it and re-run 01 to confirm nothing changes.
