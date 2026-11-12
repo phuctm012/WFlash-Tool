@@ -846,3 +846,15 @@ Tab Setting, nhóm Switch Debugger: có ô **Bench** (Bench 2, 3, 5); bỏ Addre
 2. Trên Bench 2: Tools → Power-cycle ECU. Mong đợi: chỉ Relay 2 đổi, tắt khoảng 1 s; log `Switch Debugger: power cycle, Bench 2, ECU 1 (CH-D, relay 2)…`.
 3. **(FLASH, nếu muốn)** Bấm Flash một lần trên Bench 2 như Vòng 19.
 4. Khi có dịp dùng Bench 3 hoặc 5: chọn bench đó, Tools → Connect JTAG phải bật **CH-A** (ECU 0) hoặc **CH-B** (ECU 1); Power-cycle ECU chỉ đổi Relay 1 hoặc Relay 2.
+
+## Vòng 21: Bench 1 và 4, nguồn qua bo USB relay
+
+Trên bench 1 hoặc 4. WFlash cần `hidapi` trong env của nó: `python -m pip install -e ".[dev]"` cài luôn (Python 3.12 64-bit). Bản exe build sau Vòng này có sẵn `hidapi`. Để cửa sổ USB Relay Control mở như thường lệ.
+
+1. Setting → nhóm "Bench power and JTAG": tick ô, chọn **Bench 4** (hoặc 1) và ECU. Phải thấy "USB relay on = power on" và dòng ghi chú về bo USB.
+2. Tools → Connect JTAG: Switch Debugger bật **CH-A** (ECU 0) hoặc **CH-B** (ECU 1).
+3. Tools → Power-cycle ECU: trong USB Relay Control, đúng relay của ECU đó tắt khoảng 1 s rồi bật lại; relay của ECU kia **không đổi**. Log: `USB relay: power OFF (relay n off)`, `USB relay: power ON (relay n on)`, `ECU power-cycled`.
+4. Tools → Check winIDEA cores: phải báo `ready to flash`.
+5. **(FLASH)** Bấm Flash khi firmware đang chạy: WFlash tự tắt/bật nguồn qua bo USB rồi nạp. ⚠️ Ghi flash. Cơ sở: Vòng 17–19 trên Bench 2 với cùng trình tự. Rủi ro: hỏng nhanh thì chưa xoá gì; hỏng sau `ERASING` thì flash có thể trống. Khôi phục: tắt/bật nguồn bằng USB Relay Control, rồi Debug → Download bấm tay.
+
+Gửi lại: debug bundle, và ảnh USB Relay Control nếu relay không như mong đợi.

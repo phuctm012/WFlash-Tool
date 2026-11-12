@@ -61,7 +61,7 @@ def test_gui_bench_combo_items_match_the_benches(env):
 def test_gui_ecu_items_follow_the_bench_and_save(env):
     ui = env.window.ui
     ui.checkBox_benchEnabled.setChecked(True)
-    ui.comboBox_benchName.setCurrentIndex(1)  # Bench 3
+    ui.comboBox_benchName.setCurrentIndex(list(bench_switch.BENCHES).index("Bench 3"))
     ecus = ui.comboBox_benchEcu
     assert [ecus.itemText(i) for i in range(ecus.count())] == ["ECU 0 (CH-A, relay 1)", "ECU 1 (CH-B, relay 2)"]
     saved = json.loads((env.tmp / "settings.json").read_text())
@@ -137,3 +137,16 @@ def test_gui_flash_power_cycle_only_when_switch_debugger_is_on(env, qtbot):
     assert power_cycle is not None
     power_cycle()
     assert lines(env) == ["SwitchDebugger6Sensor4Relay;On;Relay;0\n", "SwitchDebugger6Sensor4Relay;Off;Relay;0\n"]
+
+
+def test_gui_usb_relay_bench_shows_its_wiring_and_polarity(env):
+    ui = env.window.ui
+    ui.checkBox_benchEnabled.setChecked(True)
+    ui.comboBox_benchName.setCurrentIndex(list(bench_switch.BENCHES).index("Bench 4"))
+    ecus = ui.comboBox_benchEcu
+    assert [ecus.itemText(i) for i in range(ecus.count())] == ["ECU 0 (CH-A, USB relay 1)", "ECU 1 (CH-B, USB relay 2)"]
+    assert ui.label_benchPolarity.text() == "USB relay on = power on"
+    assert not ui.label_benchUsbNote.isHidden()
+    ui.comboBox_benchName.setCurrentIndex(list(bench_switch.BENCHES).index("Bench 2"))
+    assert ui.label_benchPolarity.text() == "Relay off = power on"
+    assert ui.label_benchUsbNote.isHidden()

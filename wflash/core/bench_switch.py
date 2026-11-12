@@ -12,8 +12,9 @@ Protocol, from the user's `switch_debugger.py` and the Switch Debugger window:
 - A "Relay" is numbered 1-6 on the box and 0-based in the protocol. For the ECU's power relay the
   polarity is inverted: relay **Off = power ON**, relay **On = power OFF** (user, 2026-11-11; the
   other relays stay On). Each bench wires its two ECUs to its own ports and relays (`BENCHES`, user,
-  2026-11-12). A power cycle keeps JTAG connected (user decision). Benches 1 and 4 switch the power
-  through another tool and are not supported yet.
+  2026-11-12). A power cycle keeps JTAG connected (user decision). Benches 1 and 4 power their ECUs
+  through a USB relay board instead (`usb_relay.py`, relay ON = power on); their JTAG still goes
+  through Switch Debugger.
 
 Only the configured port and relay are ever switched, apart from that `Off_All` for the ports.
 `Off_All` is never sent for the relays: "Disconnect All Relay" would also switch the relays, and so
@@ -44,13 +45,32 @@ DEFAULT_PORT = 1101
 # User, 2026-11-12: 1 s each works on the bench, so they are fixed and not in the GUI.
 OFF_S = 1
 BOOT_S = 1
-# The benches (user, 2026-11-12): ECU -> (JTAG channel of Switch Debugger, power relay of Switch Debugger).
-# Bench 3 and Bench 5 are wired alike; both are listed so the user picks the bench by its name.
+# The benches (user, 2026-11-12): ECU -> (JTAG channel of Switch Debugger, power relay). Benches alike in
+# wiring are all listed so the user picks the bench by its name.
 BENCHES: dict[str, dict[int, tuple[str, int]]] = {
+    "Bench 1": {0: ("A", 1), 1: ("B", 2)},
     "Bench 2": {0: ("C", 1), 1: ("D", 2)},  # the bench WFlash was tested on (rounds 16-19)
     "Bench 3": {0: ("A", 1), 1: ("B", 2)},
+    "Bench 4": {0: ("A", 1), 1: ("B", 2)},
     "Bench 5": {0: ("A", 1), 1: ("B", 2)},
 }
+SWITCH_DEBUGGER, USB_RELAY = "switch_debugger", "usb_relay"
+# Where the power relay is; every other bench uses Switch Debugger's relays.
+BENCH_POWER = {"Bench 1": USB_RELAY, "Bench 4": USB_RELAY}
+
+
+def power_of(bench: str) -> str:
+    return BENCH_POWER.get(bench, SWITCH_DEBUGGER)
+
+
+def relay_name(power_via: str, relay: int) -> str:
+    return f"USB relay {relay}" if power_via == USB_RELAY else f"relay {relay}"
+
+
+def polarity_text(bench: str) -> str:
+    if power_of(bench) == USB_RELAY:
+        return "USB relay on = power on"
+    return "Relay off = power on"
 DEFAULT_BENCH = "Bench 2"
 DEFAULT_ECU = 1
 
@@ -61,12 +81,14 @@ def ecus_of(bench: str) -> dict[int, tuple[str, int]]:
 
 def ecu_label(ecu: int, bench: str = DEFAULT_BENCH) -> str:
     port, relay = ecus_of(bench)[ecu]
-    return f"ECU {ecu} (CH-{port}, relay {relay})"
+    return f"ECU {ecu} (CH-{port}, {relay_name(power_of(bench), relay)})"
 
 
 def bench_label(bench: str) -> str:
     """The Bench combo's item text: the bench and how its ECUs are wired."""
-    wiring = ", ".join(f"ECU {ecu}: CH-{port} + relay {relay}" for ecu, (port, relay) in sorted(BENCHES[bench].items()))
+    via = power_of(bench)
+    wiring = ", ".join(f"ECU {ecu}: CH-{port} + {relay_name(via, relay)}"
+                       for ecu, (port, relay) in sorted(BENCHES[bench].items()))
     return f"{bench} ({wiring})"
 
 
@@ -78,6 +100,7 @@ class BenchConfig:
     power_relay: int = 2  # 1-6, as labelled on the box
     off_s: int = OFF_S  # power off this long during a power cycle
     boot_s: int = BOOT_S  # wait this long after power on
+    power_via: str = SWITCH_DEBUGGER  # or USB_RELAY (benches 1 and 4)
 
     @classmethod
     def for_ecu(cls, ecu: int, bench: str = DEFAULT_BENCH) -> "BenchConfig":
@@ -86,12 +109,17 @@ class BenchConfig:
         if ecu not in BENCHES[bench]:
             raise BenchSwitchError(f"Unknown ECU {ecu}.", hint="Choose the ECU in the Setting tab.")
         jtag_port, relay = BENCHES[bench][ecu]
-        return cls(DEFAULT_HOST, DEFAULT_PORT, jtag_port, relay)
+        return cls(DEFAULT_HOST, DEFAULT_PORT, jtag_port, relay, power_via=power_of(bench))
 
     def check(self) -> None:
         if self.jtag_port.upper() not in PORTS or len(self.jtag_port) != 1:
             raise BenchSwitchError(f"Unknown JTAG port {self.jtag_port!r}.", hint="Choose a port from A to F in the Setting tab.")
-        if self.power_relay not in RELAYS:
+        if self.power_via == USB_RELAY:
+            if self.power_relay not in range(1, 9):
+                raise BenchSwitchError(f"Unknown USB relay {self.power_relay}.", hint="Choose the bench in the Setting tab.")
+        elif self.power_via != SWITCH_DEBUGGER:
+            raise BenchSwitchError(f"Unknown power switch {self.power_via!r}.", hint="Choose the bench in the Setting tab.")
+        elif self.power_relay not in RELAYS:
             raise BenchSwitchError(f"Unknown power relay {self.power_relay}.", hint="Choose a relay from 1 to 6 in the Setting tab.")
 
 
@@ -128,11 +156,12 @@ class BenchSwitch:
     """Switches one ECU's JTAG port and power relay. `send` and `sleep` are injectable for tests."""
 
     def __init__(self, config: BenchConfig, send: Callable[[str, int, str], None] | None = None,
-                 sleep: Callable[[float], None] = time.sleep) -> None:
+                 sleep: Callable[[float], None] = time.sleep, relay_board=None) -> None:
         config.check()
         self.config = config
         self._send = send  # None: the module's send_tcp, looked up at each call (tests patch it)
         self._sleep = sleep
+        self._board = relay_board  # USB relay benches: made at first use, so hidapi loads only there
 
     def _do(self, line: str, what: str) -> None:
         log.info("Switch Debugger: %s", what)
@@ -148,6 +177,14 @@ class BenchSwitch:
 
     def power(self, on: bool) -> None:
         relay = self.config.power_relay
+        if self.config.power_via == USB_RELAY:
+            from wflash.core.usb_relay import UsbRelayBoard
+
+            log.info("USB relay: power %s (relay %d %s)", "ON" if on else "OFF", relay, "on" if on else "off")
+            if self._board is None:
+                self._board = UsbRelayBoard()
+            self._board.set(relay, on)  # relay on = power on; checked by reading the relays back
+            return
         # Inverted: the relay On cuts the ECU's power.
         self._do(command(not on, "Relay", relay - 1), f"power {'ON' if on else 'OFF'} (relay {relay} {'Off' if on else 'On'})")
 

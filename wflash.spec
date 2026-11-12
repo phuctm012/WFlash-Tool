@@ -8,6 +8,11 @@ from PyInstaller.utils.hooks import collect_all, copy_metadata
 datas = [("profiles", "profiles"), ("wflash/resources", "wflash/resources")]
 binaries = []
 hiddenimports = ["keyring.backends.Windows", "keyring.backends.macOS", "truststore"]
+# hidapi's native module `hid` (USB relay of benches 1 and 4) is imported lazily, inside a function.
+if importlib.util.find_spec("hid") is not None:
+    hiddenimports.append("hid")
+else:
+    print("WARNING: hidapi not installed; benches 1 and 4 cannot switch the ECU power")
 
 # isystem.connect comes from the winIDEA 9.21 installation, not PyPI. Bundle it when the
 # build machine has it; otherwise the .exe still runs with --adapter fake.

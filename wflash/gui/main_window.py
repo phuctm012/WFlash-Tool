@@ -14,7 +14,8 @@ from PySide6.QtCore import QByteArray, QEvent, QThreadPool
 from PySide6.QtWidgets import QApplication, QFileDialog, QLabel, QMainWindow, QMessageBox
 
 from wflash import APP_AUTHOR, DISPLAY_VERSION
-from wflash.core.bench_switch import BENCHES, DEFAULT_BENCH, DEFAULT_ECU, ecu_label, ecus_of
+from wflash.core.bench_switch import (BENCHES, DEFAULT_BENCH, DEFAULT_ECU, USB_RELAY, ecu_label, ecus_of, polarity_text,
+                                      power_of)
 from wflash.core.debug_bundle import DebugContext
 from wflash.core.errors import CancelledError, ProfileError, WFlashError
 from wflash.core.logging_setup import get_logger, redact, register_secret
@@ -153,6 +154,8 @@ class MainWindow(GitlabTabMixin, MappingTableMixin, FlashMixin, LogPanelMixin, M
         combo = self.ui.comboBox_benchEcu
         for ecu in sorted(ecus_of(bench)):
             combo.setItemText(ecu, ecu_label(ecu, bench))
+        self.ui.label_benchPolarity.setText(polarity_text(bench))
+        self.ui.label_benchUsbNote.setVisible(power_of(bench) == USB_RELAY)
 
     def _on_bench_edited(self, *_args) -> None:
         ui = self.ui

@@ -901,6 +901,8 @@ class Ui_MainWindow(object):
         self.comboBox_benchName.addItem("")
         self.comboBox_benchName.addItem("")
         self.comboBox_benchName.addItem("")
+        self.comboBox_benchName.addItem("")
+        self.comboBox_benchName.addItem("")
         self.comboBox_benchName.setObjectName(u"comboBox_benchName")
 
         self.gridLayout_bench.addWidget(self.comboBox_benchName, 1, 1, 1, 1)
@@ -932,6 +934,12 @@ class Ui_MainWindow(object):
         self.label_benchHint.setWordWrap(True)
 
         self.gridLayout_bench.addWidget(self.label_benchHint, 3, 0, 1, 4)
+
+        self.label_benchUsbNote = QLabel(self.groupBox_bench)
+        self.label_benchUsbNote.setObjectName(u"label_benchUsbNote")
+        self.label_benchUsbNote.setWordWrap(True)
+
+        self.gridLayout_bench.addWidget(self.label_benchUsbNote, 4, 0, 1, 4)
 
         self.gridLayout_bench.setColumnStretch(1, 1)
         self.gridLayout_bench.setColumnStretch(3, 1)
@@ -1211,12 +1219,14 @@ class Ui_MainWindow(object):
 #if QT_CONFIG(tooltip)
         self.checkBox_verifyFlash.setToolTip(QCoreApplication.translate("MainWindow", u"Read samples of the flash back and compare them with the files. Adds about 3 minutes.", None))
 #endif // QT_CONFIG(tooltip)
-        self.groupBox_bench.setTitle(QCoreApplication.translate("MainWindow", u"Bench power (Switch Debugger)", None))
-        self.checkBox_benchEnabled.setText(QCoreApplication.translate("MainWindow", u"Control JTAG and ECU power through Switch Debugger", None))
+        self.groupBox_bench.setTitle(QCoreApplication.translate("MainWindow", u"Bench power and JTAG", None))
+        self.checkBox_benchEnabled.setText(QCoreApplication.translate("MainWindow", u"Control JTAG (Switch Debugger) and ECU power (Switch Debugger or USB relay)", None))
         self.label_benchName.setText(QCoreApplication.translate("MainWindow", u"Bench", None))
-        self.comboBox_benchName.setItemText(0, QCoreApplication.translate("MainWindow", u"Bench 2 (ECU 0: CH-C + relay 1, ECU 1: CH-D + relay 2)", None))
-        self.comboBox_benchName.setItemText(1, QCoreApplication.translate("MainWindow", u"Bench 3 (ECU 0: CH-A + relay 1, ECU 1: CH-B + relay 2)", None))
-        self.comboBox_benchName.setItemText(2, QCoreApplication.translate("MainWindow", u"Bench 5 (ECU 0: CH-A + relay 1, ECU 1: CH-B + relay 2)", None))
+        self.comboBox_benchName.setItemText(0, QCoreApplication.translate("MainWindow", u"Bench 1 (ECU 0: CH-A + USB relay 1, ECU 1: CH-B + USB relay 2)", None))
+        self.comboBox_benchName.setItemText(1, QCoreApplication.translate("MainWindow", u"Bench 2 (ECU 0: CH-C + relay 1, ECU 1: CH-D + relay 2)", None))
+        self.comboBox_benchName.setItemText(2, QCoreApplication.translate("MainWindow", u"Bench 3 (ECU 0: CH-A + relay 1, ECU 1: CH-B + relay 2)", None))
+        self.comboBox_benchName.setItemText(3, QCoreApplication.translate("MainWindow", u"Bench 4 (ECU 0: CH-A + USB relay 1, ECU 1: CH-B + USB relay 2)", None))
+        self.comboBox_benchName.setItemText(4, QCoreApplication.translate("MainWindow", u"Bench 5 (ECU 0: CH-A + relay 1, ECU 1: CH-B + relay 2)", None))
 
         self.label_benchPolarity.setText(QCoreApplication.translate("MainWindow", u"Relay off = power on", None))
         self.label_benchEcu.setText(QCoreApplication.translate("MainWindow", u"ECU", None))
@@ -1225,6 +1235,7 @@ class Ui_MainWindow(object):
 
         self.label_benchEcuNote.setText(QCoreApplication.translate("MainWindow", u"The ECU list follows the bench", None))
         self.label_benchHint.setText(QCoreApplication.translate("MainWindow", u"Used by Tools \u203a Power-cycle ECU, Connect JTAG and Disconnect JTAG, and by Flash: before programming, WFlash power-cycles this ECU unless it was just powered on (instead of a reset). The power stays off 1 s and WFlash waits 1 s after power on. Never during programming: cutting the power then leaves the flash empty. Only the port and the relay of this ECU are switched.", None))
+        self.label_benchUsbNote.setText(QCoreApplication.translate("MainWindow", u"Bench 1 and 4: JTAG through Switch Debugger (CH-A / CH-B), power through the USB relay board. USB Relay Control can stay open; WFlash reads the relays back after each switch.", None))
         self.tabWidget_main.setTabText(self.tabWidget_main.indexOf(self.tab_setting), QCoreApplication.translate("MainWindow", u"Setting", None))
         self.pushButton_copyLog.setText(QCoreApplication.translate("MainWindow", u"Copy", None))
         self.pushButton_clearLog.setText(QCoreApplication.translate("MainWindow", u"Clear", None))

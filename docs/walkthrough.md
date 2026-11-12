@@ -2065,3 +2065,21 @@ Theo luật của dự án (không viết lời gọi phần cứng chưa kiểm
 ### Đã kiểm tra
 
 - Trên macOS với một module `hid` giả: script chạy hết, chỉ gửi `00 F1`. Điều này chỉ chứng minh logic của script; bo thật chưa chạy.
+
+## Phase 4.8: Bench 1 và 4, nguồn qua bo USB relay
+
+Spike 18 trên bench 4 (Round 20 trong `docs/winidea_api_notes.md`): `hidapi` 0.15.0 chạy trên Python 3.12 64-bit (trên 3.15 pip phải tự build và lỗi vì thiếu MSVC); một bo `16C0:05DF` `USBRelay8`; mở được ngay khi cửa sổ USB Relay Control đang mở; `get_feature_report(0, 9)` trả `[00, serial 6QMBS, 00, 00, mask]`, byte cuối là bitmask relay. Người dùng: Bench 1 và 4 giống nhau, ECU 0 = CH-A + USB relay 1, ECU 1 = CH-B + USB relay 2, relay ON = có nguồn. Mockup artboard 14 được duyệt trước khi làm.
+
+### Thay đổi
+
+- **`wflash/core/usb_relay.py`** (mới): `UsbRelayBoard` (`status`, `set`). Nạp `hid` lúc cần; tìm đúng một bo `16C0:05DF`; mở lại tối đa 8 lần khi bo bận; bật/tắt bằng lệnh của tool người dùng, rồi đọc lại bitmask, relay không đổi thì báo lỗi; không bao giờ gửi bật/tắt tất cả. Lỗi có gợi ý: thiếu `hidapi`, không thấy bo, hai bo, bo bận (đóng USB Relay Manager).
+- **`wflash/core/bench_switch.py`**: thêm Bench 1 và 4; `BENCH_POWER`, `power_of`, `polarity_text`; `BenchConfig.power_via`; `BenchSwitch.power` đi qua bo USB cho hai bench đó (relay on = có nguồn); JTAG vẫn qua Switch Debugger. Nhãn bench và ECU ghi `USB relay n`.
+- **`wflash/gui/main_window.ui`**: Bench 1 và 4 trong ô Bench; tên nhóm "Bench power and JTAG"; chữ ô tick; `label_benchUsbNote`. `ui_main_window.py` sinh lại.
+- **`wflash/gui/main_window.py`**: dòng chiều relay và ghi chú USB đổi theo bench.
+- **`pyproject.toml`**: `hidapi>=0.14`. **`wflash.spec`**: đóng gói `hid` khi có.
+- **Tài liệu**: `CLAUDE.md`, `docs/winidea_api_notes.md` (Round 20), `user_guide.html`, `docs/windows_test_guide.md` (Vòng 21).
+- **Test**: `tests/test_usb_relay.py` với `hid` giả dựng theo spike 18 (đọc byte cuối của report 0, lệnh bật/tắt, relay không đổi là lỗi, bo bận thì thử lại rồi báo, không có bo / hai bo, thiếu `hidapi`, cấu hình Bench 1 và 4, tắt/bật nguồn chỉ đổi relay của ECU đó và JTAG vẫn qua Switch Debugger, nguồn luôn bật lại); GUI (chữ ECU, chiều relay, ghi chú theo bench).
+
+### Đã kiểm tra
+
+- Trên macOS: bộ test đầy đủ, test threading, stress test, app mở được. Lệnh bật/tắt relay chưa chạy trên bo thật: đó là Vòng 21.
