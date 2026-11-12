@@ -1994,4 +1994,5 @@ Debug bundle 2026-11-12 09:07: người dùng tắt/bật nguồn bằng Switch 
 
 ### Đã kiểm tra
 
-- Trên macOS với `tests/fake_isystem.py`: bộ test đầy đủ, test threading, stress test, app mở được. Chưa chạy trên ECU: đó là Vòng 17.
+- Trên macOS với `tests/fake_isystem.py`: bộ test đầy đủ, test threading, stress test, app mở được.
+- Vòng 17 trên ECU (debug bundle 2026-11-12 10:06): ba lần Power-cycle ECU → Flash, cả ba lần nạp không reset, `begin_program` khoảng 100.5 s, đạt ngay lần đầu, Done.

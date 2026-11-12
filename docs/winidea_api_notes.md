@@ -537,7 +537,9 @@ User observation, Session Explorer screenshot after a hard reset (power cycle th
 
 So the reset is what broke programming: it started the firmware on the other cores, and only a power cycle undoes that. Round 9's table points the same way (good: M7_RFE STOP; bad: M7_RFE RUN). The user then read the cores after several power cycles and after waiting a few minutes: always M7_0 STOP, M7_RFE STOP, A53 / SPT / BBE32EP NOT ACCESSIBLE.
 
-**Decision (user, 2026-11-12):** when every core is STOP or NOT ACCESSIBLE and at least one is STOP (`just_powered_on`), `_prepare_cores` programs at once, without a reset. Any core in RUN, IDLE or another state keeps the old check. A retry after a quick failure still resets first. Tools → Check winIDEA cores says "ECU just powered on: ready to flash" in that state. Not yet run on hardware.
+**Decision (user, 2026-11-12):** when every core is STOP or NOT ACCESSIBLE and at least one is STOP (`just_powered_on`), `_prepare_cores` programs at once, without a reset. Any core in RUN, IDLE or another state keeps the old check. A retry after a quick failure still resets first. Tools → Check winIDEA cores says "ECU just powered on: ready to flash" in that state.
+
+**Round 17 (debug bundle 2026-11-12 10:06): it works on the ECU.** Three times: Tools → Power-cycle ECU (Switch Debugger, ECU 1), Check winIDEA cores ("ready to flash"), Flash. Each time `_prepare_cores` saw M7_0 STOP, M7_RFE STOP, A53 / SPT / BBE32EP NOT ACCESSIBLE and programmed without a reset; `begin_program` took 100.7 s, 100.5 s and 100.5 s, the read-back confirmed it on the first try, Done. The user confirmed all three passed.
 
 Switch Debugger (same round): `Off;Sensor;<id>` does not release a JTAG port; the box logs "Send Switch to Port N" for On and Off alike, and pressing the port by hand does not release it either. Only `Off_All;Sensor;_` does. The box connects one port at a time.
 

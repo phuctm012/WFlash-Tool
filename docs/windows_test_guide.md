@@ -802,3 +802,5 @@ Lần tới WFlash báo `Flash failed: winIDEA could not start programming in 3 
 3. Lặp lại bước 1–2 thêm 2 lần.
 
 Gửi lại: debug bundle (File → Export debug bundle) sau các lần flash.
+
+**Kết quả Vòng 17 (2026-11-12): đạt.** Ba lần: Power-cycle ECU → Check winIDEA cores (`ready to flash`) → Flash. Cả ba lần WFlash nạp luôn không reset, `begin_program` khoảng 100.5 s, đạt ngay lần thử đầu, Done.
