@@ -2083,3 +2083,4 @@ Spike 18 trên bench 4 (Round 20 trong `docs/winidea_api_notes.md`): `hidapi` 0.
 ### Đã kiểm tra
 
 - Trên macOS: bộ test đầy đủ, test threading, stress test, app mở được. Lệnh bật/tắt relay chưa chạy trên bo thật: đó là Vòng 21.
+- Sửa thêm: **`tools/check_build_env.py`** liệt kê `hidapi` (module `hid`). Trước đó, trên máy đã có đủ các gói khác, `build_windows.bat` bỏ qua pip và build ra exe không có `hidapi`.

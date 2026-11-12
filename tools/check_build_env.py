@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 NEEDED = {
     "PySide6": "PySide6", "requests": "requests", "pydantic": "pydantic", "yaml": "PyYAML",
     "keyring": "keyring", "truststore": "truststore", "pytest": "pytest", "pytestqt": "pytest-qt",
-    "responses": "responses", "PyInstaller": "pyinstaller",
+    "responses": "responses", "PyInstaller": "pyinstaller", "hid": "hidapi",  # USB relay, benches 1 and 4
 }
 
 
